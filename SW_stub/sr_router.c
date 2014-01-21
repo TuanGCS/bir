@@ -13,6 +13,7 @@
 #include "sr_router.h"
 
 #include "packets.h"
+#include "arp.h"
 
 
 void router_init( router_t* router ) {
@@ -58,25 +59,10 @@ void router_destroy( router_t* router ) {
 #endif
 }
 
-void router_handle_arp(packet_ARP_t * arp, byte * payload, int payload_len) {
-	// decision logic
-	if (arp->hardwaretype == ARP_HTYPE_ETH_NO && arp->protocoltype == ARP_PTYPE_IP_NO && arp->hardwareaddresslength == 6 && arp->protocoladdresslength == 4) {
-		const int opcode = ntohs(arp->opcode);
-		switch(opcode) {
-		case ARP_OPCODE_REQUEST:
-			printf("ARP Request: Who has %d.%d.%d.%d? Tell %d.%d.%d.%d\n",
-					arp->target_ip[0], arp->target_ip[1], arp->target_ip[2], arp->target_ip[3],
-					arp->sender_ip[0], arp->sender_ip[1], arp->sender_ip[2], arp->sender_ip[3]);
-			break;
-		default:
-			fprintf(stderr, "Unsupported ARP opcode %x!\n", opcode);
-			break;
-		}
-	}
-		else fprintf(stderr, "Unsupported ARP packet!\n");
-}
+
 
 void router_handle_packet( packet_info_t* pi ) {
+
 	byte * payload = pi->packet;
 	int len = pi->len;
 
@@ -87,7 +73,7 @@ void router_handle_packet( packet_info_t* pi ) {
 		case ETH_ARP_TYPE:
 			if (PACKET_CAN_MARSHALL(packet_ARP_t, len)) {
 				packet_ARP_t * arp_packet = PACKET_MARSHALL(packet_ARP_t, payload, len);
-				router_handle_arp(arp_packet, payload, len);
+				arp_onreceive(pi, arp_packet, payload, len);
 			} else
 				fprintf(stderr, "Invalid ARP packet!\n");
 			break;
@@ -164,6 +150,8 @@ void router_add_interface( router_t* router,
     intf->mac = mac;
     intf->enabled = TRUE;
     intf->neighbor_list_head = NULL;
+
+    arp_putincache(&router->arptable, ip, mac, intf);
 
 #ifdef MININET_MODE
     // open a socket to talk to the hw on this interface

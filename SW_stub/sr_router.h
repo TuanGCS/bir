@@ -18,6 +18,7 @@ struct router_t;
 
 #include <netinet/in.h>
 #include <pthread.h>
+#include <stdio.h>
 #include <sys/time.h>
 #include "common/nf10util.h"
 #include "common/nf_util.h"
@@ -25,6 +26,8 @@ struct router_t;
 #include "sr_common.h"
 #include "sr_interface.h"
 #include "sr_work_queue.h"
+
+#include "packets.h"
 
 /** max number of interfaces the router max have */
 #define ROUTER_MAX_INTERFACES 4
@@ -35,6 +38,8 @@ typedef struct router_t {
     interface_t interface[ROUTER_MAX_INTERFACES];
     unsigned num_interfaces;
     pthread_mutex_t intf_lock;
+
+    arp_table_t arptable;
 
     bool use_ospf;
 

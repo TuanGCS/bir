@@ -31,6 +31,10 @@ void sr_integ_init(struct sr_instance* sr) {
     debug_println( "Initializing the router subsystem" );
 
     router_t* subsystem = malloc_or_die( sizeof(router_t) );
+
+    subsystem->arptable.entries = NULL;
+    subsystem->arptable.entries_size = 0;
+
     router_init( subsystem );
 #ifdef MININET_MODE
     subsystem->name = sr->router_name;      // router name (e.g. r0), needed for
@@ -44,6 +48,7 @@ void sr_integ_init(struct sr_instance* sr) {
  * protocol) which require interface information during initialization.
  */
 void sr_integ_hw_setup( struct sr_instance* sr ) {
+
     debug_println( "Performing post-hw setup initialization" );
 }
 
