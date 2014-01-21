@@ -74,7 +74,9 @@ void sr_integ_input(struct sr_instance* sr,
     /* include info about the handling router and the packet's length */
     pi->router = sr->interface_subsystem;
     pi->len = len;
+#if defined _CPUMODE_ || defined MININET_MODE
     pi->interface = intf;
+#endif
 
     /* copy the (Ethernet) packet itself */
     pi->packet = malloc_or_die( len ); /* freed by router_pthread_main */

@@ -12,6 +12,8 @@
 #include "sr_cpu_extension_nf2.h"
 #include "sr_router.h"
 
+#include "packets.h"
+
 
 void router_init( router_t* router ) {
 #ifdef _CPUMODE_
@@ -56,8 +58,58 @@ void router_destroy( router_t* router ) {
 #endif
 }
 
+void router_handle_arp(packet_ARP_t * arp, byte * payload, int payload_len) {
+	// decision logic
+	if (arp->hardwaretype == ARP_HTYPE_ETH_NO && arp->protocoltype == ARP_PTYPE_IP_NO && arp->hardwareaddresslength == 6 && arp->protocoladdresslength == 4) {
+		const int opcode = ntohs(arp->opcode);
+		switch(opcode) {
+		case ARP_OPCODE_REQUEST:
+			printf("ARP Request: Who has %d.%d.%d.%d? Tell %d.%d.%d.%d\n",
+					arp->target_ip[0], arp->target_ip[1], arp->target_ip[2], arp->target_ip[3],
+					arp->sender_ip[0], arp->sender_ip[1], arp->sender_ip[2], arp->sender_ip[3]);
+			break;
+		default:
+			fprintf(stderr, "Unsupported ARP opcode %x!\n", opcode);
+			break;
+		}
+	}
+		else fprintf(stderr, "Unsupported ARP packet!\n");
+}
+
 void router_handle_packet( packet_info_t* pi ) {
-	printf("NEW FRAME RECEIVED!!!\n");
+	byte * payload = pi->packet;
+	int len = pi->len;
+
+	if (PACKET_CAN_MARSHALL(packet_Ethernet_t, len)) {
+		packet_Ethernet_t * eth_packet = PACKET_MARSHALL(packet_Ethernet_t, payload, len);
+		const int type = ntohs(eth_packet->type);
+		switch(type) {
+		case ETH_ARP_TYPE:
+			if (PACKET_CAN_MARSHALL(packet_ARP_t, len)) {
+				packet_ARP_t * arp_packet = PACKET_MARSHALL(packet_ARP_t, payload, len);
+				router_handle_arp(arp_packet, payload, len);
+			} else
+				fprintf(stderr, "Invalid ARP packet!\n");
+			break;
+		default:
+			fprintf(stderr, "Unknown ethernet type %x!\n", eth_packet->type);
+			break;
+		}
+	} else
+		fprintf(stderr, "Invalid Ethernet packet!\n");
+
+//    packet_IPv4_header_t * ipv4 = (packet_IPv4_header_t *) packet;
+//    printf("IPv4 packet:\n");
+//    printf("Version ihl: 0x%x \n", ipv4->version_ihl);
+//    printf("DSCP ECN: 0x%x \n", ipv4->dscp_ecn);
+//    printf("Total length: %d \n", ipv4->total_length);
+//    printf("Id: %d \n", ipv4->id);
+//    printf("Flags fragment offset: 0x%x \n", ipv4->flags_fragmentoffset);
+//    printf("TTL: %d \n", ipv4->ttl);
+//    printf("Protocol: %d (0x%x) \n", ipv4->protocol, ipv4->protocol);
+//    printf("Headerchecksum: %d (0x%x)\n", ipv4->header_checksum, ipv4->header_checksum);
+//    printf("Source ip: %d.%d.%d.%d\n", ipv4->sourceip & 0xFF, (ipv4->sourceip >> 8) & 0xFF, (ipv4->sourceip >> 16) & 0xFF, (ipv4->sourceip >> 24) & 0xFF);
+//    printf("Destination ip: %d.%d.%d.%d\n", ipv4->destionationip & 0xFF, (ipv4->destionationip >> 8) & 0xFF, (ipv4->destionationip >> 16) & 0xFF, (ipv4->destionationip >> 24) & 0xFF);
 }
 
 
