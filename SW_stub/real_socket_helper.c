@@ -6,6 +6,7 @@
 #include <string.h>           /* memset, strlen */
 #include "debug.h"            /* debug_println */
 #include "real_socket_helper.h"
+#include <unistd.h>
 
 ssize_t real_read_once( int fd, void* buf, unsigned n ) {
     ssize_t nread;

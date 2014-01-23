@@ -131,7 +131,24 @@ int sr_mininet_read_packet( struct sr_instance* sr ) {
 }
 
 int sr_mininet_output( uint8_t* buf, unsigned len, interface_t* intf ) {
-	return 0;
+	fd_set wrset, errset;
+	struct timeval timeout;
+
+	FD_ZERO( &wrset );
+	FD_ZERO( &errset );
+
+	FD_SET(intf->hw_fd, &wrset);
+	FD_SET(intf->hw_fd, &errset);
+
+	/* wait for something to happen */
+	timeout.tv_sec  = 1;
+	timeout.tv_usec = 0;
+	select( intf->hw_fd + 1, NULL, &wrset, &errset, &timeout );
+
+	if( FD_ISSET( intf->hw_fd, &wrset ) )
+		return real_writen(intf->hw_fd, buf, len);
+	else
+		return -1;
 }
 
 #endif /* MININET_MODE */
