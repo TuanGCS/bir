@@ -14,20 +14,13 @@
 #define ARP_OP_REQUEST (1)
 #define ARP_OP_REPLY (2)
 
-#define MAC_TO_UINT64(mac) ((uint64_t) (*((uint64_t *)(&mac))))
-#define IP_0(ip) (ip & 0xFF)
-#define IP_1(ip) ((ip >> 8) & 0xFF)
-#define IP_2(ip) ((ip >> 16) & 0xFF)
-#define IP_3(ip) ((ip >> 24) & 0xFF)
-#define IP_PRINT(ip) IP_0(ip), IP_1(ip), IP_2(ip), IP_3(ip)
-
 void arp_print_cache(arp_cache_t * cache) {
 	int i;
 	printf("THE ARP TABLE\n-------------\n\n");
 	for (i = 0; i < cache->cache_size; i++)
-		printf("%d. MAC: %lX, IP: %d.%d.%d.%d, iface %s\n",
-				i, MAC_TO_UINT64(cache->entries[i].mac),
-				IP_PRINT(cache->entries[i].ip),
+		printf("%d. MAC: %s, IP: %s, iface %s\n",
+				i, quick_mac_to_string(&cache->entries[i].mac),
+				quick_ip_to_string(cache->entries[i].ip),
 				cache->entries[i].interface->name);
 	printf("\n");
 }
@@ -125,7 +118,7 @@ void arp_onreceive(packet_info_t* pi, packet_arp_t * arp) {
 			// Who has arp->target_ip Tell arp->sender_ip
 			arp_cache_entry_t * result = arp_getcachebyip(cache, arp->target_ip);
 			if (result == NULL)
-				fprintf(stderr, "No one has %d.%d.%d.%d\n",IP_PRINT(arp->target_ip));
+				fprintf(stderr, "No one has %s\n",quick_ip_to_string(arp->target_ip));
 			else
 				arp_send(get_sr(), pi->interface, arp, pi, ARP_OP_REPLY, arp->sender_ip, arp->sender_mac, result->ip, result->mac);
 			break;

@@ -59,6 +59,6 @@ typedef struct PACKED packet_ip4 {
     uint16_t header_checksum;
     addr_ip_t src_ip;
     addr_ip_t dst_ip;
-} packet_ip4;
+} packet_ip4_t;
 
 #endif

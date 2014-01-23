@@ -14,7 +14,7 @@
 
 #include "packets.h"
 #include "arp.h"
-
+#include "ip.h"
 
 void router_init( router_t* router ) {
 #ifdef _CPUMODE_
@@ -77,10 +77,14 @@ void router_handle_packet( packet_info_t* pi ) {
 					fprintf(stderr, "Invalid ARP packet!\n");
 				break;
 			case ETH_IP_TYPE:
-				// TODO
+				if (PACKET_CAN_MARSHALL(packet_ip4_t, sizeof(packet_ethernet_t), pi->len)) {
+					packet_ip4_t * ip_packet = PACKET_MARSHALL(packet_ip4_t, pi->packet, sizeof(packet_ethernet_t));
+					ip_onreceive(pi, ip_packet);
+				} else
+					fprintf(stderr, "Invalid IP packet!\n");
 				break;
 			case ETH_RARP_TYPE:
-				// TODO, Maybe
+				fprintf(stderr, "Received RARP which is currently unsupported\n");
 				break;
 			default:
 				fprintf(stderr, "Unsupported protocol type %x \n", eth_packet->type);
@@ -90,18 +94,6 @@ void router_handle_packet( packet_info_t* pi ) {
 		fprintf(stderr, "Invalid Ethernet packet! \n");
 	}
 
-//    packet_IPv4_header_t * ipv4 = (packet_IPv4_header_t *) packet;
-//    printf("IPv4 packet:\n");
-//    printf("Version ihl: 0x%x \n", ipv4->version_ihl);
-//    printf("DSCP ECN: 0x%x \n", ipv4->dscp_ecn);
-//    printf("Total length: %d \n", ipv4->total_length);
-//    printf("Id: %d \n", ipv4->id);
-//    printf("Flags fragment offset: 0x%x \n", ipv4->flags_fragmentoffset);
-//    printf("TTL: %d \n", ipv4->ttl);
-//    printf("Protocol: %d (0x%x) \n", ipv4->protocol, ipv4->protocol);
-//    printf("Headerchecksum: %d (0x%x)\n", ipv4->header_checksum, ipv4->header_checksum);
-//    printf("Source ip: %d.%d.%d.%d\n", ipv4->sourceip & 0xFF, (ipv4->sourceip >> 8) & 0xFF, (ipv4->sourceip >> 16) & 0xFF, (ipv4->sourceip >> 24) & 0xFF);
-//    printf("Destination ip: %d.%d.%d.%d\n", ipv4->destionationip & 0xFF, (ipv4->destionationip >> 8) & 0xFF, (ipv4->destionationip >> 16) & 0xFF, (ipv4->destionationip >> 24) & 0xFF);
 }
 
 
@@ -126,6 +118,7 @@ void router_handle_work( work_t* work ) {
 
     default:
         die( "Error: unknown work type %u", work->type );
+        break;
     }
 }
 #endif
@@ -180,6 +173,7 @@ void router_add_interface( router_t* router,
 
     router->num_interfaces += 1;
 
+    // TODO! query the coputers on those interfaces
 }
 
 
