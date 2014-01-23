@@ -6,6 +6,7 @@
 #include "sr_integration.h"
 #include "sr_interface.h"
 
-void ethernet_packet_send(struct sr_instance* sr, interface_t* intf, addr_mac_t target_mac, addr_mac_t source_mac, uint16_t type, byte * payload, int payloadsize);
+/* Send an ethernet packet. packet_start must point at the beginning of a valid ethernet packet!!!! */
+void ethernet_packet_send(struct sr_instance* sr, interface_t* intf, addr_mac_t target_mac, addr_mac_t source_mac, uint16_t type, packet_info_t* pi);
 
 #endif

@@ -63,19 +63,16 @@ void router_destroy( router_t* router ) {
 
 void router_handle_packet( packet_info_t* pi ) {
 
-	byte * payload = pi->packet;
-	int len = pi->len;
+	if (PACKET_CAN_MARSHALL(packet_ethernet_t, 0, pi->len)) {
 
-	if (PACKET_CAN_MARSHALL(packet_ethernet_t, 0, len)) {
-
-		packet_ethernet_t * eth_packet = PACKET_MARSHALL(packet_ethernet_t, payload, 0);
+		packet_ethernet_t * eth_packet = PACKET_MARSHALL(packet_ethernet_t, pi->packet, 0);
 		const int type = ntohs(eth_packet->type);
 
 		switch(type) {
 			case ETH_ARP_TYPE:
-				if (PACKET_CAN_MARSHALL(packet_arp_t, sizeof(packet_ethernet_t), len)) {
-					packet_arp_t * arp_packet = PACKET_MARSHALL(packet_arp_t, payload, sizeof(packet_ethernet_t));
-					arp_onreceive(pi, arp_packet, payload, len);
+				if (PACKET_CAN_MARSHALL(packet_arp_t, sizeof(packet_ethernet_t), pi->len)) {
+					packet_arp_t * arp_packet = PACKET_MARSHALL(packet_arp_t, pi->packet, sizeof(packet_ethernet_t));
+					arp_onreceive(pi, arp_packet);
 				} else
 					fprintf(stderr, "Invalid ARP packet!\n");
 				break;

@@ -32,6 +32,7 @@ void arp_print_cache(arp_cache_t * cache) {
 	printf("\n");
 }
 
+// TODO! thread safety
 arp_cache_entry_t * arp_getcachebymac(arp_cache_t * cache, addr_mac_t mac) {
 	int i;
 	for (i = 0; i < cache->cache_size; i++)
@@ -42,6 +43,7 @@ arp_cache_entry_t * arp_getcachebymac(arp_cache_t * cache, addr_mac_t mac) {
 	return NULL;
 }
 
+// TODO! thread safety
 arp_cache_entry_t * arp_getcachebyip(arp_cache_t * cache, addr_ip_t ip) {
 	int i;
 	for (i = 0; i < cache->cache_size; i++)
@@ -50,6 +52,7 @@ arp_cache_entry_t * arp_getcachebyip(arp_cache_t * cache, addr_ip_t ip) {
 	return NULL;
 }
 
+// TODO! thread safety
 void arp_putincache(arp_cache_t * cache, addr_ip_t ip, addr_mac_t mac, interface_t* interface) {
 	arp_cache_entry_t * existing = arp_getcachebymac(cache, mac);
 	if (existing != NULL) {
@@ -84,24 +87,28 @@ void arp_putincache(arp_cache_t * cache, addr_ip_t ip, addr_mac_t mac, interface
 	arp_print_cache(cache);
 }
 
-void arp_send(struct sr_instance* sr, interface_t* intf, uint8_t opcode, addr_ip_t target_ip, addr_mac_t target_mac, addr_ip_t source_ip, addr_mac_t source_mac) {
+/* NOTE! After using arp_send, the original packet will be destroyed! Don't try to access fields in arp after the call of this function! */
+void arp_send(
+		struct sr_instance* sr, interface_t* intf, packet_arp_t * arp,
+		packet_info_t* pi,
+		uint8_t opcode, addr_ip_t target_ip, addr_mac_t target_mac, addr_ip_t source_ip, addr_mac_t source_mac) {
 
-	packet_arp_t arpdiscovery = {
-			.hardwareaddresslength = 6,
-			.protocoladdresslength = 4,
-			.opcode = htons(opcode),
-			.protocoltype = htons(ARP_PTYPE_IP),
-			.hardwaretype = htons(ARP_HTYPE_ETH),
-			.target_ip = target_ip,
-			.target_mac = target_mac,
-			.sender_ip = source_ip,
-			.sender_mac = source_mac
-	};
+	arp->hardwareaddresslength = 6;
+	arp->protocoladdresslength = 4;
+	arp->opcode = htons(opcode);
+	arp->protocoltype = htons(ARP_PTYPE_IP);
+	arp->hardwaretype = htons(ARP_HTYPE_ETH);
+	arp->target_ip = target_ip;
+	arp->target_mac = target_mac;
+	arp->sender_ip = source_ip;
+	arp->sender_mac = source_mac;
 
-	ethernet_packet_send(sr, intf, target_mac, source_mac, htons(ETH_ARP_TYPE), (byte *) &arpdiscovery, sizeof(arpdiscovery));
+	// This call does not send arp directly, it sends packet_start which is assumed to include arp
+	// packet_start needs to point at the original ethernet packet that encapsulated arp
+	ethernet_packet_send(sr, intf, target_mac, source_mac, htons(ETH_ARP_TYPE), pi);
 }
 
-void arp_onreceive(packet_info_t* pi, packet_arp_t * arp, byte * payload, int payload_len) {
+void arp_onreceive(packet_info_t* pi, packet_arp_t * arp) {
 	// decision logic
 	const int hardwaretype = ntohs(arp->hardwaretype);
 	const int protocoltype = ntohs(arp->protocoltype);
@@ -120,7 +127,7 @@ void arp_onreceive(packet_info_t* pi, packet_arp_t * arp, byte * payload, int pa
 			if (result == NULL)
 				fprintf(stderr, "No one has %d.%d.%d.%d\n",IP_PRINT(arp->target_ip));
 			else
-				arp_send(get_sr(), pi->interface, ARP_OP_REPLY, arp->sender_ip, arp->sender_mac, result->ip, result->mac);
+				arp_send(get_sr(), pi->interface, arp, pi, ARP_OP_REPLY, arp->sender_ip, arp->sender_mac, result->ip, result->mac);
 			break;
 		}
 		default:
