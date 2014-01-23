@@ -23,6 +23,8 @@
 #include "sr_work_queue.h"
 #include "sr_dumper.h"
 
+#include "ip.h"
+
 /**
  * First method called during router initialization.
  * Reading in hardware information etc.
@@ -35,6 +37,10 @@ void sr_integ_init(struct sr_instance* sr) {
     /* Init arp cache */
     subsystem->arp_cache.entries = NULL;
     subsystem->arp_cache.cache_size = 0;
+
+    /* Init ip table */
+    subsystem->ip_table.entries = NULL;
+    subsystem->ip_table.table_size = 0;
 
     router_init( subsystem );
 
@@ -50,8 +56,14 @@ void sr_integ_init(struct sr_instance* sr) {
  * protocol) which require interface information during initialization.
  */
 void sr_integ_hw_setup( struct sr_instance* sr ) {
+	router_t * router = sr_get_subsystem(sr);
 
     debug_println( "Performing post-hw setup initialization" );
+
+	// TODO! STATIC IP TABLE REMOVE THIS
+    ip_putintable(&router->ip_table, IP_CONVERT(10,0,1,2), &router->interface[0]);
+    ip_putintable(&router->ip_table, IP_CONVERT(10,0,2,2), &router->interface[1]);
+    ip_putintable(&router->ip_table, IP_CONVERT(10,0,3,2), &router->interface[2]);
 }
 
 /**

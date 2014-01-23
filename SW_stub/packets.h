@@ -61,4 +61,14 @@ typedef struct PACKED packet_ip4 {
     addr_ip_t dst_ip;
 } packet_ip4_t;
 
+typedef struct ip_table_entry {
+	addr_ip_t ip;
+	interface_t* interface;
+} ip_table_entry_t;
+
+typedef struct ip_table {
+	ip_table_entry_t * entries;
+	int table_size;
+} ip_table_t;
+
 #endif

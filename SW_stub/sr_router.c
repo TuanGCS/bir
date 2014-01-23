@@ -173,7 +173,7 @@ void router_add_interface( router_t* router,
 
     router->num_interfaces += 1;
 
-    // TODO! query the coputers on those interfaces
+    // TODO! query the computers on those interfaces
 }
 
 
