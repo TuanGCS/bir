@@ -1,6 +1,6 @@
 #include "arp.h"
 
-void arp_onreceive(packet_ARP_t * arp, byte * payload, int payload_len) {
+void arp_onreceive(packet_arp_t * arp, byte * payload, int payload_len) {
 	// decision logic
 	const int hardwaretype = ntohs(arp->hardwaretype);
 	const int protocoltype = ntohs(arp->protocoltype);

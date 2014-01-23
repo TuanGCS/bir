@@ -39,7 +39,7 @@ typedef struct router_t {
     unsigned num_interfaces;
     pthread_mutex_t intf_lock;
 
-    arp_table_t arptable;
+    arp_cache_t arp_cache;
 
     bool use_ospf;
 

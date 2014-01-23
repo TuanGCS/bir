@@ -66,23 +66,32 @@ void router_handle_packet( packet_info_t* pi ) {
 	byte * payload = pi->packet;
 	int len = pi->len;
 
-	if (PACKET_CAN_MARSHALL(packet_Ethernet_t, len)) {
-		packet_Ethernet_t * eth_packet = PACKET_MARSHALL(packet_Ethernet_t, payload, len);
+	if (PACKET_CAN_MARSHALL(packet_ethernet_t, 0, len)) {
+
+		packet_ethernet_t * eth_packet = PACKET_MARSHALL(packet_ethernet_t, payload, 0);
 		const int type = ntohs(eth_packet->type);
+
 		switch(type) {
-		case ETH_ARP_TYPE:
-			if (PACKET_CAN_MARSHALL(packet_ARP_t, len)) {
-				packet_ARP_t * arp_packet = PACKET_MARSHALL(packet_ARP_t, payload, len);
-				arp_onreceive(pi, arp_packet, payload, len);
-			} else
-				fprintf(stderr, "Invalid ARP packet!\n");
-			break;
-		default:
-			fprintf(stderr, "Unknown ethernet type %x!\n", eth_packet->type);
-			break;
+			case ETH_ARP_TYPE:
+				if (PACKET_CAN_MARSHALL(packet_arp_t, sizeof(packet_ethernet_t), len)) {
+					packet_arp_t * arp_packet = PACKET_MARSHALL(packet_arp_t, payload, sizeof(packet_ethernet_t));
+					arp_onreceive(pi, arp_packet, payload, len);
+				} else
+					fprintf(stderr, "Invalid ARP packet!\n");
+				break;
+			case ETH_IP_TYPE:
+				// TODO
+				break;
+			case ETH_RARP_TYPE:
+				// TODO, Maybe
+				break;
+			default:
+				fprintf(stderr, "Unsupported protocol type %x \n", eth_packet->type);
+				break;
 		}
-	} else
-		fprintf(stderr, "Invalid Ethernet packet!\n");
+	} else {
+		fprintf(stderr, "Invalid Ethernet packet! \n");
+	}
 
 //    packet_IPv4_header_t * ipv4 = (packet_IPv4_header_t *) packet;
 //    printf("IPv4 packet:\n");
@@ -151,7 +160,7 @@ void router_add_interface( router_t* router,
     intf->enabled = TRUE;
     intf->neighbor_list_head = NULL;
 
-    arp_putincache(&router->arptable, ip, mac, intf);
+    arp_putincache(&router->arp_cache, ip, mac, intf);
 
 #ifdef MININET_MODE
     // open a socket to talk to the hw on this interface

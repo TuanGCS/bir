@@ -32,10 +32,12 @@ void sr_integ_init(struct sr_instance* sr) {
 
     router_t* subsystem = malloc_or_die( sizeof(router_t) );
 
-    subsystem->arptable.entries = NULL;
-    subsystem->arptable.entries_size = 0;
+    /* Init arp cache */
+    subsystem->arp_cache.entries = NULL;
+    subsystem->arp_cache.cache_size = 0;
 
     router_init( subsystem );
+
 #ifdef MININET_MODE
     subsystem->name = sr->router_name;      // router name (e.g. r0), needed for
 #endif                                      // interface initialisation
@@ -79,6 +81,7 @@ void sr_integ_input(struct sr_instance* sr,
     /* include info about the handling router and the packet's length */
     pi->router = sr->interface_subsystem;
     pi->len = len;
+
 #if defined _CPUMODE_ || defined MININET_MODE
     pi->interface = intf;
 #endif
