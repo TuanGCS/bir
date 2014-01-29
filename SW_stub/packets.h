@@ -28,6 +28,9 @@
 
 #define MAC_BROADCAST (.octet = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF})
 
+#define ICMP_TYPE_REQUEST (8)
+#define ICMP_TYPE_REPLAY (0)
+
 typedef struct PACKED packet_ethernet {
 	addr_mac_t dest_mac;
 	addr_mac_t source_mac;
@@ -46,6 +49,15 @@ typedef struct PACKED packet_arp {
 	addr_ip_t target_ip;
 } packet_arp_t;
 
+typedef struct PACKED packet_icmp {
+	uint8_t type;
+	uint8_t code;
+	uint16_t header_checksum;
+	uint16_t id;
+	uint16_t seqNum;
+	char data[56];
+} packet_icmp_t;
+
 typedef struct arp_cache_entry {
 	addr_ip_t ip;
 	addr_mac_t mac;
@@ -59,16 +71,16 @@ typedef struct arp_cache {
 } arp_cache_t;
 
 typedef struct PACKED packet_ip4 {
-    uint8_t version_ihl;
-    uint8_t dscp_ecn;
-    uint16_t total_length;
-    uint16_t id;
-    uint16_t flags_fragmentoffset;
-    uint8_t ttl;
-    uint8_t protocol;
-    uint16_t header_checksum;
-    addr_ip_t src_ip;
-    addr_ip_t dst_ip;
+	uint8_t version_ihl;
+	uint8_t dscp_ecn;
+	uint16_t total_length;
+	uint16_t id;
+	uint16_t flags_fragmentoffset;
+	uint8_t ttl;
+	uint8_t protocol;
+	uint16_t header_checksum;
+	addr_ip_t src_ip;
+	addr_ip_t dst_ip;
 } packet_ip4_t;
 
 typedef struct ip_table_entry {
