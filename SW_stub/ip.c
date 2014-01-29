@@ -5,6 +5,7 @@
 #include "sr_interface.h"
 #include "sr_integration.h"
 #include "ethernet_packet.h"
+#include "arp.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -99,23 +100,30 @@ void ip_putintable(ip_table_t * table, addr_ip_t ip, interface_t* interface) {
 
 static inline int ip_checkchecksum(packet_ip4_t * ipv4) {
 	uint16_t * data = (uint16_t *) ipv4;
-	const int size = sizeof(packet_ip4_t)/2;
-	uint16_t sum = 0;
-	int i;
-	for (i = 0; i < size; i++) sum+=ntohs(data[i]);
-	return sum == 0xFFFF;
+	int size = sizeof(packet_ip4_t)/2;
+
+	uint32_t sum;
+	for (sum = 0; size > 0; size--)
+	   sum += ntohs(*data++);
+	sum = (sum >> 16) + (sum & 0xffff);
+	sum += (sum >> 16);
+
+	return ((uint16_t)~sum) == (0);
 }
 
 static inline void ip_generatechecksum(packet_ip4_t * ipv4) {
 	ipv4->header_checksum = 0;
 
 	uint16_t * data = (uint16_t *) ipv4;
-	const int size = sizeof(packet_ip4_t)/2;
-	uint16_t sum = 0;
-	int i;
-	for (i = 0; i < size; i++) sum+=ntohs(data[i]);
+	int size = sizeof(packet_ip4_t)/2;
 
-	ipv4->header_checksum = htons(0xFFFF - sum);
+	uint32_t sum;
+	for (sum = 0; size > 0; size--)
+	   sum += ntohs(*data++);
+	sum = (sum >> 16) + (sum & 0xffff);
+	sum += (sum >> 16);
+
+	ipv4->header_checksum = htons(((uint16_t)~sum));
 }
 
 
@@ -135,11 +143,14 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 	if (dest_ip_entry != NULL) {
 		ipv4->ttl--; // reduce ttl
 
-		// resend
-		addr_mac_t mac_broadcast = {.octet = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF}}; // this is cheating, send to the broadcast MAC TODO! TO WHICH MAC SHOULD WE SEND?
+		arp_cache_entry_t * arp_dest = arp_getcachebyip(&pi->router->arp_cache, ipv4->dst_ip);
 
-		ip_generatechecksum(ipv4); // generate checksum
-		ethernet_packet_send(get_sr(), dest_ip_entry->interface, mac_broadcast, dest_ip_entry->interface->mac, htons(ETH_IP_TYPE), pi);
+		if (arp_dest != NULL) {
+			ip_generatechecksum(ipv4); // generate checksum
+			ethernet_packet_send(get_sr(), dest_ip_entry->interface, arp_dest->mac, dest_ip_entry->interface->mac, htons(ETH_IP_TYPE), pi);
+		} else
+			fprintf(stderr, "Cannot forward IP packet! No entry in ARP table\n");
+
 	} else
 		printf("Longest prefix matching failed to find an interface for %s\n", quick_ip_to_string(ipv4->dst_ip));
 
