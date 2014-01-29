@@ -275,3 +275,32 @@ void arp_clear_static(packet_info_t* pi) {
 
 	}
 }
+
+void arp_send_request(router_t* router, interface_t* interface, addr_ip_t target_ip) {
+
+	packet_info_t pi;
+	pi.router = router;
+	pi.packet = (byte *) malloc(
+			sizeof(packet_ethernet_t) + sizeof(packet_arp_t));;
+	pi.len = sizeof(packet_ethernet_t) + sizeof(packet_arp_t);
+	pi.interface = interface;
+
+	packet_arp_t* arp = (packet_arp_t *) &pi.packet[sizeof(packet_ethernet_t)];
+	addr_mac_t mac_broadcast = {.octet = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF}};
+
+	arp->hardwareaddresslength = 6;
+	arp->protocoladdresslength = 4;
+	arp->opcode = htons(ARP_OPCODE_REQUEST);
+	arp->protocoltype = htons(ARP_PTYPE_IP);
+	arp->hardwaretype = htons(ARP_HTYPE_ETH);
+	arp->target_ip = target_ip;
+	arp->target_mac = mac_broadcast;
+	arp->sender_ip = pi.interface->ip;
+	arp->sender_mac = pi.interface->mac;
+
+	arp_send(get_sr(), pi.interface, arp, &pi, ARP_OP_REPLY, arp->sender_ip,
+			arp->sender_mac, pi.interface->ip, pi.interface->mac);
+
+	free(pi.packet);
+
+}

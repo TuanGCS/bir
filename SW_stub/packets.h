@@ -26,6 +26,8 @@
 
 #define ARP_THRESHOLD (50)
 
+#define MAC_BROADCAST (.octet = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF})
+
 typedef struct PACKED packet_ethernet {
 	addr_mac_t dest_mac;
 	addr_mac_t source_mac;
