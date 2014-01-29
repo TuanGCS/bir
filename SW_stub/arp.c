@@ -18,20 +18,28 @@ void arp_print_cache(arp_cache_t * cache) {
 	int i;
 	printf("THE ARP TABLE\n-------------\n\n");
 	for (i = 0; i < cache->cache_size; i++)
-		printf("%d. MAC: %s, IP: %s, iface %s\n",
-				i, quick_mac_to_string(&cache->entries[i].mac),
+		printf("%d. MAC: %s, IP: %s, iface %s, timeout %ld \n", i,
+				quick_mac_to_string(&cache->entries[i].mac),
 				quick_ip_to_string(cache->entries[i].ip),
-				cache->entries[i].interface->name);
+				cache->entries[i].interface->name,
+				cache->entries[i].tv->tv_sec);
 	printf("\n");
+}
+
+int match_mac(addr_mac_t mac1, addr_mac_t mac2) {
+	if (mac1.octet[0] == mac2.octet[0] && mac1.octet[1] == mac2.octet[1]
+			&& mac1.octet[2] == mac2.octet[2] && mac1.octet[3] == mac2.octet[3]
+			&& mac1.octet[4] == mac2.octet[4] && mac1.octet[5] == mac2.octet[5])
+		return 1;
+	else
+		return 0;
 }
 
 // TODO! thread safety
 arp_cache_entry_t * arp_getcachebymac(arp_cache_t * cache, addr_mac_t mac) {
 	int i;
 	for (i = 0; i < cache->cache_size; i++)
-		if (cache->entries[i].mac.octet[0] == mac.octet[0] && cache->entries[i].mac.octet[1] == mac.octet[1] &&
-				cache->entries[i].mac.octet[2] == mac.octet[2] && cache->entries[i].mac.octet[3] == mac.octet[3] &&
-				cache->entries[i].mac.octet[4] == mac.octet[4] && cache->entries[i].mac.octet[5] == mac.octet[5])
+		if (match_mac(cache->entries[i].mac, mac))
 			return &cache->entries[i];
 	return NULL;
 }
@@ -46,12 +54,21 @@ arp_cache_entry_t * arp_getcachebyip(arp_cache_t * cache, addr_ip_t ip) {
 }
 
 // TODO! thread safety
-void arp_putincache(arp_cache_t * cache, addr_ip_t ip, addr_mac_t mac, interface_t* interface) {
+void arp_putincache(arp_cache_t * cache, addr_ip_t ip, addr_mac_t mac,
+		interface_t* interface, uint8_t timeout) {
+
 	arp_cache_entry_t * existing = arp_getcachebymac(cache, mac);
 	if (existing != NULL) {
 		// just the guy with this mac got a new ip
 		existing->ip = ip;
 		existing->interface = interface;
+
+		gettimeofday(existing->tv, NULL);
+		if (timeout != -1) {
+			timeout += existing->tv->tv_sec;
+		}
+		existing->tv->tv_sec = timeout;
+
 		return;
 	}
 
@@ -60,6 +77,13 @@ void arp_putincache(arp_cache_t * cache, addr_ip_t ip, addr_mac_t mac, interface
 		// just the guy with this mac got a new ip
 		existing->mac = mac;
 		existing->interface = interface;
+
+		gettimeofday(existing->tv, NULL);
+		if (timeout != -1) {
+			timeout += existing->tv->tv_sec;
+		}
+		existing->tv->tv_sec = timeout;
+
 		return;
 	}
 
@@ -67,24 +91,33 @@ void arp_putincache(arp_cache_t * cache, addr_ip_t ip, addr_mac_t mac, interface
 
 	if (cache->cache_size == 0) {
 		cache->cache_size++;
-		cache->entries = (arp_cache_entry_t *) malloc(sizeof(arp_cache_entry_t) * cache->cache_size);
+		cache->entries = (arp_cache_entry_t *) malloc(
+				sizeof(arp_cache_entry_t) * cache->cache_size);
 	} else {
 		cache->cache_size++;
-		cache->entries = (arp_cache_entry_t *) realloc((void *) cache->entries, sizeof(arp_cache_entry_t) * cache->cache_size);
+		cache->entries = (arp_cache_entry_t *) realloc((void *) cache->entries,
+				sizeof(arp_cache_entry_t) * cache->cache_size);
 	}
 
 	cache->entries[id].interface = interface;
 	cache->entries[id].ip = ip;
 	cache->entries[id].mac = mac;
 
+	cache->entries[id].tv = (struct timeval *) malloc(sizeof(struct timeval));
+
+	gettimeofday(cache->entries[id].tv, NULL);
+	if (timeout != -1) {
+		timeout += cache->entries[id].tv->tv_sec;
+	}
+	cache->entries[id].tv->tv_sec = timeout;
+
 	arp_print_cache(cache);
 }
 
 /* NOTE! After using arp_send, the original packet will be destroyed! Don't try to access fields in arp after the call of this function! */
-void arp_send(
-		struct sr_instance* sr, interface_t* intf, packet_arp_t * arp,
-		packet_info_t* pi,
-		uint8_t opcode, addr_ip_t target_ip, addr_mac_t target_mac, addr_ip_t source_ip, addr_mac_t source_mac) {
+void arp_send(struct sr_instance* sr, interface_t* intf, packet_arp_t * arp,
+		packet_info_t* pi, uint8_t opcode, addr_ip_t target_ip,
+		addr_mac_t target_mac, addr_ip_t source_ip, addr_mac_t source_mac) {
 
 	arp->hardwareaddresslength = 6;
 	arp->protocoladdresslength = 4;
@@ -98,7 +131,8 @@ void arp_send(
 
 	// This call does not send arp directly, it sends packet_start which is assumed to include arp
 	// packet_start needs to point at the original ethernet packet that encapsulated arp
-	ethernet_packet_send(sr, intf, target_mac, source_mac, htons(ETH_ARP_TYPE), pi);
+	ethernet_packet_send(sr, intf, target_mac, source_mac, htons(ETH_ARP_TYPE),
+			pi);
 }
 
 void arp_onreceive(packet_info_t* pi, packet_arp_t * arp) {
@@ -106,27 +140,138 @@ void arp_onreceive(packet_info_t* pi, packet_arp_t * arp) {
 	const int hardwaretype = ntohs(arp->hardwaretype);
 	const int protocoltype = ntohs(arp->protocoltype);
 
-	if (hardwaretype == ARP_HTYPE_ETH && protocoltype == ARP_PTYPE_IP && arp->hardwareaddresslength == 6 && arp->protocoladdresslength == 4) {
+	if (hardwaretype == ARP_HTYPE_ETH && protocoltype == ARP_PTYPE_IP
+			&& arp->hardwareaddresslength == 6
+			&& arp->protocoladdresslength == 4) {
 		arp_cache_t * cache = &pi->router->arp_cache;
 
-		arp_putincache(cache, arp->sender_ip, arp->sender_mac, pi->interface);
-
 		const int opcode = ntohs(arp->opcode);
-		switch(opcode) {
-		case ARP_OPCODE_REQUEST:
-		{
-			// Who has arp->target_ip Tell arp->sender_ip
-			arp_cache_entry_t * result = arp_getcachebyip(cache, arp->target_ip);
-			if (result == NULL)
-				fprintf(stderr, "No one has %s\n",quick_ip_to_string(arp->target_ip));
-			else
-				arp_send(get_sr(), pi->interface, arp, pi, ARP_OP_REPLY, arp->sender_ip, arp->sender_mac, result->ip, result->mac);
+		switch (opcode) {
+
+		case ARP_OPCODE_REQUEST: {
+
+			// ARPs to remote subnetworks are send to the gateway address
+			if (arp->target_ip == pi->interface->ip) {
+				arp_putincache(cache, arp->sender_ip, arp->sender_mac,
+						pi->interface, ARP_CACHE_TIMEOUT_REQUEST);
+
+				arp_send(get_sr(), pi->interface, arp, pi, ARP_OP_REPLY,
+						arp->sender_ip, arp->sender_mac, pi->interface->ip,
+						pi->interface->mac);
+			} else {
+				arp_putincache(cache, arp->sender_ip, arp->sender_mac,
+						pi->interface, ARP_CACHE_TIMEOUT_BROADCAST);
+			}
+
 			break;
 		}
+
+		case ARP_OPCODE_REPLAY: {
+			if (arp->target_ip == pi->interface->ip
+					&& match_mac(arp->target_mac, pi->interface->mac)) {
+				arp_putincache(cache, arp->sender_ip, arp->sender_mac,
+						pi->interface, ARP_CACHE_TIMEOUT_REQUEST);
+				// Push packets from queue?
+			} else {
+				fprintf(stderr, "Invalid ARP Replay from %s!\n",
+						quick_ip_to_string(arp->sender_ip));
+			}
+			break;
+		}
+
 		default:
 			fprintf(stderr, "Unsupported ARP opcode %x!\n", opcode);
-			break;
+
 		}
+
+	} else {
+		fprintf(stderr, "Unsupported ARP packet!\n");
 	}
-	else fprintf(stderr, "Unsupported ARP packet!\n");
+}
+
+// probably would require to change the argument to a router instance because of threading
+void arp_maintain_cache(arp_cache_t * cache) {
+
+	int i;
+	struct timespec timeout, ts;
+	struct timeval tv_diff;
+	timeout.tv_sec = 0;
+	timeout.tv_nsec = 5000000; // 0.5s
+
+	while (1) {
+
+		nanosleep(&timeout, &ts);
+
+		for (i = 0; i < cache->cache_size; i++) {
+
+			gettimeofday(&tv_diff, NULL);
+
+			// Check if dynamic entry and if expired
+			if (cache->entries[i].tv->tv_sec != -1
+					&& difftime(cache->entries[i].tv->tv_sec, tv_diff.tv_sec)
+							<= 0) {
+				// REMOVE
+			}
+
+		}
+
+		if (cache->cache_size > ARP_THRESHOLD) {
+			// CLEAN
+		}
+
+	}
+
+}
+
+// Add a static entry given IP, MAC and Interface
+void arp_add_static(packet_info_t* pi, addr_ip_t ip, addr_mac_t mac,
+		interface_t* interface) {
+
+	arp_cache_t * cache = &pi->router->arp_cache;
+	arp_putincache(cache, ip, mac, interface, ARP_CACHE_TIMEOUT_STATIC);
+
+}
+
+// Remove static entries based on IP address
+void arp_remove_static_ip(packet_info_t* pi, addr_ip_t ip) {
+
+	int i;
+	arp_cache_t * cache = &pi->router->arp_cache;
+	for (i = 0; i < cache->cache_size; i++) {
+
+		if (cache->entries[i].ip == ip && cache->entries[i].tv->tv_sec == -1) {
+			// REMOVE
+		}
+
+	}
+
+}
+
+// Remove static entries based on MAC address
+void arp_remove_static_mac(packet_info_t* pi, addr_mac_t mac) {
+
+	int i;
+	arp_cache_t * cache = &pi->router->arp_cache;
+	for (i = 0; i < cache->cache_size; i++) {
+
+		if (match_mac(cache->entries[i].mac, mac)
+				&& cache->entries[i].tv->tv_sec == -1) {
+			// REMOVE
+		}
+
+	}
+
+}
+
+// Delete all static entries in the ARP cache
+void arp_clear_static(packet_info_t* pi) {
+	int i;
+	arp_cache_t * cache = &pi->router->arp_cache;
+	for (i = 0; i < cache->cache_size; i++) {
+
+		if (cache->entries[i].tv->tv_sec == -1) {
+			// REMOVE
+		}
+
+	}
 }

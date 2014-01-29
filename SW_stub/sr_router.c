@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include "common/nf10util.h"
@@ -15,6 +14,7 @@
 #include "packets.h"
 #include "arp.h"
 #include "ip.h"
+#include "sr_interface.h"
 
 void router_init( router_t* router ) {
 #ifdef _CPUMODE_
@@ -150,7 +150,7 @@ void router_add_interface( router_t* router,
     intf->enabled = TRUE;
     intf->neighbor_list_head = NULL;
 
-    arp_putincache(&router->arp_cache, ip, mac, intf);
+    arp_putincache(&router->arp_cache, ip, mac, intf, ARP_CACHE_TIMEOUT_STATIC);
 
 #ifdef MININET_MODE
     // open a socket to talk to the hw on this interface
