@@ -12,6 +12,8 @@
 
 #include <stdint.h>
 
+volatile uint16_t id = 5892;
+
 void ip_print_table(ip_table_t * table) {
 	int i;
 	printf("THE IP TABLE\n-------------\n\n");
@@ -111,26 +113,10 @@ static inline int ip_checkchecksum(packet_ip4_t * ipv4) {
 	return ((uint16_t) ~sum) == (0);
 }
 
-static inline void ip_generatechecksum(packet_ip4_t * ipv4) {
-	ipv4->header_checksum = 0;
+static inline int generatechecksum(unsigned short * buf, int len) {
 
-	uint16_t * data = (uint16_t *) ipv4;
-	int size = sizeof(packet_ip4_t) / 2;
-
-	uint32_t sum;
-	for (sum = 0; size > 0; size--)
-		sum += ntohs(*data++);
-	sum = (sum >> 16) + (sum & 0xffff);
-	sum += (sum >> 16);
-
-	ipv4->header_checksum = htons(((uint16_t) ~sum));
-}
-
-static inline void icmp_generatechecksum(packet_icmp_t * icmp) {
-	icmp->header_checksum = 0;
-
-	uint16_t * data = (uint16_t *) icmp;
-	int size = sizeof(packet_icmp_t) / 2;
+	uint16_t * data = (uint16_t *) buf;
+	int size = len / 2;
 
 	uint32_t sum;
 	for (sum = 0; size > 0; size--)
@@ -138,8 +124,7 @@ static inline void icmp_generatechecksum(packet_icmp_t * icmp) {
 	sum = (sum >> 16) + (sum & 0xffff);
 	sum += (sum >> 16);
 
-	icmp->header_checksum = htons(((uint16_t) ~sum));
-
+	return htons(((uint16_t) ~sum));
 }
 
 void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
@@ -154,22 +139,30 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 		if (ipv4->dst_ip == pi->router->interface[i].ip) {
 
 			packet_ethernet_t* eth = (packet_ethernet_t *) pi->packet;
+			addr_mac_t temp_mac = eth->dest_mac;
+			eth->dest_mac = eth->source_mac;
+			eth->source_mac = temp_mac;
 
 			addr_ip_t temp_ip = ipv4->dst_ip;
 			ipv4->dst_ip = ipv4->src_ip;
 			ipv4->src_ip = temp_ip;
+
 			ipv4->ttl = ipv4->ttl - 1;
 			ipv4->flags_fragmentoffset = 0;
-			ipv4->id = 0x1715; // Fix
+			ipv4->id = htons(id); // Fix
+			id++;
 
 			packet_icmp_t* icmp =
 					(packet_icmp_t *) &pi->packet[sizeof(packet_ethernet_t)
 							+ sizeof(packet_ip4_t)];
 			icmp->type = ICMP_TYPE_REPLAY;
 
-			icmp_generatechecksum(icmp);
+			icmp->header_checksum = 0;
+			icmp->header_checksum = generatechecksum((unsigned short*) icmp, sizeof(packet_icmp_t));
 
-			ip_generatechecksum(ipv4); // generate checksum
+
+			ipv4->header_checksum = 0;
+			ipv4->header_checksum = generatechecksum((unsigned short*) ipv4, sizeof(packet_ip4_t));
 
 			ethernet_packet_send(get_sr(), pi->interface, eth->dest_mac,
 					eth->source_mac, htons(ETH_IP_TYPE), pi);
@@ -194,7 +187,8 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 				ipv4->dst_ip);
 
 		if (arp_dest != NULL) {
-			ip_generatechecksum(ipv4); // generate checksum
+			ipv4->header_checksum = 0;
+			ipv4->header_checksum = generatechecksum((unsigned short*) ipv4, sizeof(packet_ip4_t));
 			ethernet_packet_send(get_sr(), dest_ip_entry->interface,
 					arp_dest->mac, dest_ip_entry->interface->mac,
 					htons(ETH_IP_TYPE), pi);
