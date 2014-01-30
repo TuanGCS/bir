@@ -16,11 +16,11 @@ void queue_add(dataqueue_t * queue, void * data, int size) {
 	const int id = queue->size;
 
 	if (queue->size == 0) {
-		queue->packet = malloc(sizeof(void *) * queue->size);
-		queue->packet_sizes = (int *) malloc(sizeof(int) * queue->size);
+		queue->packet = (void **) malloc(sizeof(void *) * (queue->size+1));
+		queue->packet_sizes = (int *) malloc(sizeof(int) * (queue->size+1));
 	} else {
-		queue->packet = realloc(queue->packet, sizeof(void *) * queue->size);
-		queue->packet_sizes = (int *) realloc((void *) queue->packet_sizes, sizeof(int) * queue->size);
+		queue->packet = (void **) realloc((void *) queue->packet, sizeof(void *) * (queue->size+1));
+		queue->packet_sizes = (int *) realloc((void *) queue->packet_sizes, sizeof(int) * (queue->size+1));
 	}
 
 	// create data and copy it
@@ -81,7 +81,6 @@ void queue_unlockid(dataqueue_t * queue, int id) {
 
 void queue_free(dataqueue_t * queue) {
 	int i;
-	pthread_mutex_lock(&queue->locker); // global lock
 
 	for (i = 0; i < queue->size; i++) queue_remove(queue, i);
 
