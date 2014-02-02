@@ -163,22 +163,32 @@ module nf10_input_arbiter
    // Use a generate statement with a for loop to generate fifos for each
    // of the input ports
 
+
+
+   genvar i;
+   generate
+   for (i=0; i < NUM_QUEUES; i=i+1)
+   begin: in_arb
    fallthrough_small_fifo
         #( .WIDTH(C_M_AXIS_DATA_WIDTH+C_M_AXIS_TUSER_WIDTH+C_M_AXIS_DATA_WIDTH/8+1),
            .MAX_DEPTH_BITS(IN_FIFO_DEPTH_BIT))
       in_arb_fifo
         (// Outputs
-         .dout                           ({fifo_out_tlast[0], fifo_out_tuser[0], fifo_out_tstrb[0], fifo_out_tdata[0]}),
+         .dout                           ({fifo_out_tlast[i], fifo_out_tuser[i], fifo_out_tstrb[i], fifo_out_tdata[i]}),
          .full                           (),
-         .nearly_full                    (nearly_full[0]),
+         .nearly_full                    (nearly_full[i]),
 	 .prog_full                      (),
-         .empty                          (empty[0]),
+         .empty                          (empty[i]),
          // Inputs
-         .din                            ({in_tlast[0], in_tuser[0], in_tstrb[0], in_tdata[0]}),
-         .wr_en                          (in_tvalid[0] & ~nearly_full[0]),
-         .rd_en                          (rd_en[0]),
+         .din                            ({in_tlast[i], in_tuser[i], in_tstrb[i], in_tdata[i]}),
+         .wr_en                          (in_tvalid[i] & ~nearly_full[i]),
+         .rd_en                          (rd_en[i]),
          .reset                          (~axi_resetn),
          .clk                            (axi_aclk));
+
+    end
+    endgenerate
+
 
    // ------------- Logic ------------
 
@@ -219,11 +229,11 @@ module nf10_input_arbiter
 
    assign cur_queue_plus1    = (cur_queue == NUM_QUEUES-1) ? 0 : cur_queue + 1;
 
-   assign m_axis_tuser = fifo_out_tuser[0];
-   assign m_axis_tdata = fifo_out_tdata[0];
-   assign m_axis_tlast = fifo_out_tlast[0];
-   assign m_axis_tstrb = fifo_out_tstrb[0];
-   assign m_axis_tvalid = ~empty[0];
+   assign m_axis_tuser = fifo_out_tuser[cur_queue];
+   assign m_axis_tdata = fifo_out_tdata[cur_queue];
+   assign m_axis_tlast = fifo_out_tlast[cur_queue];
+   assign m_axis_tstrb = fifo_out_tstrb[cur_queue];
+   assign m_axis_tvalid = ~empty[cur_queue];
 
    // Main state machine to cycle through the inputs
    // and transfer data from an input to the output
@@ -250,13 +260,17 @@ module nf10_input_arbiter
       case(state)
 
         /* cycle between input queues until one is not empty */
-        IDLE: begin
-           if(!empty[0]) begin
+         IDLE: begin
+           if(!empty[cur_queue]) begin
               if(m_axis_tready) begin
                  state_next = WR_PKT;
-                 rd_en[0] = 1;
+                 rd_en[cur_queue] = 1;
               end
            end
+	  else 
+	  begin
+	    cur_queue_next = cur_queue_plus1;
+	  end
         end
 
         /* wait until eop */
@@ -264,12 +278,12 @@ module nf10_input_arbiter
            /* if this is the last word then write it and get out */
            if(m_axis_tready & m_axis_tlast) begin
               state_next = IDLE;
-	      rd_en[0] = 1;
+	      rd_en[cur_queue] = 1;
               cur_queue_next = cur_queue_plus1;
            end
            /* otherwise read and write as usual */
-           else if (m_axis_tready & !empty[0]) begin
-              rd_en[0] = 1;
+           else if (m_axis_tready & !empty[cur_queue]) begin
+              rd_en[cur_queue] = 1;
            end
         end // case: WR_PKT
 
