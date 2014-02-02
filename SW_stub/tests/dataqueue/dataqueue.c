@@ -38,10 +38,11 @@ void queue_add(dataqueue_t * queue, void * data, int size) {
 }
 
 void queue_remove(dataqueue_t * queue, int id) {
-	int i;
-	if (id >= queue->size || id < 0) return;
-
 	pthread_mutex_lock(&queue->locker); // global lock
+
+	int i;
+	if (id >= queue->size || id < 0) {pthread_mutex_unlock(&queue->locker); return;};
+
 	const int size = queue->size;
 
 	// free memory
@@ -67,8 +68,9 @@ int queue_getcurrentsize(dataqueue_t * queue) {
 }
 
 int queue_getidandlock(dataqueue_t * queue, int id, void ** data, int * size) {
-	if (id >= queue->size || id < 0) return 0;
 	pthread_mutex_lock(&queue->locker);
+
+	if (id >= queue->size || id < 0) {pthread_mutex_unlock(&queue->locker); return 0;}
 
 	*data = queue->packet[id];
 	*size = queue->packet_sizes[id];
