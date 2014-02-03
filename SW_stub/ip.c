@@ -190,13 +190,13 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 	if (dest_ip_entry != NULL) {
 		ipv4->ttl--; // reduce ttl
 
-		arp_cache_entry_t * arp_dest = arp_getcachebyip(&pi->router->arp_cache,
-				ipv4->dst_ip);
+		arp_cache_entry_t arp_dest; // memory allocation ;(
+		int id = arp_getcachebyip(&pi->router->arp_cache, ipv4->dst_ip, &arp_dest);
 
-		if (arp_dest != NULL) {
+		if (id > 0) {
 			ip_generatechecksum(ipv4); // generate checksum
 			ethernet_packet_send(get_sr(), dest_ip_entry->interface,
-					arp_dest->mac, dest_ip_entry->interface->mac,
+					arp_dest.mac, dest_ip_entry->interface->mac,
 					htons(ETH_IP_TYPE), pi);
 		} else {
 			arp_send_request(pi->router, dest_ip_entry->interface,

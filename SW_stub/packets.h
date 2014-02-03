@@ -65,11 +65,6 @@ typedef struct arp_cache_entry {
 	struct timeval* tv;
 } arp_cache_entry_t;
 
-typedef struct arp_cache {
-	arp_cache_entry_t * entries;
-	int cache_size;
-} arp_cache_t;
-
 typedef struct PACKED packet_ip4 {
 	uint8_t version_ihl;
 	uint8_t dscp_ecn;

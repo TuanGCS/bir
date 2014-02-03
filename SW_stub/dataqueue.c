@@ -37,6 +37,21 @@ void queue_add(dataqueue_t * queue, void * data, int size) {
 	pthread_mutex_unlock(&queue->locker);
 }
 
+int queue_replace(dataqueue_t * queue, void * data, int size, int id) {
+	pthread_mutex_lock(&queue->locker);
+
+	if (id >= queue->size || id < 0) {pthread_mutex_unlock(&queue->locker); return 0;}
+
+	if (size != queue->packet_sizes[id])
+		queue->packet[id] = realloc(queue->packet[id], size);
+
+	memcpy(queue->packet[id],data,size);
+
+	pthread_mutex_unlock(&queue->locker);
+
+	return 1;
+}
+
 void queue_remove(dataqueue_t * queue, int id) {
 	pthread_mutex_lock(&queue->locker); // global lock
 

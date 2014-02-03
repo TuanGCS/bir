@@ -10,19 +10,30 @@
 #include <stdlib.h>
 
 #include <stdint.h>
+#include "packets.h"
 
 #define ARP_OP_REQUEST (1)
 #define ARP_OP_REPLY (2)
 
-void arp_print_cache(arp_cache_t * cache) {
+void arp_print_cache(dataqueue_t * cache) {
 	int i;
 	printf("THE ARP TABLE\n-------------\n\n");
-	for (i = 0; i < cache->cache_size; i++)
-		printf("%d. MAC: %s, IP: %s, iface %s, timeout %ld \n", i,
-				quick_mac_to_string(&cache->entries[i].mac),
-				quick_ip_to_string(cache->entries[i].ip),
-				cache->entries[i].interface->name,
-				cache->entries[i].tv->tv_sec);
+	for (i = 0; i < cache->size; i++) {
+		arp_cache_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(cache, i, (void **) &entry, &entry_size)) {
+
+			assert(entry_size == sizeof(arp_cache_entry_t));
+
+			printf("%d. MAC: %s, IP: %s, iface %s, timeout %ld \n", i,
+					quick_mac_to_string(&entry->mac),
+					quick_ip_to_string(entry->ip),
+					entry->interface->name,
+					entry->tv->tv_sec);
+
+			queue_unlockid(cache, i);
+		}
+	}
 	printf("\n");
 }
 
@@ -35,81 +46,100 @@ int match_mac(addr_mac_t mac1, addr_mac_t mac2) {
 		return 0;
 }
 
-// TODO! thread safety
-arp_cache_entry_t * arp_getcachebymac(arp_cache_t * cache, addr_mac_t mac) {
+int arp_getcachebymac(dataqueue_t * cache, addr_mac_t mac, arp_cache_entry_t * result) {
 	int i;
-	for (i = 0; i < cache->cache_size; i++)
-		if (match_mac(cache->entries[i].mac, mac))
-			return &cache->entries[i];
-	return NULL;
+	for (i = 0; i < cache->size; i++) {
+		arp_cache_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(cache, i, (void **) &entry, &entry_size)) {
+
+			assert(entry_size == sizeof(arp_cache_entry_t));
+
+			if (match_mac(entry->mac, mac)) {
+				*result = *entry; // do a memory copy so even after the function returns if this entry is removed, we won't get an error
+				queue_unlockid(cache, i);
+				return i;
+			}
+
+			queue_unlockid(cache, i);
+		}
+	}
+	return -1;
 }
 
-// TODO! thread safety
-arp_cache_entry_t * arp_getcachebyip(arp_cache_t * cache, addr_ip_t ip) {
+int arp_getcachebyip(dataqueue_t * cache, addr_ip_t ip, arp_cache_entry_t * result) {
 	int i;
-	for (i = 0; i < cache->cache_size; i++)
-		if (cache->entries[i].ip == ip)
-			return &cache->entries[i];
-	return NULL;
+	for (i = 0; i < cache->size; i++) {
+		arp_cache_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(cache, i, (void **) &entry, &entry_size)) {
+
+			assert(entry_size == sizeof(arp_cache_entry_t));
+
+			if (entry->ip == ip) {
+				*result = *entry; // do a memory copy so even after the function returns if this entry is removed, we won't get an error
+				queue_unlockid(cache, i);
+				return i;
+			}
+
+			queue_unlockid(cache, i);
+		}
+	}
+	return -1;
 }
 
-// TODO! thread safety
-void arp_putincache(arp_cache_t * cache, addr_ip_t ip, addr_mac_t mac,
+void arp_putincache(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac,
 		interface_t* interface, uint8_t timeout) {
 
-	arp_cache_entry_t * existing = arp_getcachebymac(cache, mac);
-	if (existing != NULL) {
-		// just the guy with this mac got a new ip
-		existing->ip = ip;
-		existing->interface = interface;
+	arp_cache_entry_t result;
 
-		gettimeofday(existing->tv, NULL);
+	int id = arp_getcachebymac(cache, mac, &result);
+	if (id > 0) {
+		// just the guy with this mac got a new ip
+		result.ip = ip;
+		result.interface = interface;
+
+		gettimeofday(result.tv, NULL);
 		if (timeout != -1) {
-			timeout += existing->tv->tv_sec;
+			timeout += result.tv->tv_sec;
 		}
-		existing->tv->tv_sec = timeout;
+		result.tv->tv_sec = timeout;
+
+		queue_replace(cache, &result, sizeof(arp_cache_entry_t), id);
+		return;
+	}
+
+	id = arp_getcachebyip(cache, ip, &result);
+	if (id > 0) {
+		// just the guy with this mac got a new ip
+		result.mac = mac;
+		result.interface = interface;
+
+		gettimeofday(result.tv, NULL);
+		if (timeout != -1) {
+			timeout += result.tv->tv_sec;
+		}
+		result.tv->tv_sec = timeout;
+
+		queue_replace(cache, &result, sizeof(arp_cache_entry_t), id);
 
 		return;
 	}
 
-	existing = arp_getcachebyip(cache, ip);
-	if (existing != NULL) {
-		// just the guy with this mac got a new ip
-		existing->mac = mac;
-		existing->interface = interface;
+	result.interface = interface;
+	result.ip = ip;
+	result.mac = mac;
 
-		gettimeofday(existing->tv, NULL);
-		if (timeout != -1) {
-			timeout += existing->tv->tv_sec;
-		}
-		existing->tv->tv_sec = timeout;
+	// TODO! free this on remove otherwise memory leak!
+	result.tv = (struct timeval *) malloc(sizeof(struct timeval));
 
-		return;
-	}
-
-	const int id = cache->cache_size;
-
-	if (cache->cache_size == 0) {
-		cache->cache_size++;
-		cache->entries = (arp_cache_entry_t *) malloc(
-				sizeof(arp_cache_entry_t) * cache->cache_size);
-	} else {
-		cache->cache_size++;
-		cache->entries = (arp_cache_entry_t *) realloc((void *) cache->entries,
-				sizeof(arp_cache_entry_t) * cache->cache_size);
-	}
-
-	cache->entries[id].interface = interface;
-	cache->entries[id].ip = ip;
-	cache->entries[id].mac = mac;
-
-	cache->entries[id].tv = (struct timeval *) malloc(sizeof(struct timeval));
-
-	gettimeofday(cache->entries[id].tv, NULL);
+	gettimeofday(result.tv, NULL);
 	if (timeout != -1) {
-		timeout += cache->entries[id].tv->tv_sec;
+		timeout += result.tv->tv_sec;
 	}
-	cache->entries[id].tv->tv_sec = timeout;
+	result.tv->tv_sec = timeout;
+
+	queue_add(cache, &result, sizeof(arp_cache_entry_t));
 
 	arp_print_cache(cache);
 }
@@ -143,7 +173,7 @@ void arp_onreceive(packet_info_t* pi, packet_arp_t * arp) {
 	if (hardwaretype == ARP_HTYPE_ETH && protocoltype == ARP_PTYPE_IP
 			&& arp->hardwareaddresslength == 6
 			&& arp->protocoladdresslength == 4) {
-		arp_cache_t * cache = &pi->router->arp_cache;
+		dataqueue_t * cache = &pi->router->arp_cache;
 
 		const int opcode = ntohs(arp->opcode);
 		switch (opcode) {
@@ -181,7 +211,7 @@ void arp_onreceive(packet_info_t* pi, packet_arp_t * arp) {
 
 		default:
 			fprintf(stderr, "Unsupported ARP opcode %x!\n", opcode);
-
+			break;
 		}
 
 	} else {
@@ -190,7 +220,7 @@ void arp_onreceive(packet_info_t* pi, packet_arp_t * arp) {
 }
 
 // probably would require to change the argument to a router instance because of threading
-void arp_maintain_cache(arp_cache_t * cache) {
+void arp_maintain_cache(dataqueue_t * cache) {
 
 	int i;
 	struct timespec timeout, ts;
@@ -202,20 +232,28 @@ void arp_maintain_cache(arp_cache_t * cache) {
 
 		nanosleep(&timeout, &ts);
 
-		for (i = 0; i < cache->cache_size; i++) {
+		for (i = 0; i < cache->size; i++) {
+			arp_cache_entry_t * entry;
+			int entry_size;
+			if (queue_getidandlock(cache, i, (void **) &entry, &entry_size)) {
 
-			gettimeofday(&tv_diff, NULL);
+				assert(entry_size == sizeof(arp_cache_entry_t));
 
-			// Check if dynamic entry and if expired
-			if (cache->entries[i].tv->tv_sec != -1
-					&& difftime(cache->entries[i].tv->tv_sec, tv_diff.tv_sec)
+				gettimeofday(&tv_diff, NULL);
+
+				// Check if dynamic entry and if expired
+				if (entry->tv->tv_sec != -1
+						&& difftime(entry->tv->tv_sec, tv_diff.tv_sec)
 							<= 0) {
-				// REMOVE
+					// REMOVE
+					queue_unlockid(cache, i);
+					queue_remove(cache, i);
+				} else
+					queue_unlockid(cache, i);
 			}
-
 		}
 
-		if (cache->cache_size > ARP_THRESHOLD) {
+		if (cache->size > ARP_THRESHOLD) {
 			// CLEAN
 		}
 
@@ -227,22 +265,29 @@ void arp_maintain_cache(arp_cache_t * cache) {
 void arp_add_static(packet_info_t* pi, addr_ip_t ip, addr_mac_t mac,
 		interface_t* interface) {
 
-	arp_cache_t * cache = &pi->router->arp_cache;
-	arp_putincache(cache, ip, mac, interface, ARP_CACHE_TIMEOUT_STATIC);
+	arp_putincache(&pi->router->arp_cache, ip, mac, interface, ARP_CACHE_TIMEOUT_STATIC);
 
 }
 
 // Remove static entries based on IP address
 void arp_remove_static_ip(packet_info_t* pi, addr_ip_t ip) {
+	dataqueue_t * cache = &pi->router->arp_cache;
 
 	int i;
-	arp_cache_t * cache = &pi->router->arp_cache;
-	for (i = 0; i < cache->cache_size; i++) {
+	for (i = 0; i < cache->size; i++) {
+		arp_cache_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(cache, i, (void **) &entry, &entry_size)) {
 
-		if (cache->entries[i].ip == ip && cache->entries[i].tv->tv_sec == -1) {
-			// REMOVE
+			assert(entry_size == sizeof(arp_cache_entry_t));
+
+			if (entry->ip == ip && entry->tv->tv_sec == -1) {
+				// REMOVE
+				queue_unlockid(cache, i);
+				queue_remove(cache, i);
+			} else
+				queue_unlockid(cache, i);
 		}
-
 	}
 
 }
@@ -250,29 +295,47 @@ void arp_remove_static_ip(packet_info_t* pi, addr_ip_t ip) {
 // Remove static entries based on MAC address
 void arp_remove_static_mac(packet_info_t* pi, addr_mac_t mac) {
 
+	dataqueue_t * cache = &pi->router->arp_cache;
+
 	int i;
-	arp_cache_t * cache = &pi->router->arp_cache;
-	for (i = 0; i < cache->cache_size; i++) {
+	for (i = 0; i < cache->size; i++) {
+		arp_cache_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(cache, i, (void **) &entry, &entry_size)) {
 
-		if (match_mac(cache->entries[i].mac, mac)
-				&& cache->entries[i].tv->tv_sec == -1) {
-			// REMOVE
+			assert(entry_size == sizeof(arp_cache_entry_t));
+
+			if (match_mac(entry->mac, mac)
+							&& entry->tv->tv_sec == -1) {
+				// REMOVE
+				queue_unlockid(cache, i);
+				queue_remove(cache, i);
+			} else
+				queue_unlockid(cache, i);
 		}
-
 	}
 
 }
 
 // Delete all static entries in the ARP cache
 void arp_clear_static(packet_info_t* pi) {
+	dataqueue_t * cache = &pi->router->arp_cache;
+
 	int i;
-	arp_cache_t * cache = &pi->router->arp_cache;
-	for (i = 0; i < cache->cache_size; i++) {
+	for (i = 0; i < cache->size; i++) {
+		arp_cache_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(cache, i, (void **) &entry, &entry_size)) {
 
-		if (cache->entries[i].tv->tv_sec == -1) {
-			// REMOVE
+			assert(entry_size == sizeof(arp_cache_entry_t));
+
+			if (entry->tv->tv_sec == -1) {
+				// REMOVE
+				queue_unlockid(cache, i);
+				queue_remove(cache, i);
+			} else
+				queue_unlockid(cache, i);
 		}
-
 	}
 }
 

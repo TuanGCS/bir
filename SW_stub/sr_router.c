@@ -38,6 +38,8 @@ void router_init( router_t* router ) {
 
     pthread_mutex_init( &router->intf_lock, NULL );
 
+    queue_init(&router->arp_cache);
+
 #ifndef _THREAD_PER_PACKET_
     debug_println( "Initializing the router work queue with %u worker threads",
                    NUM_WORKER_THREADS );
