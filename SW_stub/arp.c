@@ -29,7 +29,7 @@ void arp_print_cache(dataqueue_t * cache) {
 					quick_mac_to_string(&entry->mac),
 					quick_ip_to_string(entry->ip),
 					entry->interface->name,
-					entry->tv->tv_sec);
+					entry->tv.tv_sec);
 
 			queue_unlockid(cache, i);
 		}
@@ -99,11 +99,11 @@ void arp_putincache(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac,
 		result.ip = ip;
 		result.interface = interface;
 
-		gettimeofday(result.tv, NULL);
+		gettimeofday(&result.tv, NULL);
 		if (timeout != -1) {
-			timeout += result.tv->tv_sec;
+			timeout += result.tv.tv_sec;
 		}
-		result.tv->tv_sec = timeout;
+		result.tv.tv_sec = timeout;
 
 		queue_replace(cache, &result, sizeof(arp_cache_entry_t), id);
 		return;
@@ -115,11 +115,11 @@ void arp_putincache(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac,
 		result.mac = mac;
 		result.interface = interface;
 
-		gettimeofday(result.tv, NULL);
+		gettimeofday(&result.tv, NULL);
 		if (timeout != -1) {
-			timeout += result.tv->tv_sec;
+			timeout += result.tv.tv_sec;
 		}
-		result.tv->tv_sec = timeout;
+		result.tv.tv_sec = timeout;
 
 		queue_replace(cache, &result, sizeof(arp_cache_entry_t), id);
 
@@ -130,14 +130,11 @@ void arp_putincache(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac,
 	result.ip = ip;
 	result.mac = mac;
 
-	// TODO! free this on remove otherwise memory leak!
-	result.tv = (struct timeval *) malloc(sizeof(struct timeval));
-
-	gettimeofday(result.tv, NULL);
+	gettimeofday(&result.tv, NULL);
 	if (timeout != -1) {
-		timeout += result.tv->tv_sec;
+		timeout += result.tv.tv_sec;
 	}
-	result.tv->tv_sec = timeout;
+	result.tv.tv_sec = timeout;
 
 	queue_add(cache, &result, sizeof(arp_cache_entry_t));
 
@@ -242,8 +239,8 @@ void arp_maintain_cache(dataqueue_t * cache) {
 				gettimeofday(&tv_diff, NULL);
 
 				// Check if dynamic entry and if expired
-				if (entry->tv->tv_sec != -1
-						&& difftime(entry->tv->tv_sec, tv_diff.tv_sec)
+				if (entry->tv.tv_sec != -1
+						&& difftime(entry->tv.tv_sec, tv_diff.tv_sec)
 							<= 0) {
 					// REMOVE
 					queue_unlockid(cache, i);
@@ -281,7 +278,7 @@ void arp_remove_static_ip(packet_info_t* pi, addr_ip_t ip) {
 
 			assert(entry_size == sizeof(arp_cache_entry_t));
 
-			if (entry->ip == ip && entry->tv->tv_sec == -1) {
+			if (entry->ip == ip && entry->tv.tv_sec == -1) {
 				// REMOVE
 				queue_unlockid(cache, i);
 				queue_remove(cache, i);
@@ -306,7 +303,7 @@ void arp_remove_static_mac(packet_info_t* pi, addr_mac_t mac) {
 			assert(entry_size == sizeof(arp_cache_entry_t));
 
 			if (match_mac(entry->mac, mac)
-							&& entry->tv->tv_sec == -1) {
+							&& entry->tv.tv_sec == -1) {
 				// REMOVE
 				queue_unlockid(cache, i);
 				queue_remove(cache, i);
@@ -329,7 +326,7 @@ void arp_clear_static(packet_info_t* pi) {
 
 			assert(entry_size == sizeof(arp_cache_entry_t));
 
-			if (entry->tv->tv_sec == -1) {
+			if (entry->tv.tv_sec == -1) {
 				// REMOVE
 				queue_unlockid(cache, i);
 				queue_remove(cache, i);

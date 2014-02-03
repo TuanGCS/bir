@@ -62,7 +62,7 @@ typedef struct arp_cache_entry {
 	addr_ip_t ip;
 	addr_mac_t mac;
 	interface_t* interface;
-	struct timeval* tv;
+	struct timeval tv;
 } arp_cache_entry_t;
 
 typedef struct PACKED packet_ip4 {
