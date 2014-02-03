@@ -94,7 +94,7 @@ void arp_putincache(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac,
 	arp_cache_entry_t result;
 
 	int id = arp_getcachebymac(cache, mac, &result);
-	if (id > 0) {
+	if (id  >= 0) {
 		// just the guy with this mac got a new ip
 		result.ip = ip;
 		result.interface = interface;
@@ -110,7 +110,7 @@ void arp_putincache(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac,
 	}
 
 	id = arp_getcachebyip(cache, ip, &result);
-	if (id > 0) {
+	if (id  >= 0) {
 		// just the guy with this mac got a new ip
 		result.mac = mac;
 		result.interface = interface;

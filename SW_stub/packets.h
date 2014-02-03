@@ -83,9 +83,4 @@ typedef struct ip_table_entry {
 	interface_t* interface;
 } ip_table_entry_t;
 
-typedef struct ip_table {
-	ip_table_entry_t * entries;
-	int table_size;
-} ip_table_t;
-
 #endif

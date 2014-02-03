@@ -41,7 +41,7 @@ typedef struct router_t {
     pthread_mutex_t intf_lock;
 
     dataqueue_t arp_cache;
-    ip_table_t ip_table;
+    dataqueue_t ip_table;
 
     bool use_ospf;
 

@@ -34,10 +34,6 @@ void sr_integ_init(struct sr_instance* sr) {
 
     router_t* subsystem = malloc_or_die( sizeof(router_t) );
 
-    /* Init ip table */
-    subsystem->ip_table.entries = NULL;
-    subsystem->ip_table.table_size = 0;
-
     router_init( subsystem );
 
 #ifdef MININET_MODE
