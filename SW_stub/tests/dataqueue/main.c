@@ -3,15 +3,17 @@
 #include <pthread.h>
 
 #include "dataqueue.h"
+#include "timer.h"
 #include <unistd.h>
 
-#define TESTS (500)
-#define REPEATS (100)
+#define TESTS (800)
+#define REPEATS (300)
 
 // contains the numbers
 int numbers[TESTS];
 
 dataqueue_t queue;
+TickTockTimer_t timer;
 
 volatile int datain;
 volatile int err;
@@ -41,8 +43,12 @@ void thread_read(void * ctx)
 	int i;
 	int read = 0;
 
+	struct timespec pause;
+	pause.tv_sec = 0;
+	pause.tv_nsec = 1; /* 1ns */
+
 	while (!datain)
-		usleep(1);
+		{};
 
 	while (queue_getcurrentsize(&queue) != 0) {
 
@@ -56,15 +62,15 @@ void thread_read(void * ctx)
 					numbers[val]++;
 				else {
 					err = 1;
-					printf("ERROR: Invalid number %d. Reported data size is %d. Data: ", val, data_size);
+					printf("ERROR: Invalid number %d. Reported data size is %d.", val, data_size);
 				}
 
-				queue_unlockid(&queue, i);
-
-				queue_remove(&queue, i);
+				queue_unlockidandremove(&queue, i);
 			}
-			usleep(1);
 		}
+
+		// prevents thread starvation
+		nanosleep( &pause, NULL );
 	}
 
 	printf("Read thread %d read %d items\n", threadid, read);
@@ -86,14 +92,15 @@ long get_mem_usage_in_pages(void)
 int  main ( int arc, char **argv ) {
 	pthread_t thread1, thread2, thread3;
 
-	int repeats = REPEATS;
+	int repeats = 0;
 	err = 0;
 
 	long mem;
 	int firstrun = 1;
 
-	while (repeats--) {
-		printf("--- %d:\n", REPEATS-repeats);
+	timer_tick(&timer);
+	while (repeats < REPEATS) {
+		printf("--- %d:\n", repeats);
 
 		int i; for (i = 0; i < TESTS; i++) numbers[i] = 0; // initialize the buffer array
 		queue_init(&queue);
@@ -121,8 +128,10 @@ int  main ( int arc, char **argv ) {
 			firstrun = 0;
 		}
 
+		repeats++;
 		if (err) break;
 	}
+	float runtime = timer_tock(&timer);
 
 	long diff = get_mem_usage_in_pages() - mem;
 	if (diff != 0) {
@@ -130,7 +139,7 @@ int  main ( int arc, char **argv ) {
 		err = 1;
 	}
 
-	printf(err ? "\nERR\n" : "\nALL TESTS PASSED\n");
+	printf((err ? "\nERR (%.1f ms per test)\n" : "\nALL TESTS PASSED (%.1f ms per test)\n"), (runtime * 1000.0f) / (float) repeats );
 	return 0;
 }
 

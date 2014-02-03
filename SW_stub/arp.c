@@ -243,8 +243,7 @@ void arp_maintain_cache(dataqueue_t * cache) {
 						&& difftime(entry->tv.tv_sec, tv_diff.tv_sec)
 							<= 0) {
 					// REMOVE
-					queue_unlockid(cache, i);
-					queue_remove(cache, i);
+					queue_unlockidandremove(cache, i);
 				} else
 					queue_unlockid(cache, i);
 			}
@@ -280,8 +279,7 @@ void arp_remove_static_ip(packet_info_t* pi, addr_ip_t ip) {
 
 			if (entry->ip == ip && entry->tv.tv_sec == -1) {
 				// REMOVE
-				queue_unlockid(cache, i);
-				queue_remove(cache, i);
+				queue_unlockidandremove(cache, i);
 			} else
 				queue_unlockid(cache, i);
 		}
@@ -305,8 +303,7 @@ void arp_remove_static_mac(packet_info_t* pi, addr_mac_t mac) {
 			if (match_mac(entry->mac, mac)
 							&& entry->tv.tv_sec == -1) {
 				// REMOVE
-				queue_unlockid(cache, i);
-				queue_remove(cache, i);
+				queue_unlockidandremove(cache, i);
 			} else
 				queue_unlockid(cache, i);
 		}
@@ -328,8 +325,7 @@ void arp_clear_static(packet_info_t* pi) {
 
 			if (entry->tv.tv_sec == -1) {
 				// REMOVE
-				queue_unlockid(cache, i);
-				queue_remove(cache, i);
+				queue_unlockidandremove(cache, i);
 			} else
 				queue_unlockid(cache, i);
 		}

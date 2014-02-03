@@ -52,8 +52,7 @@ int queue_replace(dataqueue_t * queue, void * data, int size, int id) {
 	return 1;
 }
 
-void queue_remove(dataqueue_t * queue, int id) {
-	pthread_mutex_lock(&queue->locker); // global lock
+void queue_unlockidandremove(dataqueue_t * queue, int id) {
 
 	int i;
 	if (id >= queue->size || id < 0) {pthread_mutex_unlock(&queue->locker); return;};
@@ -99,7 +98,13 @@ void queue_unlockid(dataqueue_t * queue, int id) {
 void queue_free(dataqueue_t * queue) {
 	int i;
 
-	for (i = 0; i < queue->size; i++) queue_remove(queue, i);
+	void * temp_v; int temp_i;
+
+	while (queue->size > 0) {
+		for (i = 0; i < queue->size; i++)
+			if (queue_getidandlock(queue, i, &temp_v, &temp_i))
+				queue_unlockidandremove(queue, i);
+	}
 
 	pthread_mutex_destroy(&queue->locker);
 
