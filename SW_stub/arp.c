@@ -10,7 +10,9 @@
 #include <stdlib.h>
 
 #include <stdint.h>
+#include <string.h>
 #include "packets.h"
+#include "ip.h"
 
 #define ARP_OP_REQUEST (1)
 #define ARP_OP_REPLY (2)
@@ -86,6 +88,51 @@ int arp_getcachebyip(dataqueue_t * cache, addr_ip_t ip, arp_cache_entry_t * resu
 		}
 	}
 	return -1;
+}
+
+// looks for queued ip packets that are there due to unknown mac match to the ip and forward them
+void process_arpipqueue(dataqueue_t * queue, addr_ip_t ip, addr_mac_t mac) {
+	int i;
+	for (i = 0; i < queue->size; i++) {
+		byte * data;
+		int data_size;
+		if (queue_getidandlock(queue, i, (void **) &data, &data_size)) {
+
+			assert(data_size > sizeof(packet_info_t));
+
+			// construct a packet info from memory
+			packet_info_t * entry = (packet_info_t *) data;
+			entry->packet = &data[sizeof(packet_info_t)];
+
+			assert(data_size == (entry->len + sizeof(packet_info_t)));
+
+			if (PACKET_CAN_MARSHALL(packet_ip4_t, sizeof(packet_ethernet_t), entry->len)) {
+				packet_ip4_t * ip_packet = PACKET_MARSHALL(packet_ip4_t, entry->packet, sizeof(packet_ethernet_t));
+
+				if (ip == ip_packet->dst_ip) {
+					// make a copy of the packet
+					byte data_copy[data_size];
+					memcpy(data_copy, data, data_size);
+					packet_info_t * entry_copy = (packet_info_t *) data_copy;
+					entry_copy->packet = &data_copy[sizeof(packet_info_t)];
+					packet_ip4_t * ip_packet_copy = PACKET_MARSHALL(packet_ip4_t, entry_copy->packet, sizeof(packet_ethernet_t));
+
+					queue_unlockidandremove(queue, i); // release queue
+
+					// we have a match deal with the packet as if it was just received
+					ip_onreceive(entry_copy, ip_packet_copy);
+
+				} else
+					queue_unlockid(queue, i);
+
+			} else {
+				queue_unlockid(queue, i);
+				fprintf(stderr, "Invalid IP packet in queue!\n");
+			}
+
+
+		}
+	}
 }
 
 void arp_putincache(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac,
@@ -170,6 +217,10 @@ void arp_onreceive(packet_info_t* pi, packet_arp_t * arp) {
 	if (hardwaretype == ARP_HTYPE_ETH && protocoltype == ARP_PTYPE_IP
 			&& arp->hardwareaddresslength == 6
 			&& arp->protocoladdresslength == 4) {
+
+		// check for pending ip packets and process them
+		process_arpipqueue(&pi->router->iparp_buffer, arp->sender_ip, arp->sender_mac);
+
 		dataqueue_t * cache = &pi->router->arp_cache;
 
 		const int opcode = ntohs(arp->opcode);

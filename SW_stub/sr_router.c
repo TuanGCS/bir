@@ -40,6 +40,7 @@ void router_init( router_t* router ) {
 
     queue_init(&router->arp_cache);
     queue_init(&router->ip_table);
+    queue_init(&router->iparp_buffer);
 
 #ifndef _THREAD_PER_PACKET_
     debug_println( "Initializing the router work queue with %u worker threads",
@@ -55,6 +56,7 @@ void router_destroy( router_t* router ) {
 
     queue_free(&router->arp_cache);
     queue_free(&router->ip_table);
+    queue_free(&router->iparp_buffer);
 
 #ifdef _CPUMODE_
     closeDescriptor( &router->nf );

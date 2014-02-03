@@ -42,6 +42,7 @@ typedef struct router_t {
 
     dataqueue_t arp_cache;
     dataqueue_t ip_table;
+    dataqueue_t iparp_buffer;
 
     bool use_ospf;
 

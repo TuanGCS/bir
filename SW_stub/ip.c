@@ -7,6 +7,7 @@
 #include "ethernet_packet.h"
 #include "arp.h"
 #include "packets.h"
+#include <string.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -179,6 +180,11 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 
 	// TODO! check ipv4 version, flags, header size, etc.
 
+	if (!ip_checkchecksum(ipv4)) {
+		fprintf(stderr, "IPv4 CHECKSUM ERR\n");
+		return;
+	}
+
 	if (ipv4->ttl < 1)
 		return; // don't handle packets with ttl less than 1 TODO should that be less than 0
 
@@ -215,27 +221,33 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 	ip_table_entry_t dest_ip_entry; // memory allocation ;(
 	int id = ip_longestprefixmatch(&pi->router->ip_table, ipv4->dst_ip, &dest_ip_entry);
 
-	if (!ip_checkchecksum(ipv4)) {
-		fprintf(stderr, "IPv4 CHECKSUM ERR\n");
-		return;
-	}
-
 	if (id >= 0) {
-		ipv4->ttl--; // reduce ttl
 
 		arp_cache_entry_t arp_dest; // memory allocation ;(
 		int id = arp_getcachebyip(&pi->router->arp_cache, ipv4->dst_ip, &arp_dest);
 
 		if (id >= 0) {
+			ipv4->ttl--; // reduce ttl
+
 			ip_generatechecksum(ipv4); // generate checksum
 			ethernet_packet_send(get_sr(), dest_ip_entry.interface,
 					arp_dest.mac, dest_ip_entry.interface->mac,
 					htons(ETH_IP_TYPE), pi);
 		} else {
+			fprintf(stderr,
+					"IP packet will be queued upon ARP request response.\n");
+
+			// add to queue
+			byte data[sizeof(packet_info_t) + pi->len];
+			memcpy(data, (void *) pi, sizeof(packet_info_t)); // first add packet info
+			memcpy(&data[sizeof(packet_info_t)], (void *) pi->packet, pi->len); // then add the data intself
+
+			// TODO! what if we start pinging an unknown address until memory runs out? how do we flush iparp_buffer?
+			queue_add(&pi->router->iparp_buffer, (void *) &data, sizeof(packet_info_t) + pi->len); // add current packet to queue
+
 			arp_send_request(pi->router, dest_ip_entry.interface,
 					ipv4->dst_ip);
-			fprintf(stderr,
-					"Cannot forward IP packet! No entry in ARP table\n");
+
 		}
 
 	} else {
