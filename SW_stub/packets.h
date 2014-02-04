@@ -84,6 +84,7 @@ typedef struct PACKED packet_ip4 {
 typedef struct ip_table_entry {
 	addr_ip_t ip;
 	interface_t* interface;
+	int netmask;
 } ip_table_entry_t;
 
 #endif
