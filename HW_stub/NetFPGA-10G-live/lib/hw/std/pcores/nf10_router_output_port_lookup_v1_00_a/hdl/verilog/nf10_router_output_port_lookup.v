@@ -157,8 +157,17 @@ module nf10_router_output_port_lookup
 	   if (M_AXIS_TVALID) begin
 
                // Send all packets to ethernet port 1 (nf1)
-		M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b100;
+//		M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b100;
+		if(!pkt_is_from_cpu)
+		begin
+                  if(M_AXIS_TUSER[SRC_PORT_POS]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] =   8'b100;
+                  if(M_AXIS_TUSER[SRC_PORT_POS+2]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b1;
+                  if(M_AXIS_TUSER[SRC_PORT_POS+4]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b1000000;
+                  if(M_AXIS_TUSER[SRC_PORT_POS+6]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000;
+                end
+		else M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b100;
 
+ 
                /* Here's how we'd implement a NIC: */
                /*
 	       if(pkt_is_from_cpu)

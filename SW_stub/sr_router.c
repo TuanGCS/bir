@@ -38,6 +38,10 @@ void router_init( router_t* router ) {
 
     pthread_mutex_init( &router->intf_lock, NULL );
 
+    queue_init(&router->arp_cache);
+    queue_init(&router->ip_table);
+    queue_init(&router->iparp_buffer);
+
 #ifndef _THREAD_PER_PACKET_
     debug_println( "Initializing the router work queue with %u worker threads",
                    NUM_WORKER_THREADS );
@@ -49,6 +53,10 @@ void router_init( router_t* router ) {
 
 void router_destroy( router_t* router ) {
     pthread_mutex_destroy( &router->intf_lock );
+
+    queue_free(&router->arp_cache);
+    queue_free(&router->ip_table);
+    queue_free(&router->iparp_buffer);
 
 #ifdef _CPUMODE_
     closeDescriptor( &router->nf );

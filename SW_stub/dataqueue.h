@@ -6,21 +6,20 @@
 typedef struct dataqueue {
 	void ** packet;
 	int * packet_sizes;
-	pthread_mutex_t * packet_locks;
 
 	pthread_mutex_t locker;
 
 	volatile int size;
 } dataqueue_t;
 
-
-
 void queue_init(dataqueue_t * queue);
 
 // a copy of the data is made
 void queue_add(dataqueue_t * queue, void * data, int size);
 
-void queue_remove(dataqueue_t * queue, int id);
+int queue_replace(dataqueue_t * queue, void * data, int size, int id);
+
+void queue_unlockidandremove(dataqueue_t * queue, int id);
 
 int queue_getcurrentsize(dataqueue_t * queue);
 

@@ -13,26 +13,15 @@ void queue_init(dataqueue_t * queue) {
 void queue_add(dataqueue_t * queue, void * data, int size) {
 	pthread_mutex_lock(&queue->locker); // global lock
 
-	int i;
-
 	const int id = queue->size;
 
-	// lock all packets
-	for (i = 0; i < id; i++)
-		pthread_mutex_lock(&queue->packet_locks[i]);
-
 	if (queue->size == 0) {
-		queue->packet = malloc(sizeof(void *) * queue->size);
-		queue->packet_sizes = (int *) malloc(sizeof(int) * queue->size);
-		queue->packet_locks = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t) * queue->size);
+		queue->packet = (void **) malloc(sizeof(void *) * (queue->size+1));
+		queue->packet_sizes = (int *) malloc(sizeof(int) * (queue->size+1));
 	} else {
-		queue->packet = realloc(queue->packet, sizeof(void *) * queue->size);
-		queue->packet_sizes = (int *) realloc((void *) queue->packet_sizes, sizeof(int) * queue->size);
-		queue->packet_locks = (pthread_mutex_t *) realloc((void *) queue->packet_locks, sizeof(pthread_mutex_t) * queue->size);
+		queue->packet = (void **) realloc((void *) queue->packet, sizeof(void *) * (queue->size+1));
+		queue->packet_sizes = (int *) realloc((void *) queue->packet_sizes, sizeof(int) * (queue->size+1));
 	}
-
-	// create the new pthread
-	pthread_mutex_init(&queue->packet_locks[id], NULL);
 
 	// create data and copy it
 	void * buf = malloc(size);
@@ -42,46 +31,48 @@ void queue_add(dataqueue_t * queue, void * data, int size) {
 	queue->packet[id] = buf;
 	queue->packet_sizes[id] = size;
 
-	// unlock all packets
-	for (i = 0; i < id; i++)
-		pthread_mutex_unlock(&queue->packet_locks[i]);
-
 	// announce we have a new element
 	queue->size++;
 
 	pthread_mutex_unlock(&queue->locker);
 }
 
-void queue_remove(dataqueue_t * queue, int id) {
+int queue_replace(dataqueue_t * queue, void * data, int size, int id) {
+	pthread_mutex_lock(&queue->locker);
+
+	if (id >= queue->size || id < 0) {pthread_mutex_unlock(&queue->locker); return 0;}
+
+	if (size != queue->packet_sizes[id])
+		queue->packet[id] = realloc(queue->packet[id], size);
+
+	memcpy(queue->packet[id],data,size);
+
+	pthread_mutex_unlock(&queue->locker);
+
+	return 1;
+}
+
+void queue_unlockidandremove(dataqueue_t * queue, int id) {
+
 	int i;
-	if (id >= queue->size || id < 0) return;
+	if (id >= queue->size || id < 0) {pthread_mutex_unlock(&queue->locker); return;};
 
-	pthread_mutex_lock(&queue->locker); // global lock
 	const int size = queue->size;
-
-	// lock all packets
-	for (i = 0; i < size; i++)
-		pthread_mutex_lock(&queue->packet_locks[i]);
 
 	// free memory
 	free(queue->packet[id]);
-	pthread_mutex_destroy(&queue->packet_locks[id]);
 
 	// remove it physically
 	for (i = id; i < size-1; i++) {
 		queue->packet[i] = queue->packet[i+1];
 		queue->packet_sizes[i] = queue->packet_sizes[i+1];
-		queue->packet_locks[i] = queue->packet_locks[i+1];
 	}
 
 	// shrink
 	queue->packet = realloc(queue->packet, sizeof(void *) * (size-1));
 	queue->packet_sizes = (int *) realloc((void *) queue->packet_sizes, sizeof(int) * (size-1));
-	queue->packet_locks = (pthread_mutex_t *) realloc((void *) queue->packet_locks, sizeof(pthread_mutex_t) * (size-1));
 
 	queue->size--;
-	for (i = 0; i < queue->size; i++)
-		pthread_mutex_unlock(&queue->packet_locks[i]);
 
 	pthread_mutex_unlock(&queue->locker);
 }
@@ -91,8 +82,9 @@ int queue_getcurrentsize(dataqueue_t * queue) {
 }
 
 int queue_getidandlock(dataqueue_t * queue, int id, void ** data, int * size) {
-	if (id >= queue->size || id < 0) return 0;
-	pthread_mutex_lock(&queue->packet_locks[id]);
+	pthread_mutex_lock(&queue->locker);
+
+	if (id >= queue->size || id < 0) {pthread_mutex_unlock(&queue->locker); return 0;}
 
 	*data = queue->packet[id];
 	*size = queue->packet_sizes[id];
@@ -100,18 +92,22 @@ int queue_getidandlock(dataqueue_t * queue, int id, void ** data, int * size) {
 }
 
 void queue_unlockid(dataqueue_t * queue, int id) {
-	pthread_mutex_unlock(&queue->packet_locks[id]);
+	pthread_mutex_unlock(&queue->locker);
 }
 
 void queue_free(dataqueue_t * queue) {
 	int i;
-	pthread_mutex_lock(&queue->locker); // global lock
 
-	for (i = 0; i < queue->size; i++) queue_remove(queue, i);
+	void * temp_v; int temp_i;
+
+	while (queue->size > 0) {
+		for (i = 0; i < queue->size; i++)
+			if (queue_getidandlock(queue, i, &temp_v, &temp_i))
+				queue_unlockidandremove(queue, i);
+	}
 
 	pthread_mutex_destroy(&queue->locker);
 
 	free(queue->packet);
 	free(queue->packet_sizes);
-	free(queue->packet_locks);
 }

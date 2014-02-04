@@ -62,13 +62,8 @@ typedef struct arp_cache_entry {
 	addr_ip_t ip;
 	addr_mac_t mac;
 	interface_t* interface;
-	struct timeval* tv;
+	struct timeval tv;
 } arp_cache_entry_t;
-
-typedef struct arp_cache {
-	arp_cache_entry_t * entries;
-	int cache_size;
-} arp_cache_t;
 
 typedef struct PACKED packet_ip4 {
 	uint8_t version_ihl;
@@ -87,10 +82,5 @@ typedef struct ip_table_entry {
 	addr_ip_t ip;
 	interface_t* interface;
 } ip_table_entry_t;
-
-typedef struct ip_table {
-	ip_table_entry_t * entries;
-	int table_size;
-} ip_table_t;
 
 #endif
