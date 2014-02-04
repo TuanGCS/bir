@@ -152,6 +152,7 @@ void sr_integ_destroy(struct sr_instance* sr) {
  * @return 0 on failure to find a route to dest.
  */
 uint32_t sr_integ_findsrcip(uint32_t dest /* nbo */) {
+	printf("sr_integ_findsrcip(%d)\n",dest);
 	return 0;
 }
 
@@ -167,7 +168,37 @@ uint32_t sr_integ_ip_output(uint8_t* payload /* given */,
                             uint32_t src, /* nbo */
                             uint32_t dest, /* nbo */
                             int len) {
-    bool ret=1;
+    struct sr_instance* sr;
 
-    return( ret ? 0 : 1 );
+    sr = sr_get_global_instance( NULL );
+
+    const int offset = sizeof(packet_ethernet_t);
+    const int totallen = len + sizeof(packet_ip4_t);
+    byte packet[offset+totallen];
+    memcpy(&packet[offset+sizeof(packet_ip4_t)], payload, len);
+
+    packet_ip4_t * ip = (packet_ip4_t *) &packet[offset];
+
+    packet_info_t pinfo;
+    pinfo.packet = packet;
+    pinfo.len = offset + totallen;
+    pinfo.interface = NULL;
+    pinfo.router = sr->interface_subsystem;
+
+    ip->version = 4;
+    ip->ihl = 5;
+    ip->flags_fragmentoffset = htons(0x4000);
+    ip->ttl = 64;
+    ip->dscp_ecn = 0x10;
+    ip->total_length = htons(totallen);
+    ip->protocol = proto;
+    ip->header_checksum = 0;
+    ip->src_ip = src;
+    ip->dst_ip = dest;
+    ip->header_checksum = 0;
+    ip->header_checksum = generatechecksum((unsigned short*) ip, sizeof(packet_ip4_t));
+
+    ip_onreceive(&pinfo, ip);
+
+    return 1;
 }

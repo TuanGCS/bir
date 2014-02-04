@@ -148,7 +148,7 @@ static inline int ip_checkchecksum(packet_ip4_t * ipv4) {
 	return ((uint16_t) ~sum) == (0);
 }
 
-static inline int generatechecksum(unsigned short * buf, int len) {
+int generatechecksum(unsigned short * buf, int len) {
 
 	uint16_t * data = (uint16_t *) buf;
 	int size = len / 2;
@@ -162,6 +162,7 @@ static inline int generatechecksum(unsigned short * buf, int len) {
 	return htons(((uint16_t) ~sum));
 }
 
+void sr_transport_input(uint8_t* packet /* borrowed */); // this function does the transport input to the system
 void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 
 	// TODO! check ipv4 version, flags, header size, etc.
@@ -177,6 +178,10 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 	int i;
 	for (i = 0; i < pi->router->num_interfaces; i++) {
 		if (ipv4->dst_ip == pi->router->interface[i].ip) {
+
+			// TODO! CHECK TYPE OF IP
+			sr_transport_input((uint8_t *) ipv4);
+			continue;
 
 			packet_ethernet_t* eth = (packet_ethernet_t *) pi->packet;
 			addr_mac_t temp_mac = eth->dest_mac;

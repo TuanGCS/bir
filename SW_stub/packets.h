@@ -26,6 +26,8 @@
 
 #define ARP_THRESHOLD (50)
 
+#define PROTOCOL_TCP (6)
+
 #define MAC_BROADCAST (.octet = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF})
 
 #define ICMP_TYPE_REQUEST (8)
@@ -66,7 +68,8 @@ typedef struct arp_cache_entry {
 } arp_cache_entry_t;
 
 typedef struct PACKED packet_ip4 {
-	uint8_t version_ihl;
+	unsigned ihl:4;
+	unsigned version:4;
 	uint8_t dscp_ecn;
 	uint16_t total_length;
 	uint16_t id;
