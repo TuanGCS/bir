@@ -126,7 +126,7 @@ void wq_wait_for_work( work_queue_t* wq ) {
 
         /* get the next piece of work */
         true_or_die( wq->head != NULL, "Error: no work on the work queue?" );
-        debug_println( "Worker got some work to do" );
+        //debug_println( "Worker got some work to do" );
         work = wq->head;
         wq->head = wq->head->next;
         if( wq->head == NULL )

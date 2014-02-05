@@ -26,6 +26,7 @@ struct router_t;
 #include "sr_common.h"
 #include "sr_interface.h"
 #include "sr_work_queue.h"
+#include "dataqueue.h"
 
 #include "packets.h"
 
@@ -39,8 +40,9 @@ typedef struct router_t {
     unsigned num_interfaces;
     pthread_mutex_t intf_lock;
 
-    arp_cache_t arp_cache;
-    ip_table_t ip_table;
+    dataqueue_t arp_cache;
+    dataqueue_t ip_table;
+    dataqueue_t iparp_buffer;
 
     bool use_ospf;
 

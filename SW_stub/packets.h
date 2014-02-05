@@ -26,6 +26,8 @@
 
 #define ARP_THRESHOLD (50)
 
+#define PROTOCOL_TCP (6)
+
 #define MAC_BROADCAST (.octet = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF})
 
 #define ICMP_TYPE_REQUEST (8)
@@ -62,16 +64,12 @@ typedef struct arp_cache_entry {
 	addr_ip_t ip;
 	addr_mac_t mac;
 	interface_t* interface;
-	struct timeval* tv;
+	struct timeval tv;
 } arp_cache_entry_t;
 
-typedef struct arp_cache {
-	arp_cache_entry_t * entries;
-	int cache_size;
-} arp_cache_t;
-
 typedef struct PACKED packet_ip4 {
-	uint8_t version_ihl;
+	unsigned ihl:4;
+	unsigned version:4;
 	uint8_t dscp_ecn;
 	uint16_t total_length;
 	uint16_t id;
@@ -86,11 +84,7 @@ typedef struct PACKED packet_ip4 {
 typedef struct ip_table_entry {
 	addr_ip_t ip;
 	interface_t* interface;
+	int netmask;
 } ip_table_entry_t;
-
-typedef struct ip_table {
-	ip_table_entry_t * entries;
-	int table_size;
-} ip_table_t;
 
 #endif
