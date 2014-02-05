@@ -190,7 +190,33 @@ module nf10_router_output_port_lookup
       endcase // case (state)
    end // always @ (*)
 
-   always @(posedge AXI_ACLK) begin
+  reg [31:0] ipv4_count;
+  reg [31:0] arp_count;
+  reg [31:0] ospf_count;
+  reg c_state;
+
+  always@(posedge AXI_ACLK)
+  begin
+      if(~AXI_RESETN) begin
+	 c_state <= 0;
+         ipv4_count <= 0;
+         arp_count <= 0;
+         ospf_count <= 0;
+      end
+      else if(!c_state & M_AXIS_TVALID) begin
+	 c_state <= 1;
+         if(M_AXIS_TDATA[159:144] == 16'h0806) arp_count <= arp_count + 1;
+	 else if(M_AXIS_TDATA[159:144] == 16'h0800) begin 
+           if(M_AXIS_TDATA[143:140] == 4'd4) ipv4_count <= ipv4_count + 1;
+	   if(M_AXIS_TDATA[71:64] == 8'd89) ospf_count <= ospf_count + 1;
+         end
+      end
+      else if(c_state & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY) c_state <= 0;
+  end
+
+
+   always@(posedge AXI_ACLK) 
+   begin
       if(~AXI_RESETN) begin
 	 state <= MODULE_HEADER;
       end
