@@ -11,6 +11,8 @@
 
 #include "sr_mininet_extension.h"
 
+#define MAX_PACKET_SIZE (2000)
+
 #ifdef MININET_MODE
 
 /*
@@ -80,7 +82,7 @@ int sr_mininet_init_intf_socket( char* router_name, int interface_index ) {
  *   passes the available data (if it exists) on to the student's code
  */
 int sr_mininet_read_packet( struct sr_instance* sr ) {
-    byte buf[2000];
+    byte buf[MAX_PACKET_SIZE];
     ssize_t len;
     router_t* router;
     interface_t* intf;
@@ -119,7 +121,7 @@ int sr_mininet_read_packet( struct sr_instance* sr ) {
             intf = &router->interface[i];
             /* check for available bytes in the input buffer */
                 if( FD_ISSET( intf->hw_fd, &rdset ) ) {
-                    len = real_read_once( intf->hw_fd, buf, 1500 );
+                    len = real_read_once( intf->hw_fd, buf, MAX_PACKET_SIZE );
                     sr_integ_input( sr, buf, len, intf );
 		    /* log the received packet */
                     sr_log_packet( sr, buf, len );
