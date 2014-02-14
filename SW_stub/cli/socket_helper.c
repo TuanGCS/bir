@@ -141,6 +141,7 @@ int writen( int fd, const void* buf, unsigned n ) {
     chbuf = (char*)buf;
     nleft = n;
     while( nleft > 0 ) {
+
         if( (nwritten = write(fd, chbuf, nleft)) <= 0 ) {
             if( nwritten < 0 && errno == EINTR )
                 continue;  /* interrupt: no bytes written: try again */
@@ -151,7 +152,6 @@ int writen( int fd, const void* buf, unsigned n ) {
         nleft -= nwritten;
         chbuf += nwritten;
     }
-
     return 0; /* indicates success */
 }
 
