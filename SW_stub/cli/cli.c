@@ -6,6 +6,7 @@
 #include <string.h>              /* strncpy()                         */
 #include <sys/time.h>            /* struct timeval                    */
 #include <unistd.h>              /* sleep()                           */
+#include <stdarg.h>
 #include "cli.h"
 #include "cli_network.h"         /* make_thread()                     */
 #include "cli_ping.h"            /* cli_ping_init(), cli_ping_request() */
@@ -13,6 +14,10 @@
 #include "../sr_base_internal.h" /* struct sr_instance                */
 #include "../sr_common.h"        /* ...                               */
 #include "../sr_router.h"        /* router_*()                        */
+#include "../ip.h"
+#include "../arp.h"
+
+#define MAX_CHARS_IN_CLI_SEND_STRF (250)
 
 /** whether to shutdown the server or not */
 static bool router_shutdown;
@@ -72,6 +77,33 @@ static void cli_send_str( const char* str ) {
     if( fd_alive )
         if( 0 != writenstr( fd, str ) )
             fd_alive = FALSE;
+}
+
+
+/**
+ * A printf-like implementation for sending over the network. Maximum size
+ * to print is MAX_CHARS_IN_CLI_SEND_STRF. (Creator Martin)
+ */
+static void cli_send_strf( const char* format , ... ) {
+
+	static char data[MAX_CHARS_IN_CLI_SEND_STRF];
+	static pthread_mutex_t cli_sprintf_lock = PTHREAD_MUTEX_INITIALIZER;
+
+    if( fd_alive ) {
+    	va_list arg;
+    	va_start (arg, format);
+
+    	pthread_mutex_lock(&cli_sprintf_lock);
+    	int size = vsnprintf(data, MAX_CHARS_IN_CLI_SEND_STRF, format, arg);
+    	if (size < MAX_CHARS_IN_CLI_SEND_STRF && size >= 0) {
+    		data[size] = 0;
+    		if( 0 != writenstr( fd, data ) )
+    			fd_alive = FALSE;
+    	}
+
+    	pthread_mutex_unlock(&cli_sprintf_lock);
+    	usleep(50);
+    }
 }
 
 
@@ -212,6 +244,27 @@ void cli_show_ip() {
 }
 
 void cli_show_ip_arp() {
+	dataqueue_t * table = &ROUTER->ip_table;
+
+	int i;
+	cli_send_strf("THE IP TABLE\n");
+	for (i = 0; i < table->size; i++) {
+		ip_table_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(table, i, (void **) &entry, &entry_size)) {
+
+			assert(entry_size == sizeof(ip_table_entry_t));
+
+			//cli_send_strf("CLI: %d. IP: %s/%d @ iface %s \n", i,
+			//		quick_ip_to_string(entry->ip), entry->netmask,
+			//		entry->interface->name);
+			cli_send_str("CLIcolzerpdotIPcoltendotzerodotonedottwoslashninetynineatifacerodashethzero\n");
+
+			queue_unlockid(table, i);
+		}
+	}
+
+	printf("\n");
 }
 
 void cli_show_ip_intf() {

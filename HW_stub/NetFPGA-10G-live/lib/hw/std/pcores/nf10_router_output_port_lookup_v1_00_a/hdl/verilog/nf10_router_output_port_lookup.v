@@ -113,29 +113,133 @@ module nf10_router_output_port_lookup
    // ------------ Internal Params --------
    localparam MODULE_HEADER = 0;
    localparam IN_PACKET     = 1;
+   localparam NUM_RW_REGS       = 0;
+   localparam NUM_RO_REGS       = 4;
+
 
    //------------- Wires ------------------
    wire  [C_M_AXIS_TUSER_WIDTH-1:0] tuser_fifo;
    reg 			  state, state_next;
 
+  wire                                            Bus2IP_Clk;
+  wire                                            Bus2IP_Resetn;
+  wire     [C_S_AXI_ADDR_WIDTH-1 : 0]             Bus2IP_Addr;
+  wire     [0:0]                                  Bus2IP_CS;
+  wire                                            Bus2IP_RNW;
+  wire     [C_S_AXI_DATA_WIDTH-1 : 0]             Bus2IP_Data;
+  wire     [C_S_AXI_DATA_WIDTH/8-1 : 0]           Bus2IP_BE;
+  wire     [C_S_AXI_DATA_WIDTH-1 : 0]             IP2Bus_Data;
+  wire                                            IP2Bus_RdAck;
+  wire                                            IP2Bus_WrAck;
+  wire                                            IP2Bus_Error;
+  
+  wire     [NUM_RW_REGS*C_S_AXI_DATA_WIDTH-1 : 0] rw_regs;
+  wire     [NUM_RO_REGS*C_S_AXI_DATA_WIDTH-1 : 0] ro_regs;
+
+
+
    // ------------ Modules ----------------
+
+   // -- AXILITE IPIF
+  axi_lite_ipif_1bar #
+  (
+    .C_S_AXI_DATA_WIDTH (C_S_AXI_DATA_WIDTH),
+    .C_S_AXI_ADDR_WIDTH (C_S_AXI_ADDR_WIDTH),
+	.C_USE_WSTRB        (C_USE_WSTRB),
+	.C_DPHASE_TIMEOUT   (C_DPHASE_TIMEOUT),
+    .C_BAR0_BASEADDR    (C_BASEADDR),
+    .C_BAR0_HIGHADDR    (C_HIGHADDR)
+  ) axi_lite_ipif_inst
+  (
+    .S_AXI_ACLK          ( AXI_ACLK       ),
+    .S_AXI_ARESETN       ( AXI_RESETN     ),
+    .S_AXI_AWADDR        ( S_AXI_AWADDR   ),
+    .S_AXI_AWVALID       ( S_AXI_AWVALID  ),
+    .S_AXI_WDATA         ( S_AXI_WDATA    ),
+    .S_AXI_WSTRB         ( S_AXI_WSTRB    ),
+    .S_AXI_WVALID        ( S_AXI_WVALID   ),
+    .S_AXI_BREADY        ( S_AXI_BREADY   ),
+    .S_AXI_ARADDR        ( S_AXI_ARADDR   ),
+    .S_AXI_ARVALID       ( S_AXI_ARVALID  ),
+    .S_AXI_RREADY        ( S_AXI_RREADY   ),
+    .S_AXI_ARREADY       ( S_AXI_ARREADY  ),
+    .S_AXI_RDATA         ( S_AXI_RDATA    ),
+    .S_AXI_RRESP         ( S_AXI_RRESP    ),
+    .S_AXI_RVALID        ( S_AXI_RVALID   ),
+    .S_AXI_WREADY        ( S_AXI_WREADY   ),
+    .S_AXI_BRESP         ( S_AXI_BRESP    ),
+    .S_AXI_BVALID        ( S_AXI_BVALID   ),
+    .S_AXI_AWREADY       ( S_AXI_AWREADY  ),
+	
+	// Controls to the IP/IPIF modules
+    .Bus2IP_Clk          ( Bus2IP_Clk     ),
+    .Bus2IP_Resetn       ( Bus2IP_Resetn  ),
+    .Bus2IP_Addr         ( Bus2IP_Addr    ),
+    .Bus2IP_RNW          ( Bus2IP_RNW     ),
+    .Bus2IP_BE           ( Bus2IP_BE      ),
+    .Bus2IP_CS           ( Bus2IP_CS      ),
+    .Bus2IP_Data         ( Bus2IP_Data    ),
+    .IP2Bus_Data         ( IP2Bus_Data    ),
+    .IP2Bus_WrAck        ( IP2Bus_WrAck   ),
+    .IP2Bus_RdAck        ( IP2Bus_RdAck   ),
+    .IP2Bus_Error        ( IP2Bus_Error   )
+  );
+  
+  // -- IPIF REGS
+  ipif_regs #
+  (
+    .C_S_AXI_DATA_WIDTH (C_S_AXI_DATA_WIDTH),          
+    .C_S_AXI_ADDR_WIDTH (C_S_AXI_ADDR_WIDTH),   
+    .NUM_RW_REGS        (NUM_RW_REGS),
+    .NUM_RO_REGS        (NUM_RO_REGS)
+  ) ipif_regs_inst
+  (   
+    .Bus2IP_Clk     ( Bus2IP_Clk     ),
+    .Bus2IP_Resetn  ( Bus2IP_Resetn  ), 
+    .Bus2IP_Addr    ( Bus2IP_Addr    ),
+    .Bus2IP_CS      ( Bus2IP_CS[0]   ),
+    .Bus2IP_RNW     ( Bus2IP_RNW     ),
+    .Bus2IP_Data    ( Bus2IP_Data    ),
+    .Bus2IP_BE      ( Bus2IP_BE      ),
+    .IP2Bus_Data    ( IP2Bus_Data    ),
+    .IP2Bus_RdAck   ( IP2Bus_RdAck   ),
+    .IP2Bus_WrAck   ( IP2Bus_WrAck   ),
+    .IP2Bus_Error   ( IP2Bus_Error   ),
+    .wo_regs        ( wo_regs ),	
+    .rw_regs        ( rw_regs ),
+    .ro_regs        ( ro_regs )
+  );
+ 
+  wire [C_S_AXI_DATA_WIDTH-1:0] ipv4_count;
+  wire [C_S_AXI_DATA_WIDTH-1:0] arp_count;
+  wire [C_S_AXI_DATA_WIDTH-1:0] ospf_count;
+
+    // Master Stream Ports (interface to data path)
+    wire [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA_0;
+    wire [((C_M_AXIS_DATA_WIDTH/8))-1:0]M_AXIS_TSTRB_0;
+    wire [C_M_AXIS_TUSER_WIDTH-1:0]	M_AXIS_TUSER_0;
+    wire 				M_AXIS_TVALID_0;
+    wire  				M_AXIS_TREADY_0;
+    wire 				M_AXIS_TLAST_0;
+
 
    fallthrough_small_fifo
         #( .WIDTH(C_M_AXIS_DATA_WIDTH+C_M_AXIS_TUSER_WIDTH+C_M_AXIS_DATA_WIDTH/8+1),
            .MAX_DEPTH_BITS(2))
       input_fifo
         (// Outputs
-         .dout                           ({M_AXIS_TLAST, tuser_fifo, M_AXIS_TSTRB, M_AXIS_TDATA}),
+         .dout                           ({M_AXIS_TLAST_0, M_AXIS_TUSER_0, M_AXIS_TSTRB_0, M_AXIS_TDATA_0}),
          .full                           (),
          .nearly_full                    (in_fifo_nearly_full),
          .prog_full                      (),
          .empty                          (in_fifo_empty),
          // Inputs
-         .din                            ({S_AXIS_TLAST, S_AXIS_TUSER, S_AXIS_TSTRB, S_AXIS_TDATA}),
-         .wr_en                          (S_AXIS_TVALID & ~in_fifo_nearly_full),
+       .din                            ({S_AXIS_TLAST, S_AXIS_TUSER, S_AXIS_TSTRB, S_AXIS_TDATA}),
+         .wr_en                          (S_AXIS_TVALID & S_AXIS_TREADY),
          .rd_en                          (in_fifo_rd_en),
          .reset                          (~AXI_RESETN),
-         .clk                            (AXI_ACLK));
+         .clk                            (AXI_ACLK)
+	);
 
    // ------------- Logic ----------------
 
@@ -146,6 +250,40 @@ module nf10_router_output_port_lookup
 			    M_AXIS_TUSER[SRC_PORT_POS+3] ||
 			    M_AXIS_TUSER[SRC_PORT_POS+5] ||
 			    M_AXIS_TUSER[SRC_PORT_POS+7];
+
+   assign ro_regs = {32'd0, ospf_count, arp_count, ipv4_count};
+
+  packet_classification
+    #(
+      .C_S_AXI_DATA_WIDTH ( 32 ),
+      .C_S_AXI_ADDR_WIDTH ( 32 ),
+      .C_S_AXI_ACLK_FREQ_HZ ( 160000000 ),
+      .C_M_AXIS_DATA_WIDTH ( 256 ),
+      .C_S_AXIS_DATA_WIDTH ( 256 ),
+      .C_M_AXIS_TUSER_WIDTH ( 128 ),
+      .C_S_AXIS_TUSER_WIDTH ( 128 )
+    )
+    nf10_pc_0 (
+      .AXI_ACLK ( AXI_ACLK ),
+      .AXI_RESETN ( AXI_RESETN ),
+      .M_AXIS_TDATA ( M_AXIS_TDATA ),
+      .M_AXIS_TSTRB ( M_AXIS_TSTRB ),
+      .M_AXIS_TUSER ( tuser_fifo ),
+      .M_AXIS_TVALID ( M_AXIS_TVALID ),
+      .M_AXIS_TREADY ( M_AXIS_TREADY ),
+      .M_AXIS_TLAST ( M_AXIS_TLAST ),
+      .S_AXIS_TDATA ( M_AXIS_TDATA_0 ),
+      .S_AXIS_TSTRB ( M_AXIS_TSTRB_0 ),
+      .S_AXIS_TUSER ( M_AXIS_TUSER_0 ),
+      .S_AXIS_TVALID ( M_AXIS_TVALID_0 ),
+      .S_AXIS_TREADY ( M_AXIS_TREADY_0 ),
+      .S_AXIS_TLAST ( M_AXIS_TLAST_0 ),
+      .ipv4_count(ipv4_count),
+      .arp_count(arp_count),
+      .ospf_count(ospf_count)
+    );
+
+
 
    // modify the dst port in tuser
    always @(*) begin
@@ -190,10 +328,8 @@ module nf10_router_output_port_lookup
       endcase // case (state)
    end // always @ (*)
 
-  reg [31:0] ipv4_count;
-  reg [31:0] arp_count;
-  reg [31:0] ospf_count;
-  reg c_state;
+/*
+ reg c_state;
 
   always@(posedge AXI_ACLK)
   begin
@@ -203,7 +339,7 @@ module nf10_router_output_port_lookup
          arp_count <= 0;
          ospf_count <= 0;
       end
-      else if(!c_state & M_AXIS_TVALID) begin
+      else if(!c_state & M_AXIS_TVALID & M_AXIS_TREADY) begin
 	 c_state <= 1;
          if(M_AXIS_TDATA[159:144] == 16'h0806) arp_count <= arp_count + 1;
 	 else if(M_AXIS_TDATA[159:144] == 16'h0800) begin 
@@ -212,6 +348,41 @@ module nf10_router_output_port_lookup
          end
       end
       else if(c_state & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY) c_state <= 0;
+  end
+*/
+
+ reg [1:0] crc_state;
+ reg [191:0] crc_data;
+ reg [15:0] checksum;
+ reg [31:0] temp;
+ reg [15:0] temp1;
+ reg [15:0] temp2;
+ integer i;
+
+  always@(posedge AXI_ACLK)
+  begin
+     if(~AXI_RESETN) begin
+	crc_state <= 0;
+        checksum <= 0;
+	temp <= 0;
+     end
+     else if(crc_state == 2'd0 & M_AXIS_TREADY) begin
+			crc_state <= 1;
+			temp <= M_AXIS_TDATA[143:128] + M_AXIS_TDATA[127:112] + M_AXIS_TDATA[111:96] 
+			        + M_AXIS_TDATA[95:80] + M_AXIS_TDATA[79:64] + M_AXIS_TDATA[47:32]  
+			        + M_AXIS_TDATA[31:16] + M_AXIS_TDATA[15:0];
+	  end
+	  else if(crc_state == 2'd1)
+	  begin
+			crc_state <= 2;
+			temp2 = M_AXIS_TDATA[255:240];
+			temp = temp + M_AXIS_TDATA[255:240];
+			temp1 = temp[15:0] + temp[19:16];
+			checksum <= ~temp1;
+	  end
+     else if(crc_state == 2'd2 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY) begin 
+         crc_state <= 0;
+     end
   end
 
 
@@ -226,7 +397,7 @@ module nf10_router_output_port_lookup
    end
 
    // Handle output
-   assign in_fifo_rd_en = M_AXIS_TREADY && !in_fifo_empty;
-   assign M_AXIS_TVALID = !in_fifo_empty;
+   assign in_fifo_rd_en = M_AXIS_TREADY_0 && !in_fifo_empty;
+   assign M_AXIS_TVALID_0 = !in_fifo_empty;
 
 endmodule // output_port_lookup
