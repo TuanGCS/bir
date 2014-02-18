@@ -30,8 +30,13 @@
 
 #define MAC_BROADCAST (.octet = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF})
 
-#define ICMP_TYPE_REQUEST (8)
 #define ICMP_TYPE_REPLAY (0)
+#define ICMP_TYPE_DST_UNREACH (3)
+#define ICMP_TYPE_REQUEST (8)
+#define ICMP_TYPE_TIME_EXCEEDED (11)
+#define ICMP_TYPE_TRACEROUTE (30)
+
+#define IP_TYPE_ICMP (1)
 
 typedef struct PACKED packet_ethernet {
 	addr_mac_t dest_mac;
@@ -56,8 +61,8 @@ typedef struct PACKED packet_icmp {
 	uint8_t code;
 	uint16_t header_checksum;
 	uint16_t id;
-	uint16_t seqNum;
-	char data[56];
+	uint16_t seq_num;
+	byte data[56];
 } packet_icmp_t;
 
 typedef struct arp_cache_entry {

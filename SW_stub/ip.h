@@ -8,6 +8,6 @@
 
 void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4);
 void ip_putintable(dataqueue_t * table, addr_ip_t ip, interface_t* interface, int netmask);
-int generatechecksum(unsigned short * buf, int len);
+void update_ip_packet_response(packet_info_t* pi, addr_ip_t dst_ip, addr_ip_t src_ip, uint8_t ttl);
 
 #endif

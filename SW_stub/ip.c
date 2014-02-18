@@ -4,9 +4,12 @@
 
 #include "sr_interface.h"
 #include "sr_integration.h"
+#include "globals.h"
 #include "ethernet_packet.h"
 #include "arp.h"
 #include "packets.h"
+#include "icmp_type.h"
+
 #include <string.h>
 
 #include <stdio.h>
@@ -14,7 +17,7 @@
 
 #include <stdint.h>
 
-volatile uint16_t hid = 1;
+volatile uint16_t hid = 1; // Fix
 
 void ip_print_table(dataqueue_t * table) {
 
@@ -125,72 +128,99 @@ void ip_putintable(dataqueue_t * table, addr_ip_t ip, interface_t* interface,
 	ip_print_table(table);
 }
 
-int generatechecksum(unsigned short * buf, int len) {
+void sr_transport_input(uint8_t* packet /* borrowed */); // this function does the transport input to the system
 
-	uint16_t * data = (uint16_t *) buf;
-	int size = len / 2;
+void update_ip_packet_response(packet_info_t* pi, addr_ip_t dst_ip,
+		addr_ip_t src_ip, uint8_t ttl) {
 
-	uint32_t sum;
-	for (sum = 0; size > 0; size--)
-		sum += ntohs(*data++);
-	sum = (sum >> 16) + (sum & 0xffff);
-	sum += (sum >> 16);
+	packet_ip4_t* ipv4 = (packet_ip4_t *) &pi->packet[sizeof(packet_ethernet_t)];
 
-	return htons(((uint16_t) ~sum));
+	ipv4->dst_ip = dst_ip;
+	ipv4->src_ip = src_ip;
+
+	ipv4->ttl = ttl;
+	ipv4->flags_fragmentoffset = 0;
+	ipv4->id = htons(hid); // Fix
+	hid++;
+
+	ipv4->header_checksum = 0;
+	ipv4->header_checksum = generatechecksum((unsigned short*) ipv4,
+			sizeof(packet_ip4_t));
+
+	packet_ethernet_t* eth = (packet_ethernet_t *) pi->packet;
+	update_ethernet_header(pi, eth->source_mac, eth->dest_mac);
+
 }
 
-void sr_transport_input(uint8_t* packet /* borrowed */); // this function does the transport input to the system
+bool ip_header_check(packet_info_t* pi, packet_ip4_t * ipv4) {
+
+	// Check IP packet version and Internet Header Length
+	if (ipv4->version != 4 || ipv4->ihl != sizeof(packet_ip4_t) >> 2) {
+		fprintf(stderr, "Not a valid IP packet\n");
+		return FALSE;
+	}
+
+	// Check if packet length is larger than the specified total length
+	if (ipv4->total_length < sizeof(pi->packet[sizeof(packet_ethernet_t)])) {
+		fprintf(stderr,
+				"Invalid length of packet (received %lu, expected %d)\n",
+				sizeof(pi->packet[sizeof(packet_ethernet_t)]),
+				ipv4->total_length);
+		return FALSE;
+	}
+
+	// Calculate and check header checksum
+	if (generatechecksum((unsigned short*) ipv4, sizeof(packet_ip4_t)) != (0)) {
+		fprintf(stderr, "IPv4 Header Checksum Error\n");
+		return FALSE;
+	}
+
+	ipv4->ttl--;
+	if (ipv4->ttl < 1) {
+		fprintf(stderr, "Packet Time-To-Live is 0 or less\n");
+
+		icmp_type_time_exceeded(pi, ipv4);
+
+		return FALSE;
+	}
+
+	return TRUE;
+
+}
+
 void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 
-	// TODO! check ipv4 version, flags, header size, etc.
-
-	if (generatechecksum((unsigned short*) ipv4, sizeof(packet_ip4_t)) != (0)) {
-		fprintf(stderr, "IPv4 CHECKSUM ERR\n");
+	// Check the validity of the IP header
+	if (!ip_header_check(pi, ipv4)) {
 		return;
 	}
 
-	if (ipv4->ttl < 1)
-		return; // don't handle packets with ttl less than 1 TODO should that be less than 0
-
 	int i;
 	for (i = 0; i < pi->router->num_interfaces; i++) {
+
 		if (ipv4->dst_ip == pi->router->interface[i].ip) {
 
-			// TODO! CHECK TYPE OF IP
-			sr_transport_input((uint8_t *) ipv4);
-			continue;
+			if (ipv4->protocol == IP_TYPE_ICMP) {
 
-			packet_ethernet_t* eth = (packet_ethernet_t *) pi->packet;
-			addr_mac_t temp_mac = eth->dest_mac;
-			eth->dest_mac = eth->source_mac;
-			eth->source_mac = temp_mac;
+				packet_icmp_t* icmp =
+						(packet_icmp_t *) &pi->packet[sizeof(packet_ethernet_t)
+								+ sizeof(packet_ip4_t)];
 
-			addr_ip_t temp_ip = ipv4->dst_ip;
-			ipv4->dst_ip = ipv4->src_ip;
-			ipv4->src_ip = temp_ip;
+				if (icmp->type == ICMP_TYPE_REQUEST) {
 
-			ipv4->ttl = 64; // Set back to max
-			ipv4->flags_fragmentoffset = 0;
-			ipv4->id = htons(hid); // Fix
-			hid++;
+					icmp_type_echo_replay(pi, icmp);
+					return;
 
-			packet_icmp_t* icmp =
-					(packet_icmp_t *) &pi->packet[sizeof(packet_ethernet_t)
-							+ sizeof(packet_ip4_t)];
-			icmp->type = ICMP_TYPE_REPLAY;
+				}
 
-			icmp->header_checksum = 0;
-			icmp->header_checksum = generatechecksum((unsigned short*) icmp,
-					sizeof(packet_icmp_t));
+				// Add other type codes TODO
 
-			ipv4->header_checksum = 0;
-			ipv4->header_checksum = generatechecksum((unsigned short*) ipv4,
-					sizeof(packet_ip4_t));
+			} else {
 
-			ethernet_packet_send(get_sr(), pi->interface, eth->dest_mac,
-					eth->source_mac, htons(ETH_IP_TYPE), pi);
+				sr_transport_input((uint8_t *) ipv4);
+				return;
 
-			return;
+			}
 
 		}
 	}
@@ -206,8 +236,7 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 				&arp_dest);
 
 		if (id >= 0) {
-			ipv4->ttl--;
-			if(ipv4->ttl < 1)
+			if (ipv4->ttl < 1)
 				return;
 
 			ipv4->header_checksum = 0;
@@ -220,6 +249,9 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 		} else {
 			fprintf(stderr,
 					"IP packet will be queued upon ARP request response.\n");
+
+			// Restore original value of TTL for checksum check
+			ipv4->ttl++;
 
 			// add to queue
 			byte data[sizeof(packet_info_t) + pi->len];
@@ -234,12 +266,12 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 
 		}
 
-
 	} else {
 		printf("Longest prefix matching failed to find an interface for %s\n",
 				quick_ip_to_string(ipv4->dst_ip));
 		ip_print_table(&pi->router->ip_table);
+
+		icmp_type_dest_unreach();
 	}
 
 }
-
