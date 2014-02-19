@@ -247,7 +247,6 @@ void cli_show_ip_arp() {
 	dataqueue_t * table = &ROUTER->ip_table;
 
 	int i;
-	cli_send_strf("THE IP TABLE\n");
 	for (i = 0; i < table->size; i++) {
 		ip_table_entry_t * entry;
 		int entry_size;
@@ -255,12 +254,15 @@ void cli_show_ip_arp() {
 
 			assert(entry_size == sizeof(ip_table_entry_t));
 
-			//cli_send_strf("CLI: %d. IP: %s/%d @ iface %s \n", i,
-			//		quick_ip_to_string(entry->ip), entry->netmask,
-			//		entry->interface->name);
-			cli_send_str("CLIcolzerpdotIPcoltendotzerodotonedottwoslashninetynineatifacerodashethzero\n");
+			char entrystr[100];
+			sprintf(entrystr, "%d. IP: %s/%d @ iface %s \n", i,
+					quick_ip_to_string(entry->ip), entry->netmask,
+					entry->interface->name);
 
 			queue_unlockid(table, i);
+			// cli_send_strf will require locking of the queue
+			// so if we do it before unlocking id, we will have a race condition!!!!
+			cli_send_strf(entrystr);
 		}
 	}
 
