@@ -14,17 +14,7 @@
 #define ETH_ARP_TYPE (0x0806)
 #define ETH_RARP_TYPE (0x8035)
 
-#define ARP_HTYPE_ETH (0x1)
-#define ARP_PTYPE_IP (0x0800)
 
-#define ARP_OPCODE_REQUEST (1)
-#define ARP_OPCODE_REPLAY (2)
-
-#define ARP_CACHE_TIMEOUT_REQUEST (120)
-#define ARP_CACHE_TIMEOUT_BROADCAST (60)
-#define ARP_CACHE_TIMEOUT_STATIC (-1)
-
-#define ARP_THRESHOLD (50)
 
 #define PROTOCOL_TCP (6)
 
@@ -68,7 +58,6 @@ typedef struct PACKED packet_icmp {
 typedef struct arp_cache_entry {
 	addr_ip_t ip;
 	addr_mac_t mac;
-	interface_t* interface;
 	struct timeval tv;
 } arp_cache_entry_t;
 

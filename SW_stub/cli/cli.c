@@ -178,7 +178,7 @@ void cli_send_parse_error( int num_args, ... ) {
 }
 
 void cli_send_welcome() {
-    cli_send_str( "You are now logged into the router CLI.\n" );
+    cli_send_str( "Welcome to the bir router!\n" );
 }
 
 void cli_send_prompt() {
@@ -224,6 +224,7 @@ void cli_show_hw_about() {
 }
 
 void cli_show_hw_arp() {
+
 }
 
 void cli_show_hw_intf() {
@@ -243,7 +244,41 @@ void cli_show_ip() {
     cli_show_ip_route();
 }
 
+void cli_show_arp() {
+	cli_show_ip_arp();
+}
+
 void cli_show_ip_arp() {
+	dataqueue_t * cache = &ROUTER->arp_cache;
+
+	struct timeval now;
+	gettimeofday(&now, NULL);
+
+	int i;
+	for (i = 0; i < cache->size; i++) {
+		arp_cache_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(cache, i, (void **) &entry, &entry_size)) {
+
+			assert(entry_size == sizeof(arp_cache_entry_t));
+			char entrystr[100];
+			if (entry->tv.tv_sec != -1)
+				sprintf(entrystr, "%d.\t%s\t%s\t%ld\n", i,
+						quick_mac_to_string(&entry->mac),
+						quick_ip_to_string(entry->ip),
+						entry->tv.tv_sec - now.tv_sec);
+			else
+				sprintf(entrystr, "%d.\t%s\t%s\tSTATIC\n", i,
+						quick_mac_to_string(&entry->mac),
+						quick_ip_to_string(entry->ip));
+
+			queue_unlockid(cache, i);
+			cli_send_strf(entrystr);
+		}
+	}
+}
+
+void cli_show_ip_intf() {
 	dataqueue_t * table = &ROUTER->ip_table;
 
 	int i;
@@ -265,11 +300,6 @@ void cli_show_ip_arp() {
 			cli_send_strf(entrystr);
 		}
 	}
-
-	printf("\n");
-}
-
-void cli_show_ip_intf() {
 }
 
 void cli_show_ip_route() {
@@ -346,9 +376,17 @@ void cli_show_vns_vhost() {
 #endif
 
 void cli_manip_ip_arp_add( gross_arp_t* data ) {
+	dataqueue_t * cache = &ROUTER->arp_cache;
+
+	arp_add_static(cache, data->ip, data->mac);
+	cli_show_ip_arp();
 }
 
 void cli_manip_ip_arp_del( gross_arp_t* data ) {
+	dataqueue_t * cache = &ROUTER->arp_cache;
+
+	arp_remove_ip_mac(cache, data->ip, data->mac);
+	cli_show_ip_arp();
 }
 
 void cli_manip_ip_arp_purge_all() {

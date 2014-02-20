@@ -158,7 +158,7 @@ void router_add_interface( router_t* router,
     intf->enabled = TRUE;
     intf->neighbor_list_head = NULL;
 
-    arp_putincache(&router->arp_cache, ip, mac, intf, ARP_CACHE_TIMEOUT_STATIC);
+    arp_putincache(&router->arp_cache, ip, mac, ARP_CACHE_TIMEOUT_STATIC);
 
 #ifdef MININET_MODE
     // open a socket to talk to the hw on this interface
