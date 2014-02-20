@@ -17,12 +17,13 @@
 
 #include <stdint.h>
 
-volatile uint16_t hid = 1; // Fix
+// Move to header file. Should add be unique for every 2^16 - 1 packets then it will overflow and get back to 0 because it is unsigned
+volatile uint16_t ip_id = 0;
 
 void ip_print_table(dataqueue_t * table) {
 
 	int i;
-	printf("THE IP TABLE\n-------------\n\n");
+	printf("\nTHE IP TABLE\n-------------\n\n");
 	for (i = 0; i < table->size; i++) {
 		ip_table_entry_t * entry;
 		int entry_size;
@@ -140,8 +141,8 @@ void update_ip_packet_response(packet_info_t* pi, addr_ip_t dst_ip,
 
 	ipv4->ttl = ttl;
 	ipv4->flags_fragmentoffset = 0;
-	ipv4->id = htons(hid); // Fix
-	hid++;
+	ipv4->id = htons(ip_id); // Fix
+	ip_id++;
 
 	ipv4->header_checksum = 0;
 	ipv4->header_checksum = generatechecksum((unsigned short*) ipv4,
@@ -211,9 +212,11 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 					icmp_type_echo_replay(pi, icmp);
 					return;
 
-				}
+				} else if (icmp->type == ICMP_TYPE_REPLAY) {
 
-				// Add other type codes TODO
+					// TODO
+
+				}
 
 			} else {
 
@@ -271,7 +274,7 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 				quick_ip_to_string(ipv4->dst_ip));
 		ip_print_table(&pi->router->ip_table);
 
-		icmp_type_dest_unreach();
+		icmp_type_dst_unreach(pi, ipv4);
 	}
 
 }

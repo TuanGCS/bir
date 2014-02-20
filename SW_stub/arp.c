@@ -19,7 +19,7 @@
 
 void arp_print_cache(dataqueue_t * cache) {
 	int i;
-	printf("THE ARP TABLE\n-------------\n\n");
+	printf("\nTHE ARP TABLE\n-------------\n\n");
 	for (i = 0; i < cache->size; i++) {
 		arp_cache_entry_t * entry;
 		int entry_size;

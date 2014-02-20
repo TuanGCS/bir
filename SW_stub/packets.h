@@ -14,17 +14,9 @@
 #define ETH_ARP_TYPE (0x0806)
 #define ETH_RARP_TYPE (0x8035)
 
-
-
 #define PROTOCOL_TCP (6)
 
 #define MAC_BROADCAST (.octet = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF})
-
-#define ICMP_TYPE_REPLAY (0)
-#define ICMP_TYPE_DST_UNREACH (3)
-#define ICMP_TYPE_REQUEST (8)
-#define ICMP_TYPE_TIME_EXCEEDED (11)
-#define ICMP_TYPE_TRACEROUTE (30)
 
 #define IP_TYPE_ICMP (1)
 
@@ -80,5 +72,17 @@ typedef struct ip_table_entry {
 	interface_t* interface;
 	int netmask;
 } ip_table_entry_t;
+
+typedef struct pwospf_packet {
+	uint8_t version;
+	uint8_t type;
+	uint16_t len;
+	uint32_t rid;
+	uint32_t aid;
+	uint16_t checksum;
+	uint16_t autotype;
+	uint32_t auth1;
+	uint32_t auth2;
+} pwospf_packet_t;
 
 #endif
