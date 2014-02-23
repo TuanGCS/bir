@@ -375,9 +375,7 @@ void arp_remove_static_mac(packet_info_t* pi, addr_mac_t mac) {
 }
 
 // Delete all static entries in the ARP cache
-void arp_clear_static(packet_info_t* pi) {
-	dataqueue_t * cache = &pi->router->arp_cache;
-
+void arp_clear_static(dataqueue_t * cache) {
 	int i;
 	for (i = 0; i < cache->size; i++) {
 		arp_cache_entry_t * entry;
@@ -393,6 +391,28 @@ void arp_clear_static(packet_info_t* pi) {
 				queue_unlockid(cache, i);
 		}
 	}
+}
+
+void arp_clear_dynamic(dataqueue_t * cache) {
+	int i;
+	for (i = 0; i < cache->size; i++) {
+		arp_cache_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(cache, i, (void **) &entry, &entry_size)) {
+
+			assert(entry_size == sizeof(arp_cache_entry_t));
+
+			if (entry->tv.tv_sec != -1) {
+				// REMOVE
+				queue_unlockidandremove(cache, i);
+			} else
+				queue_unlockid(cache, i);
+		}
+	}
+}
+
+void arp_clear_all(dataqueue_t * cache) {
+	queue_purge(cache);
 }
 
 void arp_send_request(router_t* router, interface_t* interface, addr_ip_t target_ip) {

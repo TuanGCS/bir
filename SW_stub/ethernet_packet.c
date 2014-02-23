@@ -19,6 +19,9 @@ void ethernet_packet_send(struct sr_instance* sr, interface_t* intf,
 	ether->source_mac = source_mac;
 	ether->type = type;
 
+	if (intf == NULL)
+		die("Requested to send a packet to an unknown interface");
+
 	sr_integ_low_level_output(sr, pi->packet, pi->len, intf);
 }
 

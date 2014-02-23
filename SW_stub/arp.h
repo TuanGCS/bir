@@ -24,6 +24,9 @@ void arp_putincache(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac, time_t ti
 void arp_add_static(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac);
 void arp_remove_ip_mac(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac);
 void arp_send_request(router_t* router, interface_t* interface, addr_ip_t target_ip);
+void arp_clear_all(dataqueue_t * cache);
+void arp_clear_static(dataqueue_t * cache);
+void arp_clear_dynamic(dataqueue_t * cache);
 
 // returns position in dataqueue
 int arp_getcachebymac(dataqueue_t * cache, addr_mac_t mac, arp_cache_entry_t * result);

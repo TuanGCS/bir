@@ -31,5 +31,7 @@ void queue_unlockid(dataqueue_t * queue, int id);
 
 void queue_free(dataqueue_t * queue);
 
+void queue_purge(dataqueue_t * queue);
+
 
 #endif

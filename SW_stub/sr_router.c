@@ -15,6 +15,7 @@
 #include "arp.h"
 #include "ip.h"
 #include "sr_interface.h"
+#include "globals.h"
 
 void router_init( router_t* router ) {
 #ifdef _CPUMODE_
@@ -133,7 +134,11 @@ void router_handle_work( work_t* work ) {
 
 
 interface_t* router_lookup_interface_via_ip( router_t* router, addr_ip_t ip ) {
-    return 0;
+	ip_table_entry_t entry;
+	if (ip_longestprefixmatch(&router->ip_table, ip, &entry) >= 0)
+		return entry.interface;
+	else
+		return NULL;
 }
 
 interface_t* router_lookup_interface_via_name( router_t* router,
@@ -182,6 +187,60 @@ void router_add_interface( router_t* router,
     router->num_interfaces += 1;
 
     // TODO! query the computers on those interfaces
+}
+
+int packetinfo_ip_allocate(router_t* router, packet_info_t ** pinfo, int size, addr_ip_t dest, int protocol) {
+	(*pinfo) = (packet_info_t *) malloc(sizeof(packet_info_t));
+	(*pinfo)->len = size;
+	(*pinfo)->packet = (byte *) malloc(size);
+	(*pinfo)->router = router;
+
+	ip_table_entry_t entry;
+	if (ip_longestprefixmatch(&router->ip_table, dest, &entry) >= 0) {
+		(*pinfo)->interface = entry.interface;
+
+		packet_ethernet_t* eth = (packet_ethernet_t *)(*pinfo)->packet;
+		eth->source_mac = entry.interface->mac;
+		arp_cache_entry_t arpentry;
+		if (arp_getcachebyip(&router->arp_cache, dest, &arpentry) >= 0)
+			eth->dest_mac = arpentry.mac;
+		else {
+			packetinfo_free(pinfo);
+			return 0;
+		}
+
+		eth->type = htons(ETH_IP_TYPE);
+
+		packet_ip4_t* ipv4 = (packet_ip4_t *) &(*pinfo)->packet[sizeof(packet_ethernet_t)];
+
+		ipv4->ihl=5;
+		ipv4->version=4;
+		ipv4->dscp_ecn=0;
+		ipv4->total_length=htons(84);
+		ipv4->id=0;
+		ipv4->flags_fragmentoffset=0;
+		ipv4->ttl=64;
+		ipv4->protocol=protocol;
+		ipv4->header_checksum = 0;
+		ipv4->src_ip = entry.interface->ip;
+		ipv4->dst_ip = dest;
+
+		ipv4->header_checksum = generatechecksum((unsigned short*) ipv4,
+							sizeof(packet_ip4_t));
+
+	} else {
+		packetinfo_free(pinfo);
+		return 0;
+	}
+
+	return 1;
+
+}
+
+void packetinfo_free(packet_info_t ** pinfo) {
+	free((*pinfo)->packet);
+	free((*pinfo));
+	(*pinfo) = NULL;
 }
 
 

@@ -24,6 +24,9 @@
 #include "sr_dumper.h"
 
 #include "ip.h"
+#include "packets.h"
+#include "dataqueue.h"
+#include "globals.h"
 
 /**
  * First method called during router initialization.
@@ -152,8 +155,15 @@ void sr_integ_destroy(struct sr_instance* sr) {
  * @return 0 on failure to find a route to dest.
  */
 uint32_t sr_integ_findsrcip(uint32_t dest /* nbo */) {
-	printf("sr_integ_findsrcip(%d)\n",dest);
-	return 0;
+	ip_table_entry_t entry;
+
+	if (ip_longestprefixmatch(&get_router()->ip_table, dest, &entry) < 0)
+		return 0;
+
+	if (entry.interface == NULL)
+		return -1;
+	else
+		return entry.interface->ip;
 }
 
 /**

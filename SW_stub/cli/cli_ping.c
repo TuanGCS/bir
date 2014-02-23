@@ -9,6 +9,8 @@
 #include "socket_helper.h"       /* writenstr()                       */
 #include "../sr_integration.h"   /* sr_integ_findsrcip()              */
 #include "../sr_thread.h"
+#include "../packets.h"
+#include "../icmp_type.h"
 
 /** maximum number of bytes an echo reply may have */
 #define PING_BUF_SIZE (sizeof(hdr_icmp_t) + 40)
@@ -77,7 +79,6 @@ void cli_ping_destroy() {
 
 void cli_ping_request( router_t* rtr, int fd, addr_ip_t ip ) {
     ping_t* p_new;
-    addr_ip_t src_ip;
     char str_ip[STRLEN_IP];
     struct in_addr addr;
     struct hostent* he;
@@ -91,13 +92,7 @@ void cli_ping_request( router_t* rtr, int fd, addr_ip_t ip ) {
 
     ip_to_string( str_ip, ip );
 
-    if( (src_ip=sr_integ_findsrcip(ip)) ) {
-
-//    	icmp_send( rtr, ip, src_ip, NULL, 0,
-//
-//    			ICMP_TYPE_ECHO_REQUEST, 0, htons(PING_ID), htons(ping_count) );
-
-    } else {
+    if( !icmp_allocate_and_send( rtr, ip, 0, ICMP_TYPE_REQUEST, PING_ID, ping_count ) ) {
 
     	pthread_mutex_unlock( &ping_list_lock );
 
@@ -186,6 +181,7 @@ static void cli_ping_feedback( ping_t* p, bool worked ) {
 }
 
 void cli_ping_handle_reply( addr_ip_t ip, uint16_t seq ) {
+	printf("CLI received a ping rely from %d seq %d\n", ip, seq); fflush(stdout);
     ping_t* p;
 
     /* after shutdown is set, ping_list becomes garbage */

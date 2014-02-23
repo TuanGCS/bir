@@ -9,6 +9,7 @@
 #include "arp.h"
 #include "packets.h"
 #include "icmp_type.h"
+#include "cli/cli_ping.h"
 
 #include <string.h>
 
@@ -41,6 +42,22 @@ void ip_print_table(dataqueue_t * table) {
 	printf("\n");
 }
 
+void ip_print(packet_ip4_t * packet) {
+	printf("------ IP PACKET -----\n");
+	printf("packet->ihl=%d\n",packet->ihl);
+	printf("packet->version=%d\n",packet->version);
+	printf("packet->dscp_ecn=%d\n",packet->dscp_ecn);
+	printf("packet->total_length=htons(%d)\n",ntohs(packet->total_length));
+	printf("packet->id=htons(%d)\n",ntohs(packet->id));
+	printf("packet->flags_fragmentoffset=htons(%d)\n",ntohs(packet->flags_fragmentoffset));
+	printf("packet->ttl=%d\n",packet->ttl);
+	printf("packet->protocol=%d\n",packet->protocol);
+	printf("packet->header_checksum=htons(%d)\n",ntohs(packet->header_checksum));
+	printf("packet->src_ip=\"%s\"\n",quick_ip_to_string(packet->src_ip));
+	printf("packet->dst_ip=\"%s\"\n",quick_ip_to_string(packet->dst_ip));
+	printf("\n"); fflush(stdout);
+}
+
 // TODO! what happens if two interfaces match?
 // returns id in table
 int ip_longestprefixmatch(dataqueue_t * table, addr_ip_t ip,
@@ -50,6 +67,7 @@ int ip_longestprefixmatch(dataqueue_t * table, addr_ip_t ip,
 
 	int i;
 	ip_table_entry_t * entry;
+
 	int entry_size;
 	for (i = 0; i < table->size; i++) {
 		if (queue_getidandlock(table, i, (void **) &entry, &entry_size)) {
@@ -64,6 +82,7 @@ int ip_longestprefixmatch(dataqueue_t * table, addr_ip_t ip,
 				if (maxmatch < entry->netmask) {
 					maxmatch = entry->netmask;
 					answer = i;
+					*result = *entry;
 				}
 			}
 
@@ -71,13 +90,7 @@ int ip_longestprefixmatch(dataqueue_t * table, addr_ip_t ip,
 		}
 	}
 
-	if (queue_getidandlock(table, answer, (void **) &entry, &entry_size)) {
-		*result = *entry;
-		queue_unlockid(table, answer);
-		return answer;
-	}
-
-	return -1;
+	return answer;
 }
 
 // returns id in table
@@ -149,7 +162,6 @@ void update_ip_packet_response(packet_info_t* pi, addr_ip_t dst_ip,
 
 	packet_ethernet_t* eth = (packet_ethernet_t *) pi->packet;
 	update_ethernet_header(pi, eth->source_mac, eth->dest_mac);
-
 }
 
 bool ip_header_check(packet_info_t* pi, packet_ip4_t * ipv4) {
@@ -207,10 +219,13 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 								+ sizeof(packet_ip4_t)];
 
 				if (icmp->type == ICMP_TYPE_REQUEST) {
-
+					ip_print(ipv4);
 					icmp_type_echo_replay(pi, icmp);
 					return;
 
+				} else if (icmp->type == ICMP_TYPE_REPLAY) {
+					cli_ping_handle_reply(ipv4->src_ip, icmp->seq_num);
+					return;
 				}
 
 				// Add other type codes TODO
@@ -226,10 +241,9 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 	}
 
 	ip_table_entry_t dest_ip_entry; // memory allocation ;(
-	int id = ip_longestprefixmatch(&pi->router->ip_table, ipv4->dst_ip,
-			&dest_ip_entry);
 
-	if (id >= 0) {
+	if (ip_longestprefixmatch(&pi->router->ip_table, ipv4->dst_ip,
+			&dest_ip_entry) >= 0) {
 
 		arp_cache_entry_t arp_dest; // memory allocation ;(
 		int id = arp_getcachebyip(&pi->router->arp_cache, ipv4->dst_ip,

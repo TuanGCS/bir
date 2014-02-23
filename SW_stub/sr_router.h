@@ -127,5 +127,8 @@ void router_add_interface( router_t* router,
                            const char* name,
                            addr_ip_t ip, addr_ip_t mask, addr_mac_t mac );
 
+int packetinfo_ip_allocate(router_t* router, packet_info_t ** pinfo, int size, addr_ip_t dest, int protocol);
+
+void packetinfo_free(packet_info_t ** pinfo);
 
 #endif /* SR_ROUTER_H */

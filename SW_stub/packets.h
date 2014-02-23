@@ -8,7 +8,7 @@
 #define PACKED __attribute__((__packed__))
 
 #define PACKET_CAN_MARSHALL(type, offset, len) ((len - offset) >= sizeof(type))
-#define PACKET_MARSHALL(type, s_ptr, offset) (type *) (void *) &s_ptr[offset]
+#define PACKET_MARSHALL(type, s_ptr, offset) (type *) &s_ptr[offset]
 
 #define ETH_IP_TYPE (0x0800)
 #define ETH_ARP_TYPE (0x0806)
@@ -18,7 +18,7 @@
 
 #define PROTOCOL_TCP (6)
 
-#define MAC_BROADCAST (.octet = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF})
+#define MAC_BROADCAST {.octet = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF}}
 
 #define ICMP_TYPE_REPLAY (0)
 #define ICMP_TYPE_DST_UNREACH (3)

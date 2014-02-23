@@ -390,12 +390,15 @@ void cli_manip_ip_arp_del( gross_arp_t* data ) {
 }
 
 void cli_manip_ip_arp_purge_all() {
+	arp_clear_all(&ROUTER->arp_cache);
 }
 
 void cli_manip_ip_arp_purge_dyn() {
+	arp_clear_dynamic(&ROUTER->arp_cache);
 }
 
 void cli_manip_ip_arp_purge_sta() {
+	arp_clear_static(&ROUTER->arp_cache);
 }
 
 void cli_manip_ip_intf_set( gross_intf_t* data ) {
