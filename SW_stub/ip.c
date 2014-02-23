@@ -205,6 +205,7 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 
 	// Check the validity of the IP header
 	if (!ip_header_check(pi, ipv4)) {
+		fprintf(stderr, "Invalid IP received (wrong checksum)\n");
 		return;
 	}
 
@@ -245,10 +246,8 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 			&dest_ip_entry) >= 0) {
 
 		arp_cache_entry_t arp_dest; // memory allocation ;(
-		int id = arp_getcachebyip(&pi->router->arp_cache, ipv4->dst_ip,
-				&arp_dest);
-
-		if (id >= 0) {
+		if (arp_getcachebyip(&pi->router->arp_cache, ipv4->dst_ip,
+				&arp_dest) >= 0) {
 			if (ipv4->ttl < 1)
 				return;
 

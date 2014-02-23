@@ -181,7 +181,7 @@ static void cli_ping_feedback( ping_t* p, bool worked ) {
 }
 
 void cli_ping_handle_reply( addr_ip_t ip, uint16_t seq ) {
-	printf("CLI received a ping rely from %d seq %d\n", ip, seq); fflush(stdout);
+	printf("CLI received a ping rely from %s seq %d\n", quick_ip_to_string(ip), seq); fflush(stdout);
     ping_t* p;
 
     /* after shutdown is set, ping_list becomes garbage */

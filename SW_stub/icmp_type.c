@@ -96,7 +96,7 @@ int icmp_allocate_and_send(router_t * rtr, addr_ip_t ip, int code, int type, int
 	icmp->header_checksum = generatechecksum((unsigned short*) icmp,
 					sizeof(packet_icmp_t));
 
-	sr_integ_low_level_output(get_sr(), pi->packet, pi->len, pi->interface);
+	ip_onreceive(pi, PACKET_MARSHALL(packet_ip4_t,pi->packet,sizeof(packet_ethernet_t)));
 
 	// free memory
 	packetinfo_free(&pi);

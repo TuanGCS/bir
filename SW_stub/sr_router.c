@@ -205,8 +205,8 @@ int packetinfo_ip_allocate(router_t* router, packet_info_t ** pinfo, int size, a
 		if (arp_getcachebyip(&router->arp_cache, dest, &arpentry) >= 0)
 			eth->dest_mac = arpentry.mac;
 		else {
-			packetinfo_free(pinfo);
-			return 0;
+			addr_mac_t boradcast = MAC_BROADCAST;
+			eth->dest_mac = boradcast;
 		}
 
 		eth->type = htons(ETH_IP_TYPE);
@@ -225,8 +225,7 @@ int packetinfo_ip_allocate(router_t* router, packet_info_t ** pinfo, int size, a
 		ipv4->src_ip = entry.interface->ip;
 		ipv4->dst_ip = dest;
 
-		ipv4->header_checksum = generatechecksum((unsigned short*) ipv4,
-							sizeof(packet_ip4_t));
+		ipv4->header_checksum = generatechecksum((unsigned short*) ipv4, sizeof(packet_ip4_t));
 
 	} else {
 		packetinfo_free(pinfo);
