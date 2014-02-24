@@ -76,8 +76,8 @@ typedef struct pwospf_packet {
 	uint8_t version;
 	uint8_t type;
 	uint16_t len;
-	uint32_t rid;
-	uint32_t aid;
+	uint32_t router_id;
+	uint32_t area_id;
 	uint16_t checksum;
 	uint16_t autotype;
 	uint32_t auth_type;
@@ -102,20 +102,7 @@ typedef struct pwospf_router {
 	uint32_t router_id;
 	uint32_t area_id;
 	uint16_t lsuint;
-	dataqueue_t pwospf_interfaces;
 } pwospf_router_t;
-
-typedef struct pwospf_interface {
-	addr_ip_t interface_ip;
-	addr_ip_t netmask;
-	uint16_t helloint;
-	dataqueue_t list;
-} pwospf_interface_t;
-
-typedef struct pwospf_list_entry {
-	uint32_t neighbour_id;
-	addr_ip_t neighbour_ip;
-} pwospf_list_entry_t;
 
 
 #endif

@@ -9,6 +9,7 @@
 #include "arp.h"
 #include "packets.h"
 #include "icmp_type.h"
+#include "pwospf.h"
 #include "cli/cli_ping.h"
 
 #include <string.h>
@@ -56,8 +57,8 @@ void ip_print(packet_ip4_t * packet) {
 	printf("packet->protocol=%d\n", packet->protocol);
 	printf("packet->header_checksum=htons(%d)\n",
 			ntohs(packet->header_checksum));
-	printf("packet->src_ip=\"%s\"\n", quick_ip_to_string(packet->src_ip));
-	printf("packet->dst_ip=\"%s\"\n", quick_ip_to_string(packet->dst_ip));
+	printf("packet->src_ip=\"%s\" //==htons(0x%x)==0x%x\n", quick_ip_to_string(packet->src_ip), ntohl(packet->src_ip), packet->src_ip);
+	printf("packet->dst_ip=\"%s\" //==htons(0x%x)==0x%x\n", quick_ip_to_string(packet->dst_ip), ntohl(packet->dst_ip), packet->dst_ip);
 	printf("\n");
 	fflush(stdout);
 }
@@ -223,6 +224,15 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 	// Check the validity of the IP header
 	if (!ip_header_check(pi, ipv4)) {
 		fprintf(stderr, "Invalid IP received\n");
+		return;
+	}
+
+	if (ipv4->dst_ip == ALLSPFRouters && ipv4->protocol == IP_TYPE_OSPF) {
+		if (PACKET_CAN_MARSHALL(pwospf_packet_t, sizeof(packet_ethernet_t)+sizeof(packet_ip4_t), pi->len)) {
+			pwospf_packet_t * pwospf = PACKET_MARSHALL(pwospf_packet_t,pi->packet, sizeof(packet_ethernet_t)+sizeof(packet_ip4_t));
+			pwospf_onreceive(pi, pwospf);
+		} else
+			fprintf(stderr, "Invalid PWOSPF packet!\n");
 		return;
 	}
 

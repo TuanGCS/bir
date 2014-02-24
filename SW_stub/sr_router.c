@@ -43,8 +43,6 @@ void router_init(router_t* router) {
 	queue_init(&router->ip_table);
 	queue_init(&router->iparp_buffer);
 
-	queue_init(&router->pw_router.pwospf_interfaces);
-
 #ifndef _THREAD_PER_PACKET_
 	debug_println("Initializing the router work queue with %u worker threads",
 	NUM_WORKER_THREADS);
@@ -60,7 +58,6 @@ void router_destroy(router_t* router) {
 	queue_free(&router->arp_cache);
 	queue_free(&router->ip_table);
 	queue_free(&router->iparp_buffer);
-	queue_free(&router->pw_router.pwospf_interfaces);
 
 #ifdef _CPUMODE_
 	closeDescriptor( &router->nf );
@@ -161,14 +158,6 @@ void router_add_interface(router_t* router, const char* name, addr_ip_t ip,
 		router->pw_router.lsuint = LSUINT;
 	}
 
-	pwospf_interface_t pw_int;
-	pw_int.interface_ip = ip;
-	pw_int.netmask = mask;
-	pw_int.helloint = HELLOINT;
-	queue_init(&pw_int.list);
-
-	queue_add(&router->pw_router.pwospf_interfaces, &pw_int, sizeof(pwospf_interface_t));
-
 	interface_t* intf;
 
 	debug_println("called router_add_interface");  // TODO remove debugging line
@@ -180,7 +169,8 @@ void router_add_interface(router_t* router, const char* name, addr_ip_t ip,
 	intf->subnet_mask = mask;
 	intf->mac = mac;
 	intf->enabled = TRUE;
-	intf->neighbor_list_head = NULL;
+	intf->helloint = HELLOINT;
+	queue_init(&intf->neighbours);
 
 	arp_putincache(&router->arp_cache, ip, mac, ARP_CACHE_TIMEOUT_STATIC);
 
