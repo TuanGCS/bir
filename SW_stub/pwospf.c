@@ -36,7 +36,22 @@ void pwospf_hello_print(pwospf_packet_hello_t * packet) {
 }
 
 void pwospf_onreceive_hello(packet_info_t * pi, pwospf_packet_hello_t * packet) {
-	pwospf_hello_print(packet);
+	interface_t * interface = pi->interface;
+	dataqueue_t * neighbours = &interface->neighbours;
+
+	int i;
+	for (i = 0; i < neighbours->size; i++) {
+		pwospf_list_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(neighbours, i, (void **) &entry, &entry_size)) {
+
+			assert(entry_size == sizeof(pwospf_list_entry_t));
+
+			//blah blah
+
+			queue_unlockid(neighbours, i);
+		}
+	}
 }
 
 void pwospf_onreceive(packet_info_t* pi, pwospf_packet_t * packet) {

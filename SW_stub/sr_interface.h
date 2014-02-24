@@ -14,11 +14,6 @@
 /* forward declaration */
 struct router_t;
 
-typedef struct pwospf_list_entry {
-	uint32_t neighbour_id;
-	addr_ip_t neighbour_ip;
-} pwospf_list_entry_t;
-
 /** holds info about a router's interface */
 typedef struct {
     char name[SR_NAMELEN]; /* name of the interface        */

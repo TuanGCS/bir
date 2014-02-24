@@ -110,4 +110,10 @@ typedef struct pwospf_lsa {
 	uint32_t router_id;
 } pwospf_lsa_t;
 
+typedef struct pwospf_list_entry {
+	uint32_t neighbour_id;
+	addr_ip_t neighbour_ip;
+	struct timeval timestamp;
+} pwospf_list_entry_t;
+
 #endif
