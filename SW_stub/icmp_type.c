@@ -90,10 +90,11 @@ void icmp_type_time_exceeded(packet_info_t* pi, packet_ip4_t* ipv4) {
 
 }
 
-int icmp_allocate_and_send(router_t * rtr, addr_ip_t ip, int code, int type, int id, int count) {
+int icmp_allocate_and_send(router_t * rtr, addr_ip_t ip, int code, int type, int id, int count, byte * data, int data_size) {
 	packet_info_t * pi; // allocate a new packet info to send
 	if (!packetinfo_ip_allocate(get_router(), &pi, sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(packet_icmp_t), ip, IP_TYPE_ICMP))
 		return 0;
+	pi->len = sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + 8 + data_size;
 
 	packet_icmp_t* icmp = PACKET_MARSHALL(packet_icmp_t,pi->packet, sizeof(packet_ethernet_t)+sizeof(packet_ip4_t));
 
@@ -101,6 +102,7 @@ int icmp_allocate_and_send(router_t * rtr, addr_ip_t ip, int code, int type, int
 	icmp->id = htons(id);
 	icmp->type = type;
 	icmp->seq_num = htons(count);
+	if (data_size > 0) memcpy(icmp->data, data, data_size);
 
 	icmp->header_checksum = 0;
 	icmp->header_checksum = generatechecksum((unsigned short*) icmp,

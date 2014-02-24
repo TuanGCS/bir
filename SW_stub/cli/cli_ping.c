@@ -92,7 +92,7 @@ void cli_ping_request( router_t* rtr, int fd, addr_ip_t ip ) {
 
     ip_to_string( str_ip, ip );
 
-    if( !icmp_allocate_and_send( rtr, ip, 0, ICMP_TYPE_REQUEST, PING_ID, ping_count ) ) {
+    if( !icmp_allocate_and_send( rtr, ip, 0, ICMP_TYPE_REQUEST, PING_ID, ping_count, NULL, 0 ) ) {
 
     	pthread_mutex_unlock( &ping_list_lock );
 

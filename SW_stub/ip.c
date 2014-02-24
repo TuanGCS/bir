@@ -240,7 +240,6 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 								+ sizeof(packet_ip4_t)];
 
 				if (icmp->type == ICMP_TYPE_REQUEST) {
-					ip_print(ipv4);
 					icmp_type_echo_replay(pi, icmp);
 					return;
 
