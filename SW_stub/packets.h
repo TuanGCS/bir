@@ -86,7 +86,7 @@ typedef struct pwospf_packet {
 
 typedef struct pwospf_packet_hello {
 	pwospf_packet_t pwospf_header;
-	uint32_t net_mask;
+	uint32_t netmask;
 	uint16_t helloint;
 	uint16_t padding;
 } pwospf_packet_hello_t;
@@ -104,5 +104,10 @@ typedef struct pwospf_router {
 	uint16_t lsuint;
 } pwospf_router_t;
 
+typedef struct pwospf_lsa {
+	uint32_t subnet;
+	uint32_t netmask;
+	uint32_t router_id;
+} pwospf_lsa_t;
 
 #endif

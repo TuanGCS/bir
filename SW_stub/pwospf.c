@@ -1,4 +1,13 @@
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "pwospf.h"
+#include "sr_router.h"
+#include "packets.h"
+#include "globals.h"
+#include "dataqueue.h"
+
+volatile uint16_t hid = 0;
 
 void pwospf_print(pwospf_packet_t * packet) {
 	printf("------ PWOSPF (Pee-Wee Open Shortest Path First) PACKET -----\n");
@@ -19,7 +28,7 @@ void pwospf_hello_print(pwospf_packet_hello_t * packet) {
 	pwospf_print(&packet->pwospf_header);
 
 	printf("****** HELLO part ******\n");
-	printf("packet->net_mask=%s //htonl(0x%x)\n", quick_ip_to_string(packet->net_mask), ntohl(packet->net_mask));
+	printf("packet->net_mask=%s //htonl(0x%x)\n", quick_ip_to_string(packet->netmask), ntohl(packet->netmask));
 	printf("packet->helloint=htons(%d)\n", ntohs(packet->helloint));
 	printf("packet->padding=htons(%d) //htons(0x%x)\n", ntohs(packet->padding), ntohs(packet->padding));
 	printf("\n");
@@ -45,4 +54,76 @@ void pwospf_onreceive(packet_info_t* pi, pwospf_packet_t * packet) {
 	}
 }
 
+pwospf_packet_hello_t* generate_pwospf_hello_header(addr_ip_t rid,
+		addr_ip_t aid, uint32_t netmask) {
 
+	pwospf_packet_hello_t* pw_hello = (pwospf_packet_hello_t *) malloc(
+			sizeof(pwospf_packet_hello_t));
+
+	pw_hello->pwospf_header.version = OSPF_VERSION;
+	pw_hello->pwospf_header.type = OSPF_TYPE_HELLO;
+	pw_hello->pwospf_header.len = sizeof(pwospf_packet_t);
+	pw_hello->pwospf_header.router_id = rid;
+	pw_hello->pwospf_header.area_id = aid;
+	pw_hello->pwospf_header.autotype = 0;
+	pw_hello->pwospf_header.auth_type = 0;
+	pw_hello->pwospf_header.auth_data = 0;
+	pw_hello->netmask = netmask;
+	pw_hello->helloint = HELLOINT;
+	pw_hello->padding = 0;
+
+	pw_hello->pwospf_header.checksum = 0;
+	pw_hello->pwospf_header.checksum = generatechecksum(
+			(unsigned short*) pw_hello, sizeof(pwospf_packet_t) - 8);
+
+	return pw_hello;
+
+}
+
+pwospf_packet_link_t* generate_pwospf_link_header(addr_ip_t rid, addr_ip_t aid,
+		uint32_t netmask, uint16_t advert) {
+
+	pwospf_packet_link_t* pw_link = (pwospf_packet_link_t *) malloc(
+			sizeof(pwospf_packet_link_t));
+
+	pw_link->pwospf_header.version = OSPF_VERSION;
+	pw_link->pwospf_header.type = OSPF_TYPE_HELLO;
+	pw_link->pwospf_header.len = sizeof(pwospf_packet_t);
+	pw_link->pwospf_header.router_id = rid;
+	pw_link->pwospf_header.area_id = aid;
+	pw_link->pwospf_header.autotype = 0;
+	pw_link->pwospf_header.auth_type = 0;
+	pw_link->pwospf_header.auth_data = 0;
+	pw_link->seq = hid;
+	hid++;
+	pw_link->ttl = 64;
+	pw_link->advert = advert;
+
+	pw_link->pwospf_header.checksum = 0;
+	pw_link->pwospf_header.checksum = generatechecksum(
+			(unsigned short*) pw_link, sizeof(pwospf_packet_t) - 8);
+
+	return pw_link;
+
+}
+
+pwospf_lsa_t* generate_pwospf_lsa(pwospf_router_t pw_router, uint16_t advert) {
+
+	pwospf_lsa_t lsa[advert];
+	memset(lsa, 0, advert * sizeof(pwospf_lsa_t));
+
+	int i, j;
+	for (i = 0; i < 10; i++) { // TODO
+
+
+
+		for (i = 0; i < advert; i++) {
+			lsa[advert].subnet = 0;
+			lsa[advert].netmask = 0;
+			lsa[advert].router_id = 0;
+		}
+	}
+
+	return lsa;
+
+}

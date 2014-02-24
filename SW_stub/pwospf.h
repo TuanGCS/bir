@@ -1,10 +1,3 @@
-/*
- * pwospf.h
- *
- *  Created on: Feb 24, 2014
- *      Author: mininet
- */
-
 #ifndef PWOSPF_H_
 #define PWOSPF_H_
 
