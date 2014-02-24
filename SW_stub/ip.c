@@ -274,10 +274,10 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 
 		if (arp_getcachebyip(&pi->router->arp_cache, ipv4->dst_ip, &arp_dest)
 				>= 0) {
-//
-//			ipv4->header_checksum = 0;
-//			ipv4->header_checksum = generatechecksum((unsigned short*) ipv4,
-//					sizeof(packet_ip4_t));
+
+			ipv4->header_checksum = 0;
+			ipv4->header_checksum = generatechecksum((unsigned short*) ipv4,
+					sizeof(packet_ip4_t));
 
 			if (ipv4->ttl < 1)
 				return;
