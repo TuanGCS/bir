@@ -38,20 +38,44 @@ void pwospf_hello_print(pwospf_packet_hello_t * packet) {
 void pwospf_onreceive_hello(packet_info_t * pi, pwospf_packet_hello_t * packet) {
 	interface_t * interface = pi->interface;
 	dataqueue_t * neighbours = &interface->neighbours;
+	packet_ip4_t * ip = PACKET_MARSHALL(packet_ip4_t, pi->packet, sizeof(packet_ethernet_t));
 
 	int i;
 	for (i = 0; i < neighbours->size; i++) {
 		pwospf_list_entry_t * entry;
 		int entry_size;
+		int discovered = 0;
 		if (queue_getidandlock(neighbours, i, (void **) &entry, &entry_size)) {
 
 			assert(entry_size == sizeof(pwospf_list_entry_t));
 
-			//blah blah
+			if (entry->neighbour_id == packet->pwospf_header.router_id) {
+				discovered = 1;
+
+				if (entry->neighbour_ip != ip->src_ip) {
+					debug_println("OSPF: Router id %d has a new IP address of %s :)", packet->pwospf_header.router_id, quick_ip_to_string(ip->src_ip));
+					entry->neighbour_ip = ip->src_ip;
+				}
+
+				gettimeofday(&entry->timestamp, NULL);
+			}
 
 			queue_unlockid(neighbours, i);
 		}
+		if (discovered) {
+			debug_println("OSPF: Router id %d said HELLO :)", packet->pwospf_header.router_id);
+			return;
+		}
 	}
+
+	// this is a new neighbour, add it to the list!
+	pwospf_list_entry_t newneighbour;
+	newneighbour.neighbour_id = packet->pwospf_header.router_id;
+	newneighbour.neighbour_ip = ip->src_ip;
+	gettimeofday(&newneighbour.timestamp, NULL);
+
+	queue_add(neighbours, &newneighbour, sizeof(pwospf_list_entry_t));
+	debug_println("OSPF: A new neighbour was discovered on interface %s; Router id %d with ip %s.", pi->interface->name, newneighbour.neighbour_id, quick_ip_to_string(newneighbour.neighbour_ip));
 }
 
 void pwospf_onreceive(packet_info_t* pi, pwospf_packet_t * packet) {

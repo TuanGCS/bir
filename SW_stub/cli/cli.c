@@ -325,6 +325,34 @@ void cli_show_ospf() {
 }
 
 void cli_show_ospf_neighbors() {
+	router_t * router = ROUTER;
+
+	int i;
+	for (i = 0; i < router->num_interfaces; i++) {
+		interface_t * intf = &router->interface[i];
+		dataqueue_t * neighbours = &intf->neighbours;
+
+		cli_send_strf( "%s:\n", intf->name );
+
+		if (neighbours->size == 0)
+			cli_send_str("\t<NO NEIGHBOURING ROUTERS>\n");
+		else {
+			int nid;
+			for (nid = 0; nid < neighbours->size; nid++) {
+
+				pwospf_list_entry_t * entry;
+				int entry_size;
+				if (queue_getidandlock(neighbours, nid, (void **) &entry, &entry_size)) {
+
+					assert(entry_size == sizeof(pwospf_list_entry_t));
+
+					cli_send_strf("\t%d: Id %d (0x%d)\tIP: %s\n", nid, entry->neighbour_id, entry->neighbour_id, quick_ip_to_string(entry->neighbour_ip));
+
+					queue_unlockid(neighbours, nid);
+				}
+			}
+		}
+	}
 }
 
 void cli_show_ospf_topo() {
