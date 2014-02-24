@@ -80,8 +80,42 @@ typedef struct pwospf_packet {
 	uint32_t aid;
 	uint16_t checksum;
 	uint16_t autotype;
-	uint32_t auth1;
-	uint32_t auth2;
+	uint32_t auth_type;
+	uint32_t auth_data;
 } pwospf_packet_t;
+
+typedef struct pwospf_packet_hello {
+	pwospf_packet_t pwospf_header;
+	uint32_t net_mask;
+	uint16_t helloint;
+	uint16_t padding;
+} pwospf_packet_hello_t;
+
+typedef struct pwospf_packet_link {
+	pwospf_packet_t pwospf_header;
+	uint16_t seq;
+	uint16_t ttl;
+	uint32_t advert;
+} pwospf_packet_link_t;
+
+typedef struct pwospf_router {
+	uint32_t router_id;
+	uint32_t area_id;
+	uint16_t lsuint;
+	dataqueue_t pwospf_interfaces;
+} pwospf_router_t;
+
+typedef struct pwospf_interface {
+	addr_ip_t interface_ip;
+	addr_ip_t netmask;
+	uint16_t helloint;
+	dataqueue_t list;
+} pwospf_interface_t;
+
+typedef struct pwospf_list_entry {
+	uint32_t neighbour_id;
+	addr_ip_t neighbour_ip;
+} pwospf_list_entry_t;
+
 
 #endif

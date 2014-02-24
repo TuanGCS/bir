@@ -98,7 +98,7 @@ SR_SRCS_BASE =  sr_router.c sr_common.c \
 	        sr_interface.c \
 	        sr_work_queue.c \
 	        arp.c ethernet_packet.c ip.c \
-	        dataqueue.c icmp_type.c globals.c
+	        dataqueue.c icmp_type.c globals.c pwospf.c
 
 SR_SRCS = $(SR_SRCS_MAIN) $(SR_SRCS_BASE)
 
