@@ -205,8 +205,6 @@ bool ip_header_check(packet_info_t* pi, packet_ip4_t * ipv4) {
 		return FALSE;
 	}
 
-	// Check if packet contains any options TODO
-
 	ipv4->ttl--;
 	if (ipv4->ttl < 1) {
 		fprintf(stderr, "Packet Time-To-Live is 0 or less\n");
@@ -224,7 +222,7 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 
 	// Check the validity of the IP header
 	if (!ip_header_check(pi, ipv4)) {
-		fprintf(stderr, "Invalid IP received (wrong checksum)\n");
+		fprintf(stderr, "Invalid IP received\n");
 		return;
 	}
 

@@ -51,7 +51,7 @@ void icmp_type_dst_unreach(packet_info_t* pi, packet_ip4_t* ipv4, int code) {
 
 void icmp_type_time_exceeded(packet_info_t* pi, packet_ip4_t* ipv4) {
 
-	packet_info_t* resp_pi = (packet_info_t *) malloc(pi->len + 32);
+	packet_info_t* resp_pi;
 	resp_pi->interface = pi->interface;
 	resp_pi->len = pi->len + 32;
 	resp_pi->router = pi->router;
