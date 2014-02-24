@@ -18,8 +18,6 @@
 
 #define MAC_BROADCAST {.octet = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF}}
 
-#define IP_TYPE_ICMP (1)
-
 typedef struct PACKED packet_ethernet {
 	addr_mac_t dest_mac;
 	addr_mac_t source_mac;
@@ -71,6 +69,7 @@ typedef struct ip_table_entry {
 	addr_ip_t ip;
 	interface_t* interface;
 	int netmask;
+	bool dynamic;
 } ip_table_entry_t;
 
 typedef struct pwospf_packet {

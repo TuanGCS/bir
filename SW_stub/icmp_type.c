@@ -1,4 +1,6 @@
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "icmp_type.h"
 #include "globals.h"
@@ -19,17 +21,11 @@ void icmp_type_echo_replay(packet_info_t* pi, packet_icmp_t* icmp) {
 	update_ip_packet_response(pi, ipv4->src_ip, ipv4->dst_ip, ipv4->ttl);
 }
 
-void icmp_type_prot_supp(packet_info_t* pi, packet_ip4_t* ipv4) {
-
-	// TODO
-
-}
-
-void icmp_type_dst_unreach(packet_info_t* pi, packet_ip4_t* ipv4) {
+void icmp_type_dst_unreach(packet_info_t* pi, packet_ip4_t* ipv4, int code) {
 
 	packet_icmp_t* icmp =
-				(packet_icmp_t *) &pi->packet[sizeof(packet_ethernet_t)
-						+ sizeof(packet_ip4_t)];
+			(packet_icmp_t *) &pi->packet[sizeof(packet_ethernet_t)
+					+ sizeof(packet_ip4_t)];
 
 	ipv4->ttl++;
 	byte data[28];
@@ -37,10 +33,10 @@ void icmp_type_dst_unreach(packet_info_t* pi, packet_ip4_t* ipv4) {
 	memcpy(&data[20], (void *) icmp, 8);
 
 	icmp->type = ICMP_TYPE_DST_UNREACH;
-	icmp->code = ICMP_CODE_HOST_UNREACH;
+	icmp->code = code;
 	icmp->id = 0;
 	if (icmp->code == (ICMP_CODE_DG_BIG)) {
-		icmp->seq_num = 1500; // Change
+		icmp->seq_num = 1500; // TODO
 	}
 
 	memcpy(icmp->data, data, 28);
@@ -55,18 +51,29 @@ void icmp_type_dst_unreach(packet_info_t* pi, packet_ip4_t* ipv4) {
 
 void icmp_type_time_exceeded(packet_info_t* pi, packet_ip4_t* ipv4) {
 
+	packet_info_t* resp_pi = (packet_info_t *) malloc(pi->len + 32);
+	resp_pi->interface = pi->interface;
+	resp_pi->len = pi->len + 32;
+	resp_pi->router = pi->router;
+
 	packet_icmp_t* icmp =
 			(packet_icmp_t *) &pi->packet[sizeof(packet_ethernet_t)
 					+ sizeof(packet_ip4_t)];
 
+	byte* packet = (byte*) malloc(pi->len + 32);
+
 	ipv4->ttl++;
 	byte data[28];
-	memcpy(data, (void *) ipv4, sizeof(packet_ip4_t));
+	memcpy(data, (void *) ipv4, 20);
 	memcpy(&data[20], (void *) icmp, 8);
+
+	memcpy(packet, (void *) pi->packet, pi->len);
+
+	icmp = (packet_icmp_t *) &packet[sizeof(packet_ethernet_t)
+			+ sizeof(packet_ip4_t)];
 
 	icmp->type = ICMP_TYPE_TIME_EXCEEDED;
 	icmp->code = 0;
-
 	icmp->id = 0;
 	icmp->seq_num = 0;
 
@@ -76,7 +83,10 @@ void icmp_type_time_exceeded(packet_info_t* pi, packet_ip4_t* ipv4) {
 	icmp->header_checksum = generatechecksum((unsigned short*) icmp,
 			sizeof(packet_icmp_t));
 
-	update_ip_packet_response(pi, ipv4->src_ip, pi->interface->ip, 64);
+	pi->len = pi->len + 32;
+	resp_pi->packet = packet;
+
+	update_ip_packet_response(resp_pi, ipv4->src_ip, pi->interface->ip, 64);
 
 }
 

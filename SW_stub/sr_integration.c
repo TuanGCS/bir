@@ -56,9 +56,9 @@ void sr_integ_hw_setup( struct sr_instance* sr ) {
     debug_println( "Performing post-hw setup initialization" );
 
 	// TODO! STATIC IP TABLE REMOVE THIS
-    ip_putintable(&router->ip_table, IP_CONVERT(10,0,1,2), &router->interface[0], 32);
-    ip_putintable(&router->ip_table, IP_CONVERT(10,0,2,2), &router->interface[1], 32);
-    ip_putintable(&router->ip_table, IP_CONVERT(10,0,3,2), &router->interface[2], 32);
+    ip_putintable(&router->ip_table, IP_CONVERT(10,0,1,2), &router->interface[0], 32, FALSE);
+    ip_putintable(&router->ip_table, IP_CONVERT(10,0,2,2), &router->interface[1], 32, FALSE);
+    ip_putintable(&router->ip_table, IP_CONVERT(10,0,3,2), &router->interface[2], 32, FALSE);
 }
 
 /**

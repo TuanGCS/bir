@@ -14,9 +14,6 @@
 #include "packets.h"
 #include "ip.h"
 
-#define ARP_OP_REQUEST (1)
-#define ARP_OP_REPLY (2)
-
 void arp_print_cache(dataqueue_t * cache) {
 	int i;
 	printf("\nTHE ARP TABLE\n-------------\n\n");

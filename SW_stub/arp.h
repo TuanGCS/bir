@@ -4,6 +4,9 @@
 #include "sr_router.h"
 #include "dataqueue.h"
 
+#define ARP_OP_REQUEST (1)
+#define ARP_OP_REPLY (2)
+
 #define ARP_HTYPE_ETH (0x1)
 #define ARP_PTYPE_IP (0x0800)
 

@@ -45,24 +45,28 @@ void ip_print_table(dataqueue_t * table) {
 
 void ip_print(packet_ip4_t * packet) {
 	printf("------ IP PACKET -----\n");
-	printf("packet->ihl=%d\n",packet->ihl);
-	printf("packet->version=%d\n",packet->version);
-	printf("packet->dscp_ecn=%d\n",packet->dscp_ecn);
-	printf("packet->total_length=htons(%d)\n",ntohs(packet->total_length));
-	printf("packet->id=htons(%d)\n",ntohs(packet->id));
-	printf("packet->flags_fragmentoffset=htons(%d)\n",ntohs(packet->flags_fragmentoffset));
-	printf("packet->ttl=%d\n",packet->ttl);
-	printf("packet->protocol=%d\n",packet->protocol);
-	printf("packet->header_checksum=htons(%d)\n",ntohs(packet->header_checksum));
-	printf("packet->src_ip=\"%s\"\n",quick_ip_to_string(packet->src_ip));
-	printf("packet->dst_ip=\"%s\"\n",quick_ip_to_string(packet->dst_ip));
-	printf("\n"); fflush(stdout);
+	printf("packet->ihl=%d\n", packet->ihl);
+	printf("packet->version=%d\n", packet->version);
+	printf("packet->dscp_ecn=%d\n", packet->dscp_ecn);
+	printf("packet->total_length=htons(%d)\n", ntohs(packet->total_length));
+	printf("packet->id=htons(%d)\n", ntohs(packet->id));
+	printf("packet->flags_fragmentoffset=htons(%d)\n",
+			ntohs(packet->flags_fragmentoffset));
+	printf("packet->ttl=%d\n", packet->ttl);
+	printf("packet->protocol=%d\n", packet->protocol);
+	printf("packet->header_checksum=htons(%d)\n",
+			ntohs(packet->header_checksum));
+	printf("packet->src_ip=\"%s\"\n", quick_ip_to_string(packet->src_ip));
+	printf("packet->dst_ip=\"%s\"\n", quick_ip_to_string(packet->dst_ip));
+	printf("\n");
+	fflush(stdout);
 }
 
 // TODO! what happens if two interfaces match?
 // returns id in table
 int ip_longestprefixmatch(dataqueue_t * table, addr_ip_t ip,
 		ip_table_entry_t * result) {
+
 	int maxmatch = 0;
 	int answer = -1;
 
@@ -117,7 +121,7 @@ int ip_directmatch(dataqueue_t * table, addr_ip_t ip, ip_table_entry_t * result)
 }
 
 void ip_putintable(dataqueue_t * table, addr_ip_t ip, interface_t* interface,
-		int netmask) {
+		int netmask, bool dynamic) {
 
 	ip_table_entry_t existing; // memory allocation ;(
 
@@ -135,6 +139,7 @@ void ip_putintable(dataqueue_t * table, addr_ip_t ip, interface_t* interface,
 	existing.interface = interface;
 	existing.ip = ip;
 	existing.netmask = netmask;
+	existing.dynamic = dynamic;
 
 	queue_add(table, (void *) &existing, sizeof(ip_table_entry_t));
 
@@ -167,9 +172,15 @@ void update_ip_packet_response(packet_info_t* pi, addr_ip_t dst_ip,
 
 bool ip_header_check(packet_info_t* pi, packet_ip4_t * ipv4) {
 
-	// Check IP packet version and Internet Header Length
-	if (ipv4->version != 4 || ipv4->ihl != sizeof(packet_ip4_t) >> 2) {
-		fprintf(stderr, "Not a valid IP packet\n");
+	// Check if IP packet is verion 4
+	if (ipv4->version != 4) {
+		fprintf(stderr, "Not a IPv4 packet\n");
+		return FALSE;
+	}
+
+	// Check if packet contains options
+	if (ipv4->ihl != sizeof(packet_ip4_t) >> 2) {
+		fprintf(stderr, "IPv4 packet contains options\n");
 		return FALSE;
 	}
 
@@ -187,6 +198,14 @@ bool ip_header_check(packet_info_t* pi, packet_ip4_t * ipv4) {
 		fprintf(stderr, "IPv4 Header Checksum Error\n");
 		return FALSE;
 	}
+
+	// Check if packet is a fragment -> Tested
+	if ((ntohs(ipv4->flags_fragmentoffset) & 0x3FFF) != 0) {
+		fprintf(stderr, "Packet is a fragment\n");
+		return FALSE;
+	}
+
+	// Check if packet contains any options TODO
 
 	ipv4->ttl--;
 	if (ipv4->ttl < 1) {
@@ -230,9 +249,15 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 					return;
 				}
 
-			} else {
+			} else if (ipv4->protocol == IP_TYPE_TCP) {
 
 				sr_transport_input((uint8_t *) ipv4);
+				return;
+
+			} else {
+
+				fprintf(stderr, "Unsupported IP packet type \n");
+				icmp_type_dst_unreach(pi, ipv4, ICMP_CODE_PROT_UNREACH);
 				return;
 
 			}
@@ -246,14 +271,17 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 			&dest_ip_entry) >= 0) {
 
 		arp_cache_entry_t arp_dest; // memory allocation ;(
-		if (arp_getcachebyip(&pi->router->arp_cache, ipv4->dst_ip,
-				&arp_dest) >= 0) {
+
+		if (arp_getcachebyip(&pi->router->arp_cache, ipv4->dst_ip, &arp_dest)
+				>= 0) {
+//
+//			ipv4->header_checksum = 0;
+//			ipv4->header_checksum = generatechecksum((unsigned short*) ipv4,
+//					sizeof(packet_ip4_t));
+
 			if (ipv4->ttl < 1)
 				return;
 
-			ipv4->header_checksum = 0;
-			ipv4->header_checksum = generatechecksum((unsigned short*) ipv4,
-					sizeof(packet_ip4_t));
 			ethernet_packet_send(get_sr(), dest_ip_entry.interface,
 					arp_dest.mac, dest_ip_entry.interface->mac,
 
@@ -261,9 +289,6 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 		} else {
 			fprintf(stderr,
 					"IP packet will be queued upon ARP request response.\n");
-
-			// Restore original value of TTL for checksum check
-			ipv4->ttl++;
 
 			// add to queue
 			byte data[sizeof(packet_info_t) + pi->len];
@@ -283,7 +308,7 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 				quick_ip_to_string(ipv4->dst_ip));
 		ip_print_table(&pi->router->ip_table);
 
-		icmp_type_dst_unreach(pi, ipv4);
+		icmp_type_dst_unreach(pi, ipv4, ICMP_CODE_HOST_UNREACH);
 	}
 
 }
