@@ -36,3 +36,14 @@ void update_ethernet_header(packet_info_t* pi, addr_mac_t dst_mac, addr_mac_t sr
 
 }
 
+packet_ethernet_t* generate_ethernet_header(addr_mac_t dst_mac, addr_mac_t src_mac) {
+
+	packet_ethernet_t* eth = (packet_ethernet_t *) malloc(sizeof(packet_ethernet_t));
+	eth->dest_mac = dst_mac;
+	eth->source_mac = src_mac;
+	eth->type = ETH_IP_TYPE;
+
+	return eth;
+
+}
+

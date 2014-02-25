@@ -171,6 +171,28 @@ void update_ip_packet_response(packet_info_t* pi, addr_ip_t dst_ip,
 	update_ethernet_header(pi, eth->source_mac, eth->dest_mac);
 }
 
+packet_ip4_t* generate_ipv4_header(addr_ip_t src_ip, int datagram_size) {
+
+	packet_ip4_t* ipv4 = (packet_ip4_t *) malloc(sizeof(packet_ip4_t));
+	ipv4->version = 4;
+	ipv4->ihl = 5;
+	ipv4->dscp_ecn = 0;
+	ipv4->total_length = htons(sizeof(packet_ip4_t) + datagram_size);
+	ipv4->id = 0;
+	ipv4->flags_fragmentoffset = 0;
+	ipv4->ttl = 64;
+	ipv4->protocol = IP_TYPE_OSPF;
+	ipv4->header_checksum = 0;
+	ipv4->src_ip = src_ip;
+	ipv4->dst_ip = ALLSPFRouters;
+
+	ipv4->header_checksum = generatechecksum((unsigned short*) ipv4,
+					sizeof(packet_ip4_t));
+
+	return ipv4;
+
+}
+
 bool ip_header_check(packet_info_t* pi, packet_ip4_t * ipv4) {
 
 	// Check if IP packet is verion 4
@@ -248,7 +270,11 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 								+ sizeof(packet_ip4_t)];
 
 				if (icmp->type == ICMP_TYPE_REQUEST) {
+
 					icmp_type_echo_replay(pi, icmp);
+
+					send_pwospf_hello_packet(pi->router, pi);
+
 					return;
 
 				} else if (icmp->type == ICMP_TYPE_REPLAY) {
