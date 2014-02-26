@@ -113,6 +113,7 @@ typedef struct pwospf_lsa {
 typedef struct pwospf_list_entry {
 	uint32_t neighbour_id;
 	addr_ip_t neighbour_ip;
+	uint16_t helloint;
 	struct timeval timestamp;
 } pwospf_list_entry_t;
 

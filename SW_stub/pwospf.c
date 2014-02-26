@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "pwospf.h"
 #include "sr_router.h"
@@ -71,6 +72,8 @@ void pwospf_onreceive_hello(packet_info_t * pi, pwospf_packet_hello_t * packet) 
 					entry->neighbour_ip = ip->src_ip;
 				}
 
+				entry->helloint = ntohs(packet->helloint);
+
 				gettimeofday(&entry->timestamp, NULL);
 			}
 
@@ -86,6 +89,7 @@ void pwospf_onreceive_hello(packet_info_t * pi, pwospf_packet_hello_t * packet) 
 	pwospf_list_entry_t newneighbour;
 	newneighbour.neighbour_id = packet->pwospf_header.router_id;
 	newneighbour.neighbour_ip = ip->src_ip;
+	newneighbour.helloint = ntohs(packet->helloint);
 	gettimeofday(&newneighbour.timestamp, NULL);
 
 	queue_add(neighbours, &newneighbour, sizeof(pwospf_list_entry_t));
@@ -240,6 +244,33 @@ void pwospf_thread(void *arg) {
 		send_pwospf_hello_packet(router);
 
 		printf("Said HELLO to everyone\n");
+
+		struct timeval now;
+		gettimeofday(&now, NULL);
+		int j, i;
+		for (j = 0; j < router->num_interfaces; j++) {
+
+			interface_t * interface = &router->interface[j];
+			dataqueue_t * neighbours = &interface->neighbours;
+
+			for (i = 0; i < neighbours->size; i++) {
+				pwospf_list_entry_t * entry;
+				int entry_size;
+				if (queue_getidandlock(neighbours, i, (void **) &entry, &entry_size)) {
+
+					assert(entry_size == sizeof(pwospf_list_entry_t));
+
+					if (difftime(now.tv_sec, entry->timestamp.tv_sec) > 3*entry->helloint) {
+						debug_println("OSPF: Neighbour %d (%s) is dead ;(\n", entry->neighbour_id, quick_ip_to_string(entry->neighbour_ip));
+						queue_unlockidandremove(neighbours, i);
+					} else
+						queue_unlockid(neighbours, i);
+				}
+
+
+			}
+		}
+
 
 		sleep(HELLOINT);
 	}
