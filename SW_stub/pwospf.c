@@ -55,6 +55,21 @@ void pwospf_onreceive_hello(packet_info_t * pi, pwospf_packet_hello_t * packet) 
 	dataqueue_t * neighbours = &interface->neighbours;
 	packet_ip4_t * ip = PACKET_MARSHALL(packet_ip4_t, pi->packet, sizeof(packet_ethernet_t));
 
+	if (generatechecksum((unsigned short*) packet, sizeof(pwospf_packet_hello_t)) != (0)) {
+		fprintf(stderr, "PWOSPF HELLO Header Checksum Error\n");
+		return;
+	}
+
+	if (packet->netmask  != interface->subnet_mask) {
+		fprintf(stderr, "PWOSPF HELLO netmask does not match!\n");
+		return;
+	}
+
+	if (ntohs(packet->helloint) != interface->helloint) {
+		fprintf(stderr, "PWOSPF HELLO helloint does not match (received %d, expected %d)!\n", ntohs(packet->helloint), interface->helloint);
+		return;
+	}
+
 	int i;
 	for (i = 0; i < neighbours->size; i++) {
 		pwospf_list_entry_t * entry;
@@ -64,12 +79,12 @@ void pwospf_onreceive_hello(packet_info_t * pi, pwospf_packet_hello_t * packet) 
 
 			assert(entry_size == sizeof(pwospf_list_entry_t));
 
-			if (entry->neighbour_id == packet->pwospf_header.router_id) {
+			if (entry->neighbour_ip == ip->src_ip) {
 				discovered = 1;
 
-				if (entry->neighbour_ip != ip->src_ip) {
-					debug_println("OSPF: Router id %d has a new IP address of %s :)", packet->pwospf_header.router_id, quick_ip_to_string(ip->src_ip));
-					entry->neighbour_ip = ip->src_ip;
+				if (entry->neighbour_id != packet->pwospf_header.router_id) {
+					debug_println("OSPF: Router for %s has changed its id from %d to %d!", quick_ip_to_string(ip->src_ip), entry->neighbour_id, packet->pwospf_header.router_id);
+					entry->neighbour_id = packet->pwospf_header.router_id;
 				}
 
 				entry->helloint = ntohs(packet->helloint);
@@ -97,6 +112,7 @@ void pwospf_onreceive_hello(packet_info_t * pi, pwospf_packet_hello_t * packet) 
 }
 
 void pwospf_onreceive(packet_info_t* pi, pwospf_packet_t * packet) {
+
 	switch (packet->type) {
 	case OSPF_TYPE_HELLO:
 		if (PACKET_CAN_MARSHALL(pwospf_packet_hello_t,
