@@ -99,7 +99,7 @@ int icmp_allocate_and_send(router_t * rtr, addr_ip_t ip, int code, int type,
 	packet_info_t * pi; // allocate a new packet info to send
 	if (!packetinfo_ip_allocate(get_router(), &pi,
 			sizeof(packet_ethernet_t) + sizeof(packet_ip4_t)
-					+ sizeof(packet_icmp_t), ip, IP_TYPE_ICMP))
+					+ sizeof(packet_icmp_t), ip, IP_TYPE_ICMP, sizeof(packet_ip4_t) + 8 + data_size))
 		return 0;
 
 	pi->len = sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + 8 + data_size;
@@ -116,7 +116,7 @@ int icmp_allocate_and_send(router_t * rtr, addr_ip_t ip, int code, int type,
 
 	icmp->header_checksum = 0;
 	icmp->header_checksum = generatechecksum((unsigned short*) icmp,
-			sizeof(packet_icmp_t));
+			8+data_size);
 
 	ip_onreceive(pi,
 			PACKET_MARSHALL(packet_ip4_t, pi->packet,

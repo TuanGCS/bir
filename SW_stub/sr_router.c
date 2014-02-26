@@ -208,7 +208,7 @@ void router_add_interface(router_t* router, const char* name, addr_ip_t ip,
 }
 
 int packetinfo_ip_allocate(router_t* router, packet_info_t ** pinfo, int size,
-		addr_ip_t dest, int protocol) {
+		addr_ip_t dest, int protocol, int total_length) {
 	(*pinfo) = (packet_info_t *) malloc(sizeof(packet_info_t));
 	(*pinfo)->len = size;
 	(*pinfo)->packet = (byte *) malloc(size);
@@ -236,7 +236,7 @@ int packetinfo_ip_allocate(router_t* router, packet_info_t ** pinfo, int size,
 		ipv4->ihl = 5;
 		ipv4->version = 4;
 		ipv4->dscp_ecn = 0;
-		ipv4->total_length = htons(84);
+		ipv4->total_length = htons(total_length);
 		ipv4->id = 0;
 		ipv4->flags_fragmentoffset = 0;
 		ipv4->ttl = 64;
