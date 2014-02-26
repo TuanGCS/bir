@@ -273,8 +273,6 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 
 					icmp_type_echo_replay(pi, icmp);
 
-					send_pwospf_hello_packet(pi->router, pi);
-
 					return;
 
 				} else if (icmp->type == ICMP_TYPE_REPLAY) {

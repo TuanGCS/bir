@@ -9,6 +9,9 @@
 #include "dataqueue.h"
 #include "ethernet_packet.h"
 #include "ip.h"
+#include "unistd.h"
+
+#include "sr_thread.h"
 
 volatile uint16_t hid = 0;
 
@@ -197,7 +200,7 @@ pwospf_lsa_t* generate_pwospf_lsa(router_t* router, uint16_t advert) {
 
 }
 
-void send_pwospf_hello_packet(router_t* router, packet_info_t* pi) {
+void send_pwospf_hello_packet(router_t* router) {
 
 	int i;
 	for (i = 0; i < router->num_interfaces; i++) {
@@ -227,5 +230,18 @@ void send_pwospf_hello_packet(router_t* router, packet_info_t* pi) {
 
 	}
 
+}
+
+void pwospf_thread(void *arg) {
+	router_t * router = (router_t *) arg;
+	pthread_detach( pthread_self() );
+
+	while(router->is_router_running) {
+		send_pwospf_hello_packet(router);
+
+		printf("Said HELLO to everyone\n");
+
+		sleep(HELLOINT);
+	}
 }
 

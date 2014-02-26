@@ -33,6 +33,7 @@ void router_init(router_t* router) {
 	}
 #endif
 
+	router->is_router_running = 1;
 	router->num_interfaces = 0;
 
 	router->use_ospf = TRUE;
@@ -53,6 +54,8 @@ void router_init(router_t* router) {
 }
 
 void router_destroy(router_t* router) {
+	router->is_router_running = 0;
+
 	pthread_mutex_destroy(&router->intf_lock);
 
 	queue_free(&router->arp_cache);

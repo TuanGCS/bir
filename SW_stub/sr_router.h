@@ -53,6 +53,8 @@ typedef struct router_t {
 
     bool use_ospf;
 
+    volatile int is_router_running;
+
 #ifdef _CPUMODE_
     struct nf_device nf;
     int	netfpga_regs;

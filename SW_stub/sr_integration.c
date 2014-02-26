@@ -28,6 +28,9 @@
 #include "dataqueue.h"
 #include "globals.h"
 
+#include "pwospf.h"
+#include "sr_thread.h"
+
 /**
  * First method called during router initialization.
  * Reading in hardware information etc.
@@ -59,6 +62,9 @@ void sr_integ_hw_setup( struct sr_instance* sr ) {
     ip_putintable(&router->ip_table, IP_CONVERT(10,0,1,2), &router->interface[0], 32, FALSE);
     ip_putintable(&router->ip_table, IP_CONVERT(10,0,2,2), &router->interface[1], 32, FALSE);
     ip_putintable(&router->ip_table, IP_CONVERT(10,0,3,2), &router->interface[2], 32, FALSE);
+
+    // create router threads
+    make_thread(&pwospf_thread, router);
 }
 
 /**
