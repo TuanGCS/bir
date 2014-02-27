@@ -47,8 +47,14 @@ module nf10_router_output_port_lookup
     parameter C_USE_WSTRB = 0,
     parameter C_DPHASE_TIMEOUT = 0,
     parameter C_S_AXI_ACLK_FREQ_HZ = 100,
-    parameter C_BASEADDR = 32'h76800000,
-    parameter C_HIGHADDR = 32'h7680FFFF,
+    parameter C_BASEADDR0 = 32'h76800000,
+    parameter C_HIGHADDR0 = 32'h76801FFF,
+    parameter C_BASEADDR1 = 32'h76802000,
+    parameter C_HIGHADDR1 = 32'h76802FFF,
+    parameter C_BASEADDR2 = 32'h76803000,
+    parameter C_HIGHADDR2 = 32'h76803FFF,
+    parameter C_BASEADDR3 = 32'h76804000,
+    parameter C_HIGHADDR3 = 32'h76804FFF,
     //Master AXI Stream Data Width
     parameter C_M_AXIS_DATA_WIDTH=256,
     parameter C_S_AXIS_DATA_WIDTH=256,
@@ -124,14 +130,14 @@ module nf10_router_output_port_lookup
   wire                                            Bus2IP_Clk;
   wire                                            Bus2IP_Resetn;
   wire     [C_S_AXI_ADDR_WIDTH-1 : 0]             Bus2IP_Addr;
-  wire     [0:0]                                  Bus2IP_CS;
+  wire     [3:0]                                  Bus2IP_CS;
   wire                                            Bus2IP_RNW;
   wire     [C_S_AXI_DATA_WIDTH-1 : 0]             Bus2IP_Data;
   wire     [C_S_AXI_DATA_WIDTH/8-1 : 0]           Bus2IP_BE;
-  wire     [C_S_AXI_DATA_WIDTH-1 : 0]             IP2Bus_Data;
-  wire                                            IP2Bus_RdAck;
-  wire                                            IP2Bus_WrAck;
-  wire                                            IP2Bus_Error;
+  reg      [C_S_AXI_DATA_WIDTH-1 : 0]             IP2Bus_Data;
+  reg                                             IP2Bus_RdAck;
+  reg                                             IP2Bus_WrAck;
+  reg                                             IP2Bus_Error;
   
   wire     [NUM_RW_REGS*C_S_AXI_DATA_WIDTH-1 : 0] rw_regs;
   wire     [NUM_RO_REGS*C_S_AXI_DATA_WIDTH-1 : 0] ro_regs;
@@ -141,14 +147,20 @@ module nf10_router_output_port_lookup
    // ------------ Modules ----------------
 
    // -- AXILITE IPIF
-  axi_lite_ipif_1bar #
+  axi_lite_ipif_4bars #
   (
     .C_S_AXI_DATA_WIDTH (C_S_AXI_DATA_WIDTH),
     .C_S_AXI_ADDR_WIDTH (C_S_AXI_ADDR_WIDTH),
-	.C_USE_WSTRB        (C_USE_WSTRB),
-	.C_DPHASE_TIMEOUT   (C_DPHASE_TIMEOUT),
-    .C_BAR0_BASEADDR    (C_BASEADDR),
-    .C_BAR0_HIGHADDR    (C_HIGHADDR)
+    .C_USE_WSTRB        (C_USE_WSTRB),
+    .C_DPHASE_TIMEOUT   (C_DPHASE_TIMEOUT),
+    .C_BAR0_BASEADDR    (C_BASEADDR0),
+    .C_BAR0_HIGHADDR    (C_HIGHADDR0),
+    .C_BAR1_BASEADDR    (C_BASEADDR1),
+    .C_BAR1_HIGHADDR    (C_HIGHADDR1),
+    .C_BAR2_BASEADDR    (C_BASEADDR2),
+    .C_BAR2_HIGHADDR    (C_HIGHADDR2),
+    .C_BAR3_BASEADDR    (C_BASEADDR3),
+    .C_BAR3_HIGHADDR    (C_HIGHADDR3)
   ) axi_lite_ipif_inst
   (
     .S_AXI_ACLK          ( AXI_ACLK       ),
@@ -184,7 +196,14 @@ module nf10_router_output_port_lookup
     .IP2Bus_RdAck        ( IP2Bus_RdAck   ),
     .IP2Bus_Error        ( IP2Bus_Error   )
   );
-  
+ 
+//    assign IP2Bus_Data  =  Bus2IP_CS[1] ?     IP2Bus_Data0 : IP2Bus_Data1;    
+//    assign IP2Bus_WrAck =  Bus2IP_CS[1] ?     IP2Bus_WrAck0 : IP2Bus_WrAck1;   
+//    assign IP2Bus_RdAck =  Bus2IP_CS[1] ?      IP2Bus_RdAck0 : IP2Bus_RdAck1;  
+//    assign IP2Bus_Error =  Bus2IP_CS[1] ?      IP2Bus_Error0 : IP2Bus_Error1;  
+
+ 
+
   // -- IPIF REGS
   ipif_regs #
   (
@@ -197,18 +216,159 @@ module nf10_router_output_port_lookup
     .Bus2IP_Clk     ( Bus2IP_Clk     ),
     .Bus2IP_Resetn  ( Bus2IP_Resetn  ), 
     .Bus2IP_Addr    ( Bus2IP_Addr    ),
-    .Bus2IP_CS      ( Bus2IP_CS[0]   ),
+    .Bus2IP_CS      ( Bus2IP_CS[3]   ),
     .Bus2IP_RNW     ( Bus2IP_RNW     ),
     .Bus2IP_Data    ( Bus2IP_Data    ),
     .Bus2IP_BE      ( Bus2IP_BE      ),
-    .IP2Bus_Data    ( IP2Bus_Data    ),
-    .IP2Bus_RdAck   ( IP2Bus_RdAck   ),
-    .IP2Bus_WrAck   ( IP2Bus_WrAck   ),
-    .IP2Bus_Error   ( IP2Bus_Error   ),
+    .IP2Bus_Data    ( IP2Bus_Data3    ),
+    .IP2Bus_RdAck   ( IP2Bus_RdAck3   ),
+    .IP2Bus_WrAck   ( IP2Bus_WrAck3   ),
+    .IP2Bus_Error   ( IP2Bus_Error3   ),
     .wo_regs        ( wo_regs ),	
     .rw_regs        ( rw_regs ),
     .ro_regs        ( ro_regs )
   );
+
+  ipif_table_regs #
+  (
+   .C_S_AXI_DATA_WIDTH(C_S_AXI_DATA_WIDTH),          
+   .C_S_AXI_ADDR_WIDTH(C_S_AXI_ADDR_WIDTH),   
+   .TBL_NUM_COLS(4),
+   .TBL_NUM_ROWS(32)
+  ) ipif_table_regs_inst2
+ (   
+   // -- IPIF ports
+    .Bus2IP_Clk     ( Bus2IP_Clk     ),
+    .Bus2IP_Resetn  ( Bus2IP_Resetn  ), 
+    .Bus2IP_Addr    ( Bus2IP_Addr    ),
+    .Bus2IP_CS      ( Bus2IP_CS[2]   ),
+    .Bus2IP_RNW     ( Bus2IP_RNW     ),
+    .Bus2IP_Data    ( Bus2IP_Data    ),
+    .Bus2IP_BE      ( Bus2IP_BE      ),
+    .IP2Bus_Data    ( IP2Bus_Data2    ),
+    .IP2Bus_RdAck   ( IP2Bus_RdAck2   ),
+    .IP2Bus_WrAck   ( IP2Bus_WrAck2   ),
+    .IP2Bus_Error   ( IP2Bus_Error2   ),
+   // -- Table ports
+    .tbl_rd_req(tbl_rd_req2),       // Request a read
+    .tbl_rd_ack(tbl_rd_ack2),       // Pulses hi on ACK
+    .tbl_rd_addr(tbl_rd_addr2),      // Address in table to read
+    .tbl_rd_data(tbl_rd_data2),      // Value in table
+    .tbl_wr_req(tbl_wr_req2),       // Request a write
+    .tbl_wr_ack(tbl_wr_ack2),       // Pulses hi on ACK
+    .tbl_wr_addr(tbl_wr_addr2),      // Address in table to write
+    .tbl_wr_data(tbl_wr_data2)       // Value to write to table
+ );
+
+  ipif_table_regs #
+  (
+   .C_S_AXI_DATA_WIDTH(C_S_AXI_DATA_WIDTH),          
+   .C_S_AXI_ADDR_WIDTH(C_S_AXI_ADDR_WIDTH),   
+   .TBL_NUM_COLS(4),
+   .TBL_NUM_ROWS(32)
+  ) ipif_table_regs_inst1
+ (   
+   // -- IPIF ports
+    .Bus2IP_Clk     ( Bus2IP_Clk     ),
+    .Bus2IP_Resetn  ( Bus2IP_Resetn  ), 
+    .Bus2IP_Addr    ( Bus2IP_Addr    ),
+    .Bus2IP_CS      ( Bus2IP_CS[1]   ),
+    .Bus2IP_RNW     ( Bus2IP_RNW     ),
+    .Bus2IP_Data    ( Bus2IP_Data    ),
+    .Bus2IP_BE      ( Bus2IP_BE      ),
+    .IP2Bus_Data    ( IP2Bus_Data1    ),
+    .IP2Bus_RdAck   ( IP2Bus_RdAck1   ),
+    .IP2Bus_WrAck   ( IP2Bus_WrAck1   ),
+    .IP2Bus_Error   ( IP2Bus_Error1   ),
+   // -- Table ports
+    .tbl_rd_req(tbl_rd_req1),       // Request a read
+    .tbl_rd_ack(tbl_rd_ack1),       // Pulses hi on ACK
+    .tbl_rd_addr(tbl_rd_addr1),      // Address in table to read
+    .tbl_rd_data(tbl_rd_data1),      // Value in table
+    .tbl_wr_req(tbl_wr_req1),       // Request a write
+    .tbl_wr_ack(tbl_wr_ack1),       // Pulses hi on ACK
+    .tbl_wr_addr(tbl_wr_addr1),      // Address in table to write
+    .tbl_wr_data(tbl_wr_data1)       // Value to write to table
+ );
+
+ ipif_table_regs #
+  (
+   .C_S_AXI_DATA_WIDTH(C_S_AXI_DATA_WIDTH),          
+   .C_S_AXI_ADDR_WIDTH(C_S_AXI_ADDR_WIDTH),   
+   .TBL_NUM_COLS(4),
+   .TBL_NUM_ROWS(32)
+  ) ipif_table_regs_inst0
+ (   
+   // -- IPIF ports
+    .Bus2IP_Clk     ( Bus2IP_Clk     ),
+    .Bus2IP_Resetn  ( Bus2IP_Resetn  ), 
+    .Bus2IP_Addr    ( Bus2IP_Addr    ),
+    .Bus2IP_CS      ( Bus2IP_CS[0]   ),
+    .Bus2IP_RNW     ( Bus2IP_RNW     ),
+    .Bus2IP_Data    ( Bus2IP_Data    ),
+    .Bus2IP_BE      ( Bus2IP_BE      ),
+    .IP2Bus_Data    ( IP2Bus_Data0    ),
+    .IP2Bus_RdAck   ( IP2Bus_RdAck0   ),
+    .IP2Bus_WrAck   ( IP2Bus_WrAck0   ),
+    .IP2Bus_Error   ( IP2Bus_Error0   ),
+   // -- Table ports
+    .tbl_rd_req(tbl_rd_req0),       // Request a read
+    .tbl_rd_ack(tbl_rd_ack0),       // Pulses hi on ACK
+    .tbl_rd_addr(tbl_rd_addr0),      // Address in table to read
+    .tbl_rd_data(tbl_rd_data0),      // Value in table
+    .tbl_wr_req(tbl_wr_req0),       // Request a write
+    .tbl_wr_ack(tbl_wr_ack0),       // Pulses hi on ACK
+    .tbl_wr_addr(tbl_wr_addr0),      // Address in table to write
+    .tbl_wr_data(tbl_wr_data0)       // Value to write to table
+ );
+
+ 
+  always@*
+  begin
+    IP2Bus_Data = 0;
+    case(Bus2IP_CS)
+      4'b0001: IP2Bus_Data =IP2Bus_Data0; 
+      4'b0010: IP2Bus_Data =IP2Bus_Data1; 
+      4'b0100: IP2Bus_Data =IP2Bus_Data2; 
+      4'b1000: IP2Bus_Data =IP2Bus_Data3; 
+   endcase
+  end
+
+  always@*
+  begin
+    IP2Bus_WrAck = 0;
+    case(Bus2IP_CS)
+      4'b0001: IP2Bus_WrAck =IP2Bus_WrAck0; 
+      4'b0010: IP2Bus_WrAck =IP2Bus_WrAck1; 
+      4'b0100: IP2Bus_WrAck =IP2Bus_WrAck2; 
+      4'b1000: IP2Bus_WrAck =IP2Bus_WrAck3; 
+   endcase
+  end
+
+  always@*
+  begin
+    IP2Bus_RdAck = 0;
+    case(Bus2IP_CS)
+      4'b0001: IP2Bus_RdAck =IP2Bus_RdAck0; 
+      4'b0010: IP2Bus_RdAck =IP2Bus_RdAck1; 
+      4'b0100: IP2Bus_RdAck =IP2Bus_RdAck2; 
+      4'b1000: IP2Bus_RdAck =IP2Bus_RdAck3; 
+   endcase
+  end
+
+ always@*
+  begin
+    IP2Bus_Error = 0;
+    case(Bus2IP_CS)
+      4'b0001: IP2Bus_Error =IP2Bus_Error0; 
+      4'b0010: IP2Bus_Error =IP2Bus_Error1; 
+      4'b0100: IP2Bus_Error =IP2Bus_Error2; 
+      4'b1000: IP2Bus_Error =IP2Bus_Error3; 
+   endcase
+  end
+
+
+
  
   wire [C_S_AXI_DATA_WIDTH-1:0] ipv4_count;
   wire [C_S_AXI_DATA_WIDTH-1:0] arp_count;
