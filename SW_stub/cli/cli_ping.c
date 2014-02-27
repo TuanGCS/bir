@@ -9,6 +9,8 @@
 #include "socket_helper.h"       /* writenstr()                       */
 #include "../sr_integration.h"   /* sr_integ_findsrcip()              */
 #include "../sr_thread.h"
+#include "../packets.h"
+#include "../icmp_type.h"
 
 /** maximum number of bytes an echo reply may have */
 #define PING_BUF_SIZE (sizeof(hdr_icmp_t) + 40)
@@ -77,7 +79,6 @@ void cli_ping_destroy() {
 
 void cli_ping_request( router_t* rtr, int fd, addr_ip_t ip ) {
     ping_t* p_new;
-    addr_ip_t src_ip;
     char str_ip[STRLEN_IP];
     struct in_addr addr;
     struct hostent* he;
@@ -88,7 +89,18 @@ void cli_ping_request( router_t* rtr, int fd, addr_ip_t ip ) {
     pthread_mutex_lock( &ping_list_lock );
 
     /* send the echo request (via the router directly ...) */
+
     ip_to_string( str_ip, ip );
+
+    if( !icmp_allocate_and_send( rtr, ip, 0, ICMP_TYPE_REQUEST, PING_ID, ping_count, NULL, 0 ) ) {
+
+    	pthread_mutex_unlock( &ping_list_lock );
+
+    	writenf( fd, "Error: cannot find route to %s\n", str_ip );
+
+    	return;
+
+    }
 
     /* create the ping request */
     p_new = malloc_or_die( sizeof(ping_t) );
@@ -169,6 +181,7 @@ static void cli_ping_feedback( ping_t* p, bool worked ) {
 }
 
 void cli_ping_handle_reply( addr_ip_t ip, uint16_t seq ) {
+	printf("CLI received a ping rely from %s seq %d\n", quick_ip_to_string(ip), seq); fflush(stdout);
     ping_t* p;
 
     /* after shutdown is set, ping_list becomes garbage */

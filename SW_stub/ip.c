@@ -4,9 +4,14 @@
 
 #include "sr_interface.h"
 #include "sr_integration.h"
+#include "globals.h"
 #include "ethernet_packet.h"
 #include "arp.h"
 #include "packets.h"
+#include "icmp_type.h"
+#include "pwospf.h"
+#include "cli/cli_ping.h"
+
 #include <string.h>
 
 #include <stdio.h>
@@ -14,12 +19,13 @@
 
 #include <stdint.h>
 
-volatile uint16_t hid = 1;
+// Move to header file. Should add be unique for every 2^16 - 1 packets then it will overflow and get back to 0 because it is unsigned
+volatile uint16_t ip_id = 0;
 
 void ip_print_table(dataqueue_t * table) {
 
 	int i;
-	printf("THE IP TABLE\n-------------\n\n");
+	printf("\nTHE IP TABLE\n-------------\n\n");
 	for (i = 0; i < table->size; i++) {
 		ip_table_entry_t * entry;
 		int entry_size;
@@ -38,15 +44,36 @@ void ip_print_table(dataqueue_t * table) {
 	printf("\n");
 }
 
+void ip_print(packet_ip4_t * packet) {
+	printf("------ IP PACKET -----\n");
+	printf("packet->ihl=%d\n", packet->ihl);
+	printf("packet->version=%d\n", packet->version);
+	printf("packet->dscp_ecn=%d\n", packet->dscp_ecn);
+	printf("packet->total_length=htons(%d)\n", ntohs(packet->total_length));
+	printf("packet->id=htons(%d)\n", ntohs(packet->id));
+	printf("packet->flags_fragmentoffset=htons(%d)\n",
+			ntohs(packet->flags_fragmentoffset));
+	printf("packet->ttl=%d\n", packet->ttl);
+	printf("packet->protocol=%d\n", packet->protocol);
+	printf("packet->header_checksum=htons(%d)\n",
+			ntohs(packet->header_checksum));
+	printf("packet->src_ip=\"%s\" //==htons(0x%x)==0x%x\n", quick_ip_to_string(packet->src_ip), ntohl(packet->src_ip), packet->src_ip);
+	printf("packet->dst_ip=\"%s\" //==htons(0x%x)==0x%x\n", quick_ip_to_string(packet->dst_ip), ntohl(packet->dst_ip), packet->dst_ip);
+	printf("\n");
+	fflush(stdout);
+}
+
 // TODO! what happens if two interfaces match?
 // returns id in table
 int ip_longestprefixmatch(dataqueue_t * table, addr_ip_t ip,
 		ip_table_entry_t * result) {
+
 	int maxmatch = 0;
 	int answer = -1;
 
 	int i;
 	ip_table_entry_t * entry;
+
 	int entry_size;
 	for (i = 0; i < table->size; i++) {
 		if (queue_getidandlock(table, i, (void **) &entry, &entry_size)) {
@@ -61,6 +88,7 @@ int ip_longestprefixmatch(dataqueue_t * table, addr_ip_t ip,
 				if (maxmatch < entry->netmask) {
 					maxmatch = entry->netmask;
 					answer = i;
+					*result = *entry;
 				}
 			}
 
@@ -68,13 +96,7 @@ int ip_longestprefixmatch(dataqueue_t * table, addr_ip_t ip,
 		}
 	}
 
-	if (queue_getidandlock(table, answer, (void **) &entry, &entry_size)) {
-		*result = *entry;
-		queue_unlockid(table, answer);
-		return answer;
-	}
-
-	return -1;
+	return answer;
 }
 
 // returns id in table
@@ -100,7 +122,7 @@ int ip_directmatch(dataqueue_t * table, addr_ip_t ip, ip_table_entry_t * result)
 }
 
 void ip_putintable(dataqueue_t * table, addr_ip_t ip, interface_t* interface,
-		int netmask) {
+		int netmask, bool dynamic) {
 
 	ip_table_entry_t existing; // memory allocation ;(
 
@@ -118,6 +140,7 @@ void ip_putintable(dataqueue_t * table, addr_ip_t ip, interface_t* interface,
 	existing.interface = interface;
 	existing.ip = ip;
 	existing.netmask = netmask;
+	existing.dynamic = dynamic;
 
 	queue_add(table, (void *) &existing, sizeof(ip_table_entry_t));
 
@@ -125,94 +148,171 @@ void ip_putintable(dataqueue_t * table, addr_ip_t ip, interface_t* interface,
 	ip_print_table(table);
 }
 
-int generatechecksum(unsigned short * buf, int len) {
+void sr_transport_input(uint8_t* packet /* borrowed */); // this function does the transport input to the system
 
-	uint16_t * data = (uint16_t *) buf;
-	int size = len / 2;
+void update_ip_packet_response(packet_info_t* pi, addr_ip_t dst_ip,
+		addr_ip_t src_ip, uint8_t ttl) {
 
-	uint32_t sum;
-	for (sum = 0; size > 0; size--)
-		sum += ntohs(*data++);
-	sum = (sum >> 16) + (sum & 0xffff);
-	sum += (sum >> 16);
+	packet_ip4_t* ipv4 = (packet_ip4_t *) &pi->packet[sizeof(packet_ethernet_t)];
 
-	return htons(((uint16_t) ~sum));
+	ipv4->dst_ip = dst_ip;
+	ipv4->src_ip = src_ip;
+
+	ipv4->ttl = ttl;
+	ipv4->flags_fragmentoffset = 0;
+	ipv4->id = htons(ip_id); // Fix
+	ip_id++;
+
+	ipv4->header_checksum = 0;
+	ipv4->header_checksum = generatechecksum((unsigned short*) ipv4,
+			sizeof(packet_ip4_t));
+
+	packet_ethernet_t* eth = (packet_ethernet_t *) pi->packet;
+	update_ethernet_header(pi, eth->source_mac, eth->dest_mac);
 }
 
-void sr_transport_input(uint8_t* packet /* borrowed */); // this function does the transport input to the system
+packet_ip4_t* generate_ipv4_header(addr_ip_t src_ip, int datagram_size) {
+
+	packet_ip4_t* ipv4 = (packet_ip4_t *) malloc(sizeof(packet_ip4_t));
+	ipv4->version = 4;
+	ipv4->ihl = 5;
+	ipv4->dscp_ecn = 0;
+	ipv4->total_length = htons(sizeof(packet_ip4_t) + datagram_size);
+	ipv4->id = 0;
+	ipv4->flags_fragmentoffset = 0;
+	ipv4->ttl = 64;
+	ipv4->protocol = IP_TYPE_OSPF;
+	ipv4->header_checksum = 0;
+	ipv4->src_ip = src_ip;
+	ipv4->dst_ip = ALLSPFRouters;
+
+	ipv4->header_checksum = generatechecksum((unsigned short*) ipv4,
+					sizeof(packet_ip4_t));
+
+	return ipv4;
+
+}
+
+bool ip_header_check(packet_info_t* pi, packet_ip4_t * ipv4) {
+
+	// Check if IP packet is verion 4
+	if (ipv4->version != 4) {
+		fprintf(stderr, "Not a IPv4 packet\n");
+		return FALSE;
+	}
+
+	// Check if packet contains options
+	if (ipv4->ihl != sizeof(packet_ip4_t) >> 2) {
+		fprintf(stderr, "IPv4 packet contains options\n");
+		return FALSE;
+	}
+
+	// Check if packet length is larger than the specified total length
+	if (ipv4->total_length < sizeof(pi->packet[sizeof(packet_ethernet_t)])) {
+		fprintf(stderr,
+				"Invalid length of packet (received %lu, expected %d)\n",
+				sizeof(pi->packet[sizeof(packet_ethernet_t)]),
+				ipv4->total_length);
+		return FALSE;
+	}
+
+	// Calculate and check header checksum
+	if (generatechecksum((unsigned short*) ipv4, sizeof(packet_ip4_t)) != (0)) {
+		fprintf(stderr, "IPv4 Header Checksum Error\n");
+		return FALSE;
+	}
+
+	// Check if packet is a fragment -> Tested
+	if ((ntohs(ipv4->flags_fragmentoffset) & 0x3FFF) != 0) {
+		fprintf(stderr, "Packet is a fragment\n");
+		return FALSE;
+	}
+
+	ipv4->ttl--;
+	if (ipv4->ttl < 1) {
+		fprintf(stderr, "Packet Time-To-Live is 0 or less\n");
+
+		icmp_type_time_exceeded(pi, ipv4);
+
+		return FALSE;
+	}
+
+	return TRUE;
+
+}
+
 void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 
-	// TODO! check ipv4 version, flags, header size, etc.
-
-	if (generatechecksum((unsigned short*) ipv4, sizeof(packet_ip4_t)) != (0)) {
-		fprintf(stderr, "IPv4 CHECKSUM ERR\n");
+	// Check the validity of the IP header
+	if (!ip_header_check(pi, ipv4)) {
+		fprintf(stderr, "Invalid IP received\n");
 		return;
 	}
 
-	if (ipv4->ttl < 1)
-		return; // don't handle packets with ttl less than 1 TODO should that be less than 0
+	if (ipv4->dst_ip == ALLSPFRouters && ipv4->protocol == IP_TYPE_OSPF) {
+		if (PACKET_CAN_MARSHALL(pwospf_packet_t, sizeof(packet_ethernet_t)+sizeof(packet_ip4_t), pi->len)) {
+			pwospf_packet_t * pwospf = PACKET_MARSHALL(pwospf_packet_t,pi->packet, sizeof(packet_ethernet_t)+sizeof(packet_ip4_t));
+			pwospf_onreceive(pi, pwospf);
+		} else
+			fprintf(stderr, "Invalid PWOSPF packet!\n");
+		return;
+	}
 
 	int i;
 	for (i = 0; i < pi->router->num_interfaces; i++) {
+
 		if (ipv4->dst_ip == pi->router->interface[i].ip) {
 
-			// TODO! CHECK TYPE OF IP
-			sr_transport_input((uint8_t *) ipv4);
-			continue;
+			if (ipv4->protocol == IP_TYPE_ICMP) {
 
-			packet_ethernet_t* eth = (packet_ethernet_t *) pi->packet;
-			addr_mac_t temp_mac = eth->dest_mac;
-			eth->dest_mac = eth->source_mac;
-			eth->source_mac = temp_mac;
+				packet_icmp_t* icmp =
+						(packet_icmp_t *) &pi->packet[sizeof(packet_ethernet_t)
+								+ sizeof(packet_ip4_t)];
 
-			addr_ip_t temp_ip = ipv4->dst_ip;
-			ipv4->dst_ip = ipv4->src_ip;
-			ipv4->src_ip = temp_ip;
+				if (icmp->type == ICMP_TYPE_REQUEST) {
 
-			ipv4->ttl = 64; // Set back to max
-			ipv4->flags_fragmentoffset = 0;
-			ipv4->id = htons(hid); // Fix
-			hid++;
+					icmp_type_echo_replay(pi, icmp);
 
-			packet_icmp_t* icmp =
-					(packet_icmp_t *) &pi->packet[sizeof(packet_ethernet_t)
-							+ sizeof(packet_ip4_t)];
-			icmp->type = ICMP_TYPE_REPLAY;
+					return;
 
-			icmp->header_checksum = 0;
-			icmp->header_checksum = generatechecksum((unsigned short*) icmp,
-					sizeof(packet_icmp_t));
+				} else if (icmp->type == ICMP_TYPE_REPLAY) {
+					cli_ping_handle_reply(ipv4->src_ip, icmp->seq_num);
+					return;
+				}
 
-			ipv4->header_checksum = 0;
-			ipv4->header_checksum = generatechecksum((unsigned short*) ipv4,
-					sizeof(packet_ip4_t));
+			} else if (ipv4->protocol == IP_TYPE_TCP) {
 
-			ethernet_packet_send(get_sr(), pi->interface, eth->dest_mac,
-					eth->source_mac, htons(ETH_IP_TYPE), pi);
+				sr_transport_input((uint8_t *) ipv4);
+				return;
 
-			return;
+			} else {
+
+				fprintf(stderr, "Unsupported IP packet type \n");
+				icmp_type_dst_unreach(pi, ipv4, ICMP_CODE_PROT_UNREACH);
+				return;
+
+			}
 
 		}
 	}
 
 	ip_table_entry_t dest_ip_entry; // memory allocation ;(
-	int id = ip_longestprefixmatch(&pi->router->ip_table, ipv4->dst_ip,
-			&dest_ip_entry);
 
-	if (id >= 0) {
+	if (ip_longestprefixmatch(&pi->router->ip_table, ipv4->dst_ip,
+			&dest_ip_entry) >= 0) {
 
 		arp_cache_entry_t arp_dest; // memory allocation ;(
-		int id = arp_getcachebyip(&pi->router->arp_cache, ipv4->dst_ip,
-				&arp_dest);
 
-		if (id >= 0) {
-			ipv4->ttl--;
-			if(ipv4->ttl < 1)
-				return;
+		if (arp_getcachebyip(&pi->router->arp_cache, ipv4->dst_ip, &arp_dest)
+				>= 0) {
 
 			ipv4->header_checksum = 0;
 			ipv4->header_checksum = generatechecksum((unsigned short*) ipv4,
 					sizeof(packet_ip4_t));
+
+			if (ipv4->ttl < 1)
+				return;
+
 			ethernet_packet_send(get_sr(), dest_ip_entry.interface,
 					arp_dest.mac, dest_ip_entry.interface->mac,
 
@@ -234,12 +334,12 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 
 		}
 
-
 	} else {
 		printf("Longest prefix matching failed to find an interface for %s\n",
 				quick_ip_to_string(ipv4->dst_ip));
 		ip_print_table(&pi->router->ip_table);
+
+		icmp_type_dst_unreach(pi, ipv4, ICMP_CODE_HOST_UNREACH);
 	}
 
 }
-

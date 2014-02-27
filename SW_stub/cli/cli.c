@@ -6,6 +6,7 @@
 #include <string.h>              /* strncpy()                         */
 #include <sys/time.h>            /* struct timeval                    */
 #include <unistd.h>              /* sleep()                           */
+#include <stdarg.h>
 #include "cli.h"
 #include "cli_network.h"         /* make_thread()                     */
 #include "cli_ping.h"            /* cli_ping_init(), cli_ping_request() */
@@ -13,6 +14,10 @@
 #include "../sr_base_internal.h" /* struct sr_instance                */
 #include "../sr_common.h"        /* ...                               */
 #include "../sr_router.h"        /* router_*()                        */
+#include "../ip.h"
+#include "../arp.h"
+
+#define MAX_CHARS_IN_CLI_SEND_STRF (250)
 
 /** whether to shutdown the server or not */
 static bool router_shutdown;
@@ -72,6 +77,33 @@ static void cli_send_str( const char* str ) {
     if( fd_alive )
         if( 0 != writenstr( fd, str ) )
             fd_alive = FALSE;
+}
+
+
+/**
+ * A printf-like implementation for sending over the network. Maximum size
+ * to print is MAX_CHARS_IN_CLI_SEND_STRF. (Creator Martin)
+ */
+static void cli_send_strf( const char* format , ... ) {
+
+	static char data[MAX_CHARS_IN_CLI_SEND_STRF];
+	static pthread_mutex_t cli_sprintf_lock = PTHREAD_MUTEX_INITIALIZER;
+
+    if( fd_alive ) {
+    	va_list arg;
+    	va_start (arg, format);
+
+    	pthread_mutex_lock(&cli_sprintf_lock);
+    	int size = vsnprintf(data, MAX_CHARS_IN_CLI_SEND_STRF, format, arg);
+    	if (size < MAX_CHARS_IN_CLI_SEND_STRF && size >= 0) {
+    		data[size] = 0;
+    		if( 0 != writenstr( fd, data ) )
+    			fd_alive = FALSE;
+    	}
+
+    	pthread_mutex_unlock(&cli_sprintf_lock);
+    	usleep(50);
+    }
 }
 
 
@@ -146,7 +178,7 @@ void cli_send_parse_error( int num_args, ... ) {
 }
 
 void cli_send_welcome() {
-    cli_send_str( "You are now logged into the router CLI.\n" );
+    cli_send_str( "Welcome to the bir router!\n" );
 }
 
 void cli_send_prompt() {
@@ -192,6 +224,7 @@ void cli_show_hw_about() {
 }
 
 void cli_show_hw_arp() {
+
 }
 
 void cli_show_hw_intf() {
@@ -211,10 +244,62 @@ void cli_show_ip() {
     cli_show_ip_route();
 }
 
+void cli_show_arp() {
+	cli_show_ip_arp();
+}
+
 void cli_show_ip_arp() {
+	dataqueue_t * cache = &ROUTER->arp_cache;
+
+	struct timeval now;
+	gettimeofday(&now, NULL);
+
+	int i;
+	for (i = 0; i < cache->size; i++) {
+		arp_cache_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(cache, i, (void **) &entry, &entry_size)) {
+
+			assert(entry_size == sizeof(arp_cache_entry_t));
+			char entrystr[100];
+			if (entry->tv.tv_sec != -1)
+				sprintf(entrystr, "%d.\t%s\t%s\t%ld\n", i,
+						quick_mac_to_string(&entry->mac),
+						quick_ip_to_string(entry->ip),
+						entry->tv.tv_sec - now.tv_sec);
+			else
+				sprintf(entrystr, "%d.\t%s\t%s\tSTATIC\n", i,
+						quick_mac_to_string(&entry->mac),
+						quick_ip_to_string(entry->ip));
+
+			queue_unlockid(cache, i);
+			cli_send_strf(entrystr);
+		}
+	}
 }
 
 void cli_show_ip_intf() {
+	dataqueue_t * table = &ROUTER->ip_table;
+
+	int i;
+	for (i = 0; i < table->size; i++) {
+		ip_table_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(table, i, (void **) &entry, &entry_size)) {
+
+			assert(entry_size == sizeof(ip_table_entry_t));
+
+			char entrystr[100];
+			sprintf(entrystr, "%d. IP: %s/%d @ iface %s \n", i,
+					quick_ip_to_string(entry->ip), entry->netmask,
+					entry->interface->name);
+
+			queue_unlockid(table, i);
+			// cli_send_strf will require locking of the queue
+			// so if we do it before unlocking id, we will have a race condition!!!!
+			cli_send_strf(entrystr);
+		}
+	}
 }
 
 void cli_show_ip_route() {
@@ -240,6 +325,34 @@ void cli_show_ospf() {
 }
 
 void cli_show_ospf_neighbors() {
+	router_t * router = ROUTER;
+
+	int i;
+	for (i = 0; i < router->num_interfaces; i++) {
+		interface_t * intf = &router->interface[i];
+		dataqueue_t * neighbours = &intf->neighbours;
+
+		cli_send_strf( "%s:\n", intf->name );
+
+		if (neighbours->size == 0)
+			cli_send_str("\t<NO NEIGHBOURING ROUTERS>\n");
+		else {
+			int nid;
+			for (nid = 0; nid < neighbours->size; nid++) {
+
+				pwospf_list_entry_t * entry;
+				int entry_size;
+				if (queue_getidandlock(neighbours, nid, (void **) &entry, &entry_size)) {
+
+					assert(entry_size == sizeof(pwospf_list_entry_t));
+
+					cli_send_strf("\t%d: Id %d (0x%d)\tIP: %s\n", nid, entry->neighbour_id, entry->neighbour_id, quick_ip_to_string(entry->neighbour_ip));
+
+					queue_unlockid(neighbours, nid);
+				}
+			}
+		}
+	}
 }
 
 void cli_show_ospf_topo() {
@@ -291,18 +404,29 @@ void cli_show_vns_vhost() {
 #endif
 
 void cli_manip_ip_arp_add( gross_arp_t* data ) {
+	dataqueue_t * cache = &ROUTER->arp_cache;
+
+	arp_add_static(cache, data->ip, data->mac);
+	cli_show_ip_arp();
 }
 
 void cli_manip_ip_arp_del( gross_arp_t* data ) {
+	dataqueue_t * cache = &ROUTER->arp_cache;
+
+	arp_remove_ip_mac(cache, data->ip, data->mac);
+	cli_show_ip_arp();
 }
 
 void cli_manip_ip_arp_purge_all() {
+	arp_clear_all(&ROUTER->arp_cache);
 }
 
 void cli_manip_ip_arp_purge_dyn() {
+	arp_clear_dynamic(&ROUTER->arp_cache);
 }
 
 void cli_manip_ip_arp_purge_sta() {
+	arp_clear_static(&ROUTER->arp_cache);
 }
 
 void cli_manip_ip_intf_set( gross_intf_t* data ) {

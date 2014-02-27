@@ -8,30 +8,15 @@
 #define PACKED __attribute__((__packed__))
 
 #define PACKET_CAN_MARSHALL(type, offset, len) ((len - offset) >= sizeof(type))
-#define PACKET_MARSHALL(type, s_ptr, offset) (type *) (void *) &s_ptr[offset]
+#define PACKET_MARSHALL(type, s_ptr, offset) (type *) &s_ptr[offset]
 
 #define ETH_IP_TYPE (0x0800)
 #define ETH_ARP_TYPE (0x0806)
 #define ETH_RARP_TYPE (0x8035)
 
-#define ARP_HTYPE_ETH (0x1)
-#define ARP_PTYPE_IP (0x0800)
-
-#define ARP_OPCODE_REQUEST (1)
-#define ARP_OPCODE_REPLAY (2)
-
-#define ARP_CACHE_TIMEOUT_REQUEST (120)
-#define ARP_CACHE_TIMEOUT_BROADCAST (60)
-#define ARP_CACHE_TIMEOUT_STATIC (-1)
-
-#define ARP_THRESHOLD (50)
-
 #define PROTOCOL_TCP (6)
 
-#define MAC_BROADCAST (.octet = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF})
-
-#define ICMP_TYPE_REQUEST (8)
-#define ICMP_TYPE_REPLAY (0)
+#define MAC_BROADCAST {.octet = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF}}
 
 typedef struct PACKED packet_ethernet {
 	addr_mac_t dest_mac;
@@ -56,14 +41,13 @@ typedef struct PACKED packet_icmp {
 	uint8_t code;
 	uint16_t header_checksum;
 	uint16_t id;
-	uint16_t seqNum;
-	char data[56];
+	uint16_t seq_num;
+	byte data[56];
 } packet_icmp_t;
 
 typedef struct arp_cache_entry {
 	addr_ip_t ip;
 	addr_mac_t mac;
-	interface_t* interface;
 	struct timeval tv;
 } arp_cache_entry_t;
 
@@ -85,6 +69,52 @@ typedef struct ip_table_entry {
 	addr_ip_t ip;
 	interface_t* interface;
 	int netmask;
+	bool dynamic;
 } ip_table_entry_t;
+
+typedef struct pwospf_packet {
+	uint8_t version;
+	uint8_t type;
+	uint16_t len;
+	uint32_t router_id;
+	uint32_t area_id;
+	uint16_t checksum;
+	uint16_t autotype;
+	uint32_t auth_type;
+	uint32_t auth_data;
+} pwospf_packet_t;
+
+typedef struct pwospf_packet_hello {
+	pwospf_packet_t pwospf_header;
+	uint32_t netmask;
+	uint16_t helloint;
+	uint16_t padding;
+} pwospf_packet_hello_t;
+
+typedef struct pwospf_packet_link {
+	pwospf_packet_t pwospf_header;
+	uint16_t seq;
+	uint16_t ttl;
+	uint32_t advert;
+} pwospf_packet_link_t;
+
+typedef struct pwospf_router {
+	uint32_t router_id;
+	uint32_t area_id;
+	uint16_t lsuint;
+} pwospf_router_t;
+
+typedef struct pwospf_lsa {
+	uint32_t subnet;
+	uint32_t netmask;
+	uint32_t router_id;
+} pwospf_lsa_t;
+
+typedef struct pwospf_list_entry {
+	uint32_t neighbour_id;
+	addr_ip_t neighbour_ip;
+	uint16_t helloint;
+	struct timeval timestamp;
+} pwospf_list_entry_t;
 
 #endif

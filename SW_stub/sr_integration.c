@@ -24,6 +24,12 @@
 #include "sr_dumper.h"
 
 #include "ip.h"
+#include "packets.h"
+#include "dataqueue.h"
+#include "globals.h"
+
+#include "pwospf.h"
+#include "sr_thread.h"
 
 /**
  * First method called during router initialization.
@@ -53,9 +59,12 @@ void sr_integ_hw_setup( struct sr_instance* sr ) {
     debug_println( "Performing post-hw setup initialization" );
 
 	// TODO! STATIC IP TABLE REMOVE THIS
-    ip_putintable(&router->ip_table, IP_CONVERT(10,0,1,2), &router->interface[0], 32);
-    ip_putintable(&router->ip_table, IP_CONVERT(10,0,2,2), &router->interface[1], 32);
-    ip_putintable(&router->ip_table, IP_CONVERT(10,0,3,2), &router->interface[2], 32);
+    ip_putintable(&router->ip_table, IP_CONVERT(10,0,1,2), &router->interface[0], 32, FALSE);
+    ip_putintable(&router->ip_table, IP_CONVERT(10,0,2,2), &router->interface[1], 32, FALSE);
+    ip_putintable(&router->ip_table, IP_CONVERT(10,0,3,2), &router->interface[2], 32, FALSE);
+
+    // create router threads
+    make_thread(&pwospf_thread, router);
 }
 
 /**
@@ -152,8 +161,15 @@ void sr_integ_destroy(struct sr_instance* sr) {
  * @return 0 on failure to find a route to dest.
  */
 uint32_t sr_integ_findsrcip(uint32_t dest /* nbo */) {
-	printf("sr_integ_findsrcip(%d)\n",dest);
-	return 0;
+	ip_table_entry_t entry;
+
+	if (ip_longestprefixmatch(&get_router()->ip_table, dest, &entry) < 0)
+		return 0;
+
+	if (entry.interface == NULL)
+		return -1;
+	else
+		return entry.interface->ip;
 }
 
 /**

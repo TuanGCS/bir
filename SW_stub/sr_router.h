@@ -27,11 +27,16 @@ struct router_t;
 #include "sr_interface.h"
 #include "sr_work_queue.h"
 #include "dataqueue.h"
-
 #include "packets.h"
 
 /** max number of interfaces the router max have */
 #define ROUTER_MAX_INTERFACES 4
+
+#define LSUINT 30
+#define LSUINT_TIMEOUT 3*LSUINT
+
+#define HELLOINT 5
+#define NEIGHBOR_TIMEOUT 3*HELLOINT
 
 /** router data structure */
 typedef struct router_t {
@@ -44,7 +49,11 @@ typedef struct router_t {
     dataqueue_t ip_table;
     dataqueue_t iparp_buffer;
 
+    pwospf_router_t pw_router;
+
     bool use_ospf;
+
+    volatile int is_router_running;
 
 #ifdef _CPUMODE_
     struct nf_device nf;
@@ -127,5 +136,9 @@ void router_add_interface( router_t* router,
                            const char* name,
                            addr_ip_t ip, addr_ip_t mask, addr_mac_t mac );
 
+int packetinfo_ip_allocate(router_t* router, packet_info_t ** pinfo, int size,
+		addr_ip_t dest, int protocol, int total_length);
+
+void packetinfo_free(packet_info_t ** pinfo);
 
 #endif /* SR_ROUTER_H */

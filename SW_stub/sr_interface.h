@@ -8,10 +8,10 @@
 
 #include <pthread.h>
 #include "sr_common.h"
+#include "dataqueue.h"
 #define SR_NAMELEN 32
 
 /* forward declaration */
-struct neighbor_t;
 struct router_t;
 
 /** holds info about a router's interface */
@@ -40,7 +40,8 @@ typedef struct {
     pthread_mutex_t hw_lock; /* lock to prevent issues w/ multiple writers */
 #endif /* MININET_MODE || _CPU_MODE_ */
 
-    struct neighbor_t* neighbor_list_head; /* neighboring nodes */
+	uint16_t helloint;
+	dataqueue_t neighbours;
 } interface_t;
 
 /**

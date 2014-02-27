@@ -118,6 +118,7 @@ ShowCommand : T_SHOW ShowType
 ShowType : /* empty: show all */                  { SETC_FUNC0(cli_show_all); }
          | T_HW  ShowTypeHW
          | T_IP  ShowTypeIP
+         | T_ARP                                  { SETC_FUNC0(cli_show_arp); }
          | T_OSPF ShowTypeOSPF
          | T_VNS ShowTypeVNS
          | T_OPTION ShowTypeOption

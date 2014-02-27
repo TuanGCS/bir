@@ -95,9 +95,8 @@ void queue_unlockid(dataqueue_t * queue, int id) {
 	pthread_mutex_unlock(&queue->locker);
 }
 
-void queue_free(dataqueue_t * queue) {
+void queue_purge(dataqueue_t * queue) {
 	int i;
-
 	void * temp_v; int temp_i;
 
 	while (queue->size > 0) {
@@ -105,6 +104,12 @@ void queue_free(dataqueue_t * queue) {
 			if (queue_getidandlock(queue, i, &temp_v, &temp_i))
 				queue_unlockidandremove(queue, i);
 	}
+}
+
+void queue_free(dataqueue_t * queue) {
+	int i;
+
+	queue_purge(queue);
 
 	pthread_mutex_destroy(&queue->locker);
 

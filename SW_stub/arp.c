@@ -14,12 +14,9 @@
 #include "packets.h"
 #include "ip.h"
 
-#define ARP_OP_REQUEST (1)
-#define ARP_OP_REPLY (2)
-
 void arp_print_cache(dataqueue_t * cache) {
 	int i;
-	printf("THE ARP TABLE\n-------------\n\n");
+	printf("\nTHE ARP TABLE\n-------------\n\n");
 	for (i = 0; i < cache->size; i++) {
 		arp_cache_entry_t * entry;
 		int entry_size;
@@ -27,10 +24,9 @@ void arp_print_cache(dataqueue_t * cache) {
 
 			assert(entry_size == sizeof(arp_cache_entry_t));
 
-			printf("%d. MAC: %s, IP: %s, iface %s, timeout %ld \n", i,
+			printf("%d. MAC: %s, IP: %s, timeout %ld \n", i,
 					quick_mac_to_string(&entry->mac),
 					quick_ip_to_string(entry->ip),
-					entry->interface->name,
 					entry->tv.tv_sec);
 
 			queue_unlockid(cache, i);
@@ -136,7 +132,7 @@ void process_arpipqueue(dataqueue_t * queue, addr_ip_t ip, addr_mac_t mac) {
 }
 
 void arp_putincache(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac,
-		interface_t* interface, uint8_t timeout) {
+		time_t timeout) {
 
 	arp_cache_entry_t result;
 
@@ -144,7 +140,6 @@ void arp_putincache(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac,
 	if (id  >= 0) {
 		// just the guy with this mac got a new ip
 		result.ip = ip;
-		result.interface = interface;
 
 		gettimeofday(&result.tv, NULL);
 		if (timeout != -1) {
@@ -160,7 +155,6 @@ void arp_putincache(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac,
 	if (id  >= 0) {
 		// just the guy with this mac got a new ip
 		result.mac = mac;
-		result.interface = interface;
 
 		gettimeofday(&result.tv, NULL);
 		if (timeout != -1) {
@@ -173,7 +167,6 @@ void arp_putincache(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac,
 		return;
 	}
 
-	result.interface = interface;
 	result.ip = ip;
 	result.mac = mac;
 
@@ -230,15 +223,13 @@ void arp_onreceive(packet_info_t* pi, packet_arp_t * arp) {
 
 			// ARPs to remote subnetworks are send to the gateway address
 			if (arp->target_ip == pi->interface->ip) {
-				arp_putincache(cache, arp->sender_ip, arp->sender_mac,
-						pi->interface, ARP_CACHE_TIMEOUT_REQUEST);
+				arp_putincache(cache, arp->sender_ip, arp->sender_mac, ARP_CACHE_TIMEOUT_REQUEST);
 
 				arp_send(get_sr(), pi->interface, arp, pi, ARP_OP_REPLY,
 						arp->sender_ip, arp->sender_mac, pi->interface->ip,
 						pi->interface->mac);
 			} else {
-				arp_putincache(cache, arp->sender_ip, arp->sender_mac,
-						pi->interface, ARP_CACHE_TIMEOUT_BROADCAST);
+				arp_putincache(cache, arp->sender_ip, arp->sender_mac, ARP_CACHE_TIMEOUT_BROADCAST);
 			}
 
 			break;
@@ -247,8 +238,7 @@ void arp_onreceive(packet_info_t* pi, packet_arp_t * arp) {
 		case ARP_OPCODE_REPLAY: {
 			if (arp->target_ip == pi->interface->ip
 					&& match_mac(arp->target_mac, pi->interface->mac)) {
-				arp_putincache(cache, arp->sender_ip, arp->sender_mac,
-						pi->interface, ARP_CACHE_TIMEOUT_REQUEST);
+				arp_putincache(cache, arp->sender_ip, arp->sender_mac, ARP_CACHE_TIMEOUT_REQUEST);
 				// Push packets from queue?
 			} else {
 				fprintf(stderr, "Invalid ARP Replay from %s!\n",
@@ -309,11 +299,30 @@ void arp_maintain_cache(dataqueue_t * cache) {
 }
 
 // Add a static entry given IP, MAC and Interface
-void arp_add_static(packet_info_t* pi, addr_ip_t ip, addr_mac_t mac,
-		interface_t* interface) {
+void arp_add_static(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac) {
 
-	arp_putincache(&pi->router->arp_cache, ip, mac, interface, ARP_CACHE_TIMEOUT_STATIC);
+	arp_putincache(cache, ip, mac, ARP_CACHE_TIMEOUT_STATIC);
 
+}
+
+void arp_remove_ip_mac(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac) {
+
+	int i;
+	for (i = 0; i < cache->size; i++) {
+		arp_cache_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(cache, i, (void **) &entry, &entry_size)) {
+
+			assert(entry_size == sizeof(arp_cache_entry_t));
+
+			if (entry->ip == ip && match_mac(entry->mac, mac)) {
+				// REMOVE
+				queue_unlockidandremove(cache, i);
+				return;
+			} else
+				queue_unlockid(cache, i);
+		}
+	}
 }
 
 // Remove static entries based on IP address
@@ -363,9 +372,7 @@ void arp_remove_static_mac(packet_info_t* pi, addr_mac_t mac) {
 }
 
 // Delete all static entries in the ARP cache
-void arp_clear_static(packet_info_t* pi) {
-	dataqueue_t * cache = &pi->router->arp_cache;
-
+void arp_clear_static(dataqueue_t * cache) {
 	int i;
 	for (i = 0; i < cache->size; i++) {
 		arp_cache_entry_t * entry;
@@ -381,6 +388,28 @@ void arp_clear_static(packet_info_t* pi) {
 				queue_unlockid(cache, i);
 		}
 	}
+}
+
+void arp_clear_dynamic(dataqueue_t * cache) {
+	int i;
+	for (i = 0; i < cache->size; i++) {
+		arp_cache_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(cache, i, (void **) &entry, &entry_size)) {
+
+			assert(entry_size == sizeof(arp_cache_entry_t));
+
+			if (entry->tv.tv_sec != -1) {
+				// REMOVE
+				queue_unlockidandremove(cache, i);
+			} else
+				queue_unlockid(cache, i);
+		}
+	}
+}
+
+void arp_clear_all(dataqueue_t * cache) {
+	queue_purge(cache);
 }
 
 void arp_send_request(router_t* router, interface_t* interface, addr_ip_t target_ip) {
