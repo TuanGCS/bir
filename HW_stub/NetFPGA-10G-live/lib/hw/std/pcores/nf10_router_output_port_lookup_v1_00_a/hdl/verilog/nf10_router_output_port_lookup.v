@@ -291,6 +291,8 @@ module nf10_router_output_port_lookup
     .tbl_wr_data(tbl_wr_data1)       // Value to write to table
  );
 
+  // Minor Comments
+
  ipif_table_regs #
   (
    .C_S_AXI_DATA_WIDTH(C_S_AXI_DATA_WIDTH),          
