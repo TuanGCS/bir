@@ -123,7 +123,6 @@ void queue_purge(dataqueue_t * queue) {
 }
 
 void queue_free(dataqueue_t * queue) {
-	int i;
 
 	queue_purge(queue);
 

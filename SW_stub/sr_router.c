@@ -43,7 +43,8 @@ void router_init(router_t* router) {
 	queue_init(&router->arp_cache);
 	queue_init(&router->ip_table);
 	queue_init(&router->iparp_buffer);
-	queue_init(&router->topology);
+
+	gettimeofday(&router->last_lsu, NULL);
 
 #ifndef _THREAD_PER_PACKET_
 	debug_println("Initializing the router work queue with %u worker threads",
@@ -62,7 +63,28 @@ void router_destroy(router_t* router) {
 	queue_free(&router->arp_cache);
 	queue_free(&router->ip_table);
 	queue_free(&router->iparp_buffer);
-	queue_free(&router->topology);
+
+	int i;
+	for (i = 0; i < router->num_interfaces; i++) {
+		dataqueue_t * neighbours = &router->interface[i].neighbours;
+
+		int n;
+		for (n = 0; n < neighbours->size; n++) {
+			pwospf_list_entry_t * entry;
+			int entry_size;
+			if (queue_getidandlock(neighbours, n, (void **) &entry, &entry_size)) {
+
+				assert(entry_size == sizeof(pwospf_list_entry_t));
+
+				if (entry->lsu_lastcontents != NULL)
+					free (entry->lsu_lastcontents);
+
+				queue_unlockid(neighbours, n);
+			}
+		}
+
+		queue_free(neighbours);
+	}
 
 #ifdef _CPUMODE_
 	closeDescriptor( &router->nf );

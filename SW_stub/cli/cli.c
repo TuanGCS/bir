@@ -356,6 +356,47 @@ void cli_show_ospf_neighbors() {
 }
 
 void cli_show_ospf_topo() {
+	router_t * router = ROUTER;
+
+	int i;
+	for (i = 0; i < router->num_interfaces; i++) {
+		interface_t * intf = &router->interface[i];
+		dataqueue_t * neighbours = &intf->neighbours;
+		cli_send_strf( "Interface %s neighbours:\n", intf->name );
+
+		int n;
+		for (n = 0; n < neighbours->size; n++) {
+			pwospf_list_entry_t * entry;
+
+			cli_send_strf("  * %d. Id %d (0x%d)\tIP: %s\tLast LSU:\n", n, entry->neighbour_id, entry->neighbour_id, quick_ip_to_string(entry->neighbour_ip));
+
+			int entry_size;
+			if (queue_getidandlock(neighbours, n, (void **) &entry, &entry_size)) {
+
+				assert(entry_size == sizeof(pwospf_list_entry_t));
+
+				if (entry->lsu_lastcontents == NULL)
+					cli_send_str("    <NO LINK STATE INFORMATION RECEIVED YET>\n");
+				else {
+
+					int j;
+					for (j = 0; j < entry->lsu_lastcontents_count; j++) {
+						pwospf_lsa_t * lsa_entry = &entry->lsu_lastcontents[j];
+
+						cli_send_strf("    -> %d:\tMask:%s", j, quick_ip_to_string(lsa_entry->netmask));
+						cli_send_strf("\tID:%s", j, quick_ip_to_string(lsa_entry->router_id));
+						cli_send_strf("\tSub:%s\n", j, quick_ip_to_string(lsa_entry->subnet));
+
+					}
+
+				}
+
+				queue_unlockid(neighbours, n);
+			}
+		}
+
+		cli_send_str("\n");
+	}
 }
 
 #ifndef _VNS_MODE_
