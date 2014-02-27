@@ -181,7 +181,7 @@ void router_add_interface(router_t* router, const char* name, addr_ip_t ip,
 
 	if (router->num_interfaces == 0) {
 		router->pw_router.router_id = ip;
-		router->pw_router.area_id = ip & mask;
+		router->pw_router.area_id = 0; //ip & mask;
 		router->pw_router.lsuint = LSUINT;
 	}
 

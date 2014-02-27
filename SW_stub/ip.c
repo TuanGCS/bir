@@ -282,9 +282,16 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 				sr_transport_input((uint8_t *) ipv4);
 				return;
 
+			} else if (ipv4->protocol == IP_TYPE_OSPF) {
+				if (PACKET_CAN_MARSHALL(pwospf_packet_t, sizeof(packet_ethernet_t)+sizeof(packet_ip4_t), pi->len)) {
+					pwospf_packet_t * pwospf = PACKET_MARSHALL(pwospf_packet_t,pi->packet, sizeof(packet_ethernet_t)+sizeof(packet_ip4_t));
+					pwospf_onreceive(pi, pwospf);
+				} else
+					fprintf(stderr, "Invalid PWOSPF packet was sent to us!\n");
+				return;
 			} else {
 
-				fprintf(stderr, "Unsupported IP packet type \n");
+				fprintf(stderr, "Unsupported IP packet type %d (0x%x)\n", ipv4->protocol, ipv4->protocol);
 				icmp_type_dst_unreach(pi, ipv4, ICMP_CODE_PROT_UNREACH);
 				return;
 
