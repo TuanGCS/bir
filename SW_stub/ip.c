@@ -171,9 +171,8 @@ void update_ip_packet_response(packet_info_t* pi, addr_ip_t dst_ip,
 	update_ethernet_header(pi, eth->source_mac, eth->dest_mac);
 }
 
-packet_ip4_t* generate_ipv4_header(addr_ip_t src_ip, int datagram_size) {
+void generate_ipv4_header(addr_ip_t src_ip, int datagram_size, packet_ip4_t* ipv4) {
 
-	packet_ip4_t* ipv4 = (packet_ip4_t *) malloc(sizeof(packet_ip4_t));
 	ipv4->version = 4;
 	ipv4->ihl = 5;
 	ipv4->dscp_ecn = 0;
@@ -188,8 +187,6 @@ packet_ip4_t* generate_ipv4_header(addr_ip_t src_ip, int datagram_size) {
 
 	ipv4->header_checksum = generatechecksum((unsigned short*) ipv4,
 					sizeof(packet_ip4_t));
-
-	return ipv4;
 
 }
 

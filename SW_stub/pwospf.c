@@ -130,11 +130,8 @@ void pwospf_onreceive(packet_info_t* pi, pwospf_packet_t * packet) {
 	}
 }
 
-pwospf_packet_hello_t* generate_pwospf_hello_header(addr_ip_t rid,
-		addr_ip_t aid, uint32_t netmask) {
-
-	pwospf_packet_hello_t* pw_hello = (pwospf_packet_hello_t *) malloc(
-			sizeof(pwospf_packet_hello_t));
+void generate_pwospf_hello_header(addr_ip_t rid,
+		addr_ip_t aid, uint32_t netmask,pwospf_packet_hello_t* pw_hello) {
 
 	pw_hello->pwospf_header.version = OSPF_VERSION;
 	pw_hello->pwospf_header.type = OSPF_TYPE_HELLO;
@@ -152,18 +149,13 @@ pwospf_packet_hello_t* generate_pwospf_hello_header(addr_ip_t rid,
 	pw_hello->pwospf_header.checksum = generatechecksum(
 			(unsigned short*) pw_hello, sizeof(pwospf_packet_hello_t));
 
-	return pw_hello;
-
 }
 
 
 
 
-pwospf_packet_link_t* generate_pwospf_link_header(addr_ip_t rid, addr_ip_t aid,
-		uint32_t netmask, uint16_t advert) {
-
-	pwospf_packet_link_t* pw_link = (pwospf_packet_link_t *) malloc(
-			sizeof(pwospf_packet_link_t));
+void generate_pwospf_link_header(addr_ip_t rid, addr_ip_t aid,
+		uint32_t netmask, uint16_t advert, pwospf_packet_link_t* pw_link) {
 
 	pw_link->pwospf_header.version = OSPF_VERSION;
 	pw_link->pwospf_header.type = OSPF_TYPE_HELLO;
@@ -180,75 +172,93 @@ pwospf_packet_link_t* generate_pwospf_link_header(addr_ip_t rid, addr_ip_t aid,
 
 	pw_link->pwospf_header.checksum = 0;
 	pw_link->pwospf_header.checksum = generatechecksum(
-			(unsigned short*) pw_link, sizeof(pwospf_packet_t) - 8);
-
-	return pw_link;
+			(unsigned short*) pw_link, sizeof(pwospf_packet_link_t) +  advert*sizeof(pwospf_lsa_t));
 
 }
 
-// TODO
-pwospf_lsa_t* generate_pwospf_lsa(router_t* router, uint16_t advert) {
+void send_pwospf_lsa_packet(router_t* router) {
 
-	pwospf_lsa_t lsa[advert];
-	memset(lsa, 0, advert * sizeof(pwospf_lsa_t));
+	dataqueue_t * topology = &router->topology;
 
-	int i, j, k = 0;
-	for (i = 0; i < router->num_interfaces; i++) {
+	queue_lockall(topology);
 
-		dataqueue_t * neighbours = &router->interface[i].neighbours;
+	const int topologysize = topology->size;
 
-		for (j = 0; j < neighbours->size; j++) {
-			pwospf_list_entry_t * entry;
-			int entry_size;
-			if (queue_getidandlock(neighbours, j, (void **) &entry,
-					&entry_size)) {
+	packet_info_t* pi = (packet_info_t *) malloc(sizeof(packet_info_t));
+	pi->len = sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t) + topologysize * sizeof(pwospf_lsa_t);
+	pi->packet = (byte *) malloc(pi->len);
+	pi->router = router;
 
-				if (k < advert) {
-					lsa[k].subnet = 0;
-					lsa[k].netmask = 0;
-					lsa[k].router_id = 0;
-					k++;
-				}
+	//		addr_ip_t aid = router->interface[i].ip
+	//				& router->interface[i].subnet_mask;
+	addr_ip_t aid = (addr_ip_t) 0; // Backbone
 
-				queue_unlockid(neighbours, i);
-			}
+	addr_mac_t broadcast = MAC_BROADCAST;
+
+	int i;
+	for (i = 0; i < topologysize; i++) {
+		pwospf_lsa_t * entry;
+		int entry_size;
+		if (queue_getidunsafe(topology, i, (void **) &entry, &entry_size)) {
+
+			assert(entry_size == sizeof(pwospf_lsa_t));
+
+			memcpy(&pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t) + i * sizeof(pwospf_lsa_t)], (void *) entry, sizeof(pwospf_lsa_t));
+
 		}
-
 	}
 
-	return lsa;
+	queue_unlockall(topology);
+
+	packet_ip4_t* ipv4 = (packet_ip4_t *) &pi->packet[sizeof(packet_ethernet_t)];
+	pwospf_packet_link_t* pw_link = (pwospf_packet_link_t *) &pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t)];
+
+	for (i = 0; i < router->num_interfaces; i++) {
+		pi->interface = &router->interface[i];
+
+		generate_ipv4_header(router->interface[i].ip, sizeof(pwospf_packet_link_t), ipv4);
+		generate_pwospf_link_header(router->interface[i].ip, aid, router->interface[i].subnet_mask, topologysize, pw_link);
+
+		ethernet_packet_send(get_sr(), &router->interface[i], broadcast, router->interface[i].mac, htons(ETH_IP_TYPE), pi);
+	}
+
+	free(pi->packet);
+	free(pi);
 
 }
 
 void send_pwospf_hello_packet(router_t* router) {
 
+	packet_info_t* pi = (packet_info_t *) malloc(sizeof(packet_info_t));
+	pi->len = sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_hello_t);
+	pi->packet = (byte *) malloc(pi->len);
+	pi->router = router;
+
+	//		addr_ip_t aid = router->interface[i].ip
+	//				& router->interface[i].subnet_mask;
+	addr_ip_t aid = (addr_ip_t) 0; // Backbone
+
+	addr_mac_t broadcast = MAC_BROADCAST;
+
+	packet_ip4_t* ipv4 = (packet_ip4_t *) &pi->packet[sizeof(packet_ethernet_t)];
+	pwospf_packet_hello_t* pw_hello = (pwospf_packet_hello_t *) &pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t)];
+
 	int i;
 	for (i = 0; i < router->num_interfaces; i++) {
 
-		packet_info_t* pi = (packet_info_t *) malloc(sizeof(packet_info_t));
-		pi->len = sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_hello_t);
-		pi->packet = (byte *) malloc(pi->len);
-		pi->router = router;
+
 		pi->interface = &router->interface[i];
 
-//		addr_ip_t aid = router->interface[i].ip
-//				& router->interface[i].subnet_mask;
-		addr_ip_t aid = (addr_ip_t) 0; // Backbone
 
-		addr_mac_t broadcast = {.octet = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF}};
+		generate_ipv4_header(router->interface[i].ip, sizeof(pwospf_packet_hello_t), ipv4);
+		generate_pwospf_hello_header(router->interface[i].ip, aid, router->interface[i].subnet_mask, pw_hello);
 
-		packet_ip4_t* ipv4 =
-						(packet_ip4_t *) &pi->packet[sizeof(packet_ethernet_t)];
-		memcpy(ipv4, generate_ipv4_header(router->interface[i].ip, sizeof(pwospf_packet_hello_t)), sizeof(packet_ip4_t));
-
-		pwospf_packet_hello_t* pw_hello =
-						(pwospf_packet_hello_t *) &pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t)];
-		memcpy(pw_hello, generate_pwospf_hello_header(router->interface[i].ip, aid, router->interface[i].subnet_mask), sizeof(pwospf_packet_hello_t));
-
-		ethernet_packet_send(get_sr(), &router->interface[i], broadcast,
-				router->interface[i].mac, htons(ETH_IP_TYPE), pi);
+		ethernet_packet_send(get_sr(), &router->interface[i], broadcast, router->interface[i].mac, htons(ETH_IP_TYPE), pi);
 
 	}
+
+	free(pi->packet);
+	free(pi);
 
 }
 

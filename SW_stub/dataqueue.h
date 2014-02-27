@@ -33,5 +33,11 @@ void queue_free(dataqueue_t * queue);
 
 void queue_purge(dataqueue_t * queue);
 
+void queue_lockall(dataqueue_t * queue);
+
+void queue_unlockall(dataqueue_t * queue);
+
+int queue_getidunsafe(dataqueue_t * queue, int id, void ** data, int * size);
+
 
 #endif
