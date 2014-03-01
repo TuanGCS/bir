@@ -21,12 +21,12 @@ module first_stage
     input 				AXI_RESETN,
 
     // Master Stream Ports (interface to data path)
-    output [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA,
-    output [((C_M_AXIS_DATA_WIDTH/8))-1:0]M_AXIS_TSTRB,
-    output [C_M_AXIS_TUSER_WIDTH-1:0]M_AXIS_TUSER,
-    output 				M_AXIS_TVALID,
+    output reg [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA,
+    output reg[((C_M_AXIS_DATA_WIDTH/8))-1:0]M_AXIS_TSTRB,
+    output reg [C_M_AXIS_TUSER_WIDTH-1:0]M_AXIS_TUSER,
+    output reg				M_AXIS_TVALID,
     input  				M_AXIS_TREADY,
-    output 				M_AXIS_TLAST,
+    output reg				M_AXIS_TLAST,
 
     // Slave Stream Ports (interface to RX queues)
     input [C_S_AXIS_DATA_WIDTH-1:0] 	S_AXIS_TDATA,
@@ -57,13 +57,18 @@ module first_stage
 
 );
 
+    wire [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA0;
+    wire [((C_M_AXIS_DATA_WIDTH/8))-1:0] M_AXIS_TSTRB0;
+    wire [C_M_AXIS_TUSER_WIDTH-1:0]      M_AXIS_TUSER0;
+    wire 				M_AXIS_TVALID0;
+    wire 				M_AXIS_TLAST0;
 
    fallthrough_small_fifo
         #( .WIDTH(C_M_AXIS_DATA_WIDTH+C_M_AXIS_TUSER_WIDTH+C_M_AXIS_DATA_WIDTH/8+1),
            .MAX_DEPTH_BITS(2))
       input_fifo
         (// Outputs
-         .dout                           ({M_AXIS_TLAST, M_AXIS_TUSER, M_AXIS_TSTRB, M_AXIS_TDATA}),
+         .dout                           ({M_AXIS_TLAST0, M_AXIS_TUSER0, M_AXIS_TSTRB0, M_AXIS_TDATA0}),
          .full                           (),
          .nearly_full                    (in_fifo_nearly_full),
          .prog_full                      (),
@@ -76,10 +81,18 @@ module first_stage
          .clk                            (AXI_ACLK));
 
    assign in_fifo_rd_en = M_AXIS_TREADY	&& !in_fifo_empty;
-   assign M_AXIS_TVALID = !in_fifo_empty;
+   assign M_AXIS_TVALID0 = !in_fifo_empty;
    assign S_AXIS_TREADY = !in_fifo_nearly_full;
 
-   reg c_state;
+  always@(posedge AXI_ACLK)
+  begin
+    M_AXIS_TDATA  <= M_AXIS_TDATA0;
+    M_AXIS_TSTRB  <= M_AXIS_TSTRB0;
+    M_AXIS_TUSER  <= M_AXIS_TUSER0;
+    M_AXIS_TVALID <= M_AXIS_TVALID0;
+    M_AXIS_TLAST  <= M_AXIS_TLAST0;
+  end
+
 
 /*
   always@(posedge AXI_ACLK)

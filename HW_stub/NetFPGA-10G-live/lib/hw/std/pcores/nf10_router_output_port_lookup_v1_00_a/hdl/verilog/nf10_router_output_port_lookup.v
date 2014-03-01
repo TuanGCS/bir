@@ -430,7 +430,7 @@ end
            .MAX_DEPTH_BITS(2))
       input_fifo
         (// Outputs
-         .dout                           ({M_AXIS_TLAST_1, M_AXIS_TUSER_1, M_AXIS_TSTRB_1, M_AXIS_TDATA_1}),
+         .dout                           ({M_AXIS_TLAST_0, M_AXIS_TUSER_0, M_AXIS_TSTRB_0, M_AXIS_TDATA_0}),
          .full                           (),
          .nearly_full                    (in_fifo_nearly_full),
          .prog_full                      (),
@@ -499,12 +499,12 @@ end
     first_stage (
       .AXI_ACLK ( AXI_ACLK ),
       .AXI_RESETN ( AXI_RESETN ),
-      .M_AXIS_TDATA ( M_AXIS_TDATA ),
-      .M_AXIS_TSTRB ( M_AXIS_TSTRB ),
-      .M_AXIS_TUSER ( M_AXIS_TUSER_0 ),
-      .M_AXIS_TVALID ( M_AXIS_TVALID ),
-      .M_AXIS_TREADY ( M_AXIS_TREADY ),
-      .M_AXIS_TLAST ( M_AXIS_TLAST ),
+      .M_AXIS_TDATA ( M_AXIS_TDATA_1 ),
+      .M_AXIS_TSTRB ( M_AXIS_TSTRB_1 ),
+      .M_AXIS_TUSER ( M_AXIS_TUSER_1 ),
+      .M_AXIS_TVALID ( M_AXIS_TVALID_1 ),
+      .M_AXIS_TREADY ( M_AXIS_TREADY_1 ),
+      .M_AXIS_TLAST ( M_AXIS_TLAST_1 ),
       .S_AXIS_TDATA ( M_AXIS_TDATA_0 ),
       .S_AXIS_TSTRB ( M_AXIS_TSTRB_0 ),
       .S_AXIS_TUSER ( M_AXIS_TUSER_0 ),
@@ -541,12 +541,12 @@ end
     dest_ip (
       .AXI_ACLK ( AXI_ACLK ),
       .AXI_RESETN ( AXI_RESETN ),
-      .M_AXIS_TDATA ( M_AXIS_TDATA_0 ),
-      .M_AXIS_TSTRB ( M_AXIS_TSTRB_0 ),
+      .M_AXIS_TDATA ( M_AXIS_TDATA ),
+      .M_AXIS_TSTRB ( M_AXIS_TSTRB ),
       .M_AXIS_TUSER ( tuser_fifo ),
-      .M_AXIS_TVALID ( M_AXIS_TVALID_0 ),
-      .M_AXIS_TREADY ( M_AXIS_TREADY_0 ),
-      .M_AXIS_TLAST ( M_AXIS_TLAST_0 ),
+      .M_AXIS_TVALID ( M_AXIS_TVALID ),
+      .M_AXIS_TREADY ( M_AXIS_TREADY ),
+      .M_AXIS_TLAST ( M_AXIS_TLAST ),
       .S_AXIS_TDATA ( M_AXIS_TDATA_1 ),
       .S_AXIS_TSTRB ( M_AXIS_TSTRB_1 ),
       .S_AXIS_TUSER ( M_AXIS_TUSER_1 ),
@@ -681,6 +681,6 @@ end
 
    // Handle output
    assign in_fifo_rd_en = M_AXIS_TREADY_1 && !in_fifo_empty;
-   assign M_AXIS_TVALID_1 = !in_fifo_empty;
+   assign M_AXIS_TVALID_0 = !in_fifo_empty;
 
 endmodule // output_port_lookup
