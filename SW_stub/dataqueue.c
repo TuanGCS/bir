@@ -81,6 +81,22 @@ int queue_getcurrentsize(dataqueue_t * queue) {
 	return queue->size;
 }
 
+void queue_lockall(dataqueue_t * queue) {
+	pthread_mutex_lock(&queue->locker);
+}
+
+void queue_unlockall(dataqueue_t * queue) {
+	pthread_mutex_unlock(&queue->locker);
+}
+
+int queue_getidunsafe(dataqueue_t * queue, int id, void ** data, int * size) {
+	if (id >= queue->size || id < 0) return 0;
+
+	*data = queue->packet[id];
+	*size = queue->packet_sizes[id];
+	return 1;
+}
+
 int queue_getidandlock(dataqueue_t * queue, int id, void ** data, int * size) {
 	pthread_mutex_lock(&queue->locker);
 
@@ -107,7 +123,6 @@ void queue_purge(dataqueue_t * queue) {
 }
 
 void queue_free(dataqueue_t * queue) {
-	int i;
 
 	queue_purge(queue);
 

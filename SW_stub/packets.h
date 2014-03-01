@@ -72,7 +72,7 @@ typedef struct ip_table_entry {
 	bool dynamic;
 } ip_table_entry_t;
 
-typedef struct pwospf_packet {
+typedef struct PACKED pwospf_packet {
 	uint8_t version;
 	uint8_t type;
 	uint16_t len;
@@ -84,14 +84,14 @@ typedef struct pwospf_packet {
 	uint32_t auth_data;
 } pwospf_packet_t;
 
-typedef struct pwospf_packet_hello {
+typedef struct PACKED pwospf_packet_hello {
 	pwospf_packet_t pwospf_header;
 	uint32_t netmask;
 	uint16_t helloint;
 	uint16_t padding;
 } pwospf_packet_hello_t;
 
-typedef struct pwospf_packet_link {
+typedef struct PACKED pwospf_packet_link {
 	pwospf_packet_t pwospf_header;
 	uint16_t seq;
 	uint16_t ttl;
@@ -104,7 +104,7 @@ typedef struct pwospf_router {
 	uint16_t lsuint;
 } pwospf_router_t;
 
-typedef struct pwospf_lsa {
+typedef struct PACKED pwospf_lsa {
 	uint32_t subnet;
 	uint32_t netmask;
 	uint32_t router_id;
@@ -115,6 +115,13 @@ typedef struct pwospf_list_entry {
 	addr_ip_t neighbour_ip;
 	uint16_t helloint;
 	struct timeval timestamp;
+	int received_hello;
+
+	// for LSU
+	uint16_t lsu_lastseq;
+	pwospf_lsa_t * lsu_lastcontents;
+	int lsu_lastcontents_count;
+	struct timeval lsu_timestamp;
 } pwospf_list_entry_t;
 
 #endif

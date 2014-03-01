@@ -49,6 +49,8 @@ typedef struct router_t {
     dataqueue_t ip_table;
     dataqueue_t iparp_buffer;
 
+    struct timeval last_lsu;
+
     pwospf_router_t pw_router;
 
     bool use_ospf;

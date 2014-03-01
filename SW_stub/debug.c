@@ -30,17 +30,15 @@ void debug_print_tname() {
 #endif
 
 void debug_print( const char* format, ... ) {
-#ifdef _DEBUG_
     va_list args;
     va_start( args, format );
 
     pthread_mutex_lock( &print_mutex );
-    debug_print_tname();
+    //debug_print_tname();
     vfprintf( stderr, format, args );
     pthread_mutex_unlock( &print_mutex );
 
     va_end( args );
-#endif
 }
 
 void debug_print_more( const char* format, ... ) {
