@@ -14,7 +14,7 @@
 				</extensions>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-				<configuration buildProperties="" description="" id="cdt.managedbuild.toolchain.gnu.base.1282996641" name="Default" parent="org.eclipse.cdt.build.core.emptycfg">
+				<configuration artifactName="SW_stub" buildProperties="" description="" id="cdt.managedbuild.toolchain.gnu.base.1282996641" name="Default" parent="org.eclipse.cdt.build.core.emptycfg">
 					<folderInfo id="cdt.managedbuild.toolchain.gnu.base.1282996641.2004758588" name="/" resourcePath="">
 						<toolChain id="cdt.managedbuild.toolchain.gnu.base.178002623" name="cdt.managedbuild.toolchain.gnu.base" superClass="cdt.managedbuild.toolchain.gnu.base">
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="cdt.managedbuild.target.gnu.platform.base.1897295389" name="Debug Platform" osList="linux,hpux,aix,qnx" superClass="cdt.managedbuild.target.gnu.platform.base"/>
@@ -27,7 +27,7 @@
 									<listOptionValue builtIn="false" value="/usr/include/"/>
 								</option>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.366401031" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
-									<listOptionValue builtIn="false" value="MININET_MODE=1"/>
+									<listOptionValue builtIn="false" value="_CPUMODE_"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1827797085" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
@@ -56,15 +56,17 @@
 		<project id="bir.null.1015727411" name="bir"/>
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
-	<storageModule moduleId="refreshScope"/>
+	<storageModule moduleId="refreshScope" versionNumber="1">
+		<resource resourceType="PROJECT" workspacePath="/SW_stub"/>
+	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 	<storageModule moduleId="scannerConfiguration">
 		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-		<scannerConfigBuildInfo instanceId="cdt.managedbuild.toolchain.gnu.base.1282996641;cdt.managedbuild.toolchain.gnu.base.1282996641.2004758588;cdt.managedbuild.tool.gnu.c.compiler.base.661578715;cdt.managedbuild.tool.gnu.c.compiler.input.1827797085">
-			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-		</scannerConfigBuildInfo>
 		<scannerConfigBuildInfo instanceId="0.529920079">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
 		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="cdt.managedbuild.toolchain.gnu.base.1282996641;cdt.managedbuild.toolchain.gnu.base.1282996641.2004758588;cdt.managedbuild.tool.gnu.c.compiler.base.661578715;cdt.managedbuild.tool.gnu.c.compiler.input.1827797085">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
 	</storageModule>
-	<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 </cproject>

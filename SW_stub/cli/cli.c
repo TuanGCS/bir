@@ -19,6 +19,16 @@
 
 #define MAX_CHARS_IN_CLI_SEND_STRF (250)
 
+#ifdef _CPUMODE_
+
+	#define STR_HW_INFO_MAX_LEN (2048*5)
+	#define STR_ARP_CACHE_MAX_LEN (2048*5)
+	#define STR_INTFS_HW_MAX_LEN (2048*5)
+	#define STR_RTABLE_MAX_LEN (2048*5)
+	#define STR_GWTABLE_MAX_LEN (2048*5)
+
+#endif /* _CPUMODE_ */
+
 /** whether to shutdown the server or not */
 static bool router_shutdown;
 
@@ -219,8 +229,8 @@ void cli_show_hw() {
 
 void cli_show_hw_about() {
     char buf[STR_ARP_CACHE_MAX_LEN];
-    router_hw_info_to_string( ROUTER, buf, STR_HW_INFO_MAX_LEN );
-    cli_send_str( buf );
+   // router_hw_info_to_string( ROUTER, buf, STR_HW_INFO_MAX_LEN );
+    //cli_send_str( buf );
 }
 
 void cli_show_hw_arp() {
@@ -229,8 +239,8 @@ void cli_show_hw_arp() {
 
 void cli_show_hw_intf() {
     char buf[STR_INTFS_HW_MAX_LEN];
-    router_intf_hw_to_string( ROUTER, buf, STR_INTFS_HW_MAX_LEN );
-    cli_send_str( buf );
+    //router_intf_hw_to_string( ROUTER, buf, STR_INTFS_HW_MAX_LEN );
+   // cli_send_str( buf );
 }
 
 void cli_show_hw_route() {

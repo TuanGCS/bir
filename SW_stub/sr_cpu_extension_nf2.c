@@ -13,10 +13,18 @@
 #include "sr_common.h"
 #include "sr_cpu_extension_nf2.h"
 #include "sr_dumper.h"
+#include "packets.h"
 
 #define DECAP_NEXT_INTF 1 /* nf2c1 because it has the rate limiter */
 
 #ifdef _CPUMODE_
+
+#define ETH_HEADER_LEN 14
+
+#define ETH_MAX_DATA_LEN 2048
+
+#define ETH_MAX_LEN (ETH_HEADER_LEN + ETH_MAX_DATA_LEN)
+
 int sr_cpu_init_intf_socket( int interface_index ) {
     true_or_die( interface_index>=0 && interface_index<=3,
                  "Error: unexpected interface_index: %u", interface_index );
@@ -38,6 +46,7 @@ int sr_cpu_init_intf_socket( int interface_index ) {
     //strncpy( ifr.ifr_ifrn.ifrn_name, "nf0", IFNAMSIZ );
     if( ioctl(s, SIOCGIFINDEX, &ifr) < 0 ) {
         perror("ioctl SIOCGIFINDEX");
+
         die( "Error: ioctl SIOCGIFINDEX failed" );
     }
 
@@ -119,7 +128,7 @@ int sr_cpu_input( struct sr_instance* sr ) {
                                 byte* new_buf = buf + 20;
                                 memset( new_buf, 0xFF, ETH_ADDR_LEN );
                                 memcpy( new_buf+6, &router->interface[DECAP_NEXT_INTF].mac, ETH_ADDR_LEN );
-                                *((uint16_t*)(new_buf+12)) = htons( ETHERTYPE_IP );
+                                *((uint16_t*)(new_buf+12)) = htons( ETH_IP_TYPE );
 
                                 /* send it back out nf2c{DECAP_NEXT_INTF} */
                                 sr_cpu_output( new_buf, len-20, &router->interface[DECAP_NEXT_INTF] );

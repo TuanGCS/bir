@@ -17,9 +17,16 @@
 #include "sr_interface.h"
 #include "globals.h"
 
+#ifdef _CPUMODE_
+#include "reg_defines.h"
+void register_interface(router_t* router, interface_t * iface) {
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_0_LOW, 0x1);
+}
+#endif
+
 void router_init(router_t* router) {
 #ifdef _CPUMODE_
-	init_registers(router);
+	//init_registers(router); TODO! Why is this here?!?
 	router->nf.device_name = "nf10";
 	check_iface( &router->nf );
 	if( openDescriptor( &router->nf ) != 0 )
@@ -228,7 +235,9 @@ void router_add_interface(router_t* router, const char* name, addr_ip_t ip,
 
 	router->num_interfaces += 1;
 
-	// TODO! query the computers on those interfaces
+#ifdef _CPUMODE_
+	register_interface(router, intf);
+#endif
 }
 
 int packetinfo_ip_allocate(router_t* router, packet_info_t ** pinfo, int size,
