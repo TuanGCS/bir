@@ -37,7 +37,7 @@ module arp
     input  				S_AXIS_TLAST,
     input [C_S_AXI_DATA_WIDTH-1:0]	reset,
     output reg [C_S_AXI_DATA_WIDTH-1:0] arp_miss_count,
-   input tbl_rd_req,       // Request a read
+    input tbl_rd_req,       // Request a read
     input tbl_wr_req,       // Request a write
     input 	[4:0] tbl_rd_addr,      // Address in table to read
     input 	[4:0] tbl_wr_addr,      // Address in table to write
