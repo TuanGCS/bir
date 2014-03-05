@@ -1,0 +1,1 @@
+./sr -z r0 -r table.conf -i cpuhw/cpuhw_forth3
