@@ -92,7 +92,7 @@
    localparam addr_width = log2(NUM_WO_REGS+NUM_RW_REGS+NUM_RO_REGS);
    localparam addr_width_lsb = log2(C_S_AXI_ADDR_WIDTH/8);
    localparam addr_width_msb = addr_width+addr_width_lsb;
- 
+   localparam reset = NUM_WO_REGS+NUM_RW_REGS; 
    // -- interal wire/regs
    genvar i;
    integer j;
@@ -128,7 +128,7 @@
    // SW writes
    always @ (posedge Bus2IP_Clk) begin
      if (~Bus2IP_Resetn) begin
-	   for (j=0; j<(NUM_WO_REGS+NUM_RW_REGS); j=j+1) 
+	   for (j=0; j<reset; j=j+1) 
 	     reg_file_wr_port[j] <= {C_S_AXI_DATA_WIDTH{1'b0}};
 	   
 	   IP2Bus_WrAck <= 1'b0;

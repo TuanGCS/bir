@@ -76,6 +76,17 @@ module arp
     else tbl_rd_ack <= 0; 
   end
 
+//    wire [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA0;
+//    wire [((C_M_AXIS_DATA_WIDTH/8))-1:0] M_AXIS_TSTRB0;
+//    wire [C_M_AXIS_TUSER_WIDTH-1:0]      M_AXIS_TUSER0;
+//    wire 				M_AXIS_TVALID0;
+//    wire 				M_AXIS_TLAST0;
+
+	always@(posedge AXI_ACLK)
+	begin
+		arp_miss_count <= 32'haaaa5555;
+
+	end
 
    fallthrough_small_fifo
         #( .WIDTH(C_M_AXIS_DATA_WIDTH+C_M_AXIS_TUSER_WIDTH+C_M_AXIS_DATA_WIDTH/8+1),
@@ -98,26 +109,27 @@ module arp
    assign M_AXIS_TVALID = !in_fifo_empty;
    assign S_AXIS_TREADY = !in_fifo_nearly_full;
 
-/*
-   reg c_state;
 
+   reg header;
+/*
   always@(posedge AXI_ACLK)
   begin
       if(~AXI_RESETN) begin
-	 c_state <= 0;
-         ipv4_count <= 0;
-         arp_count <= 0;
-         ospf_count <= 0;
+	 header <= 0;
+//         ipv4_count <= 0;
+//         arp_count <= 0;
+//         ospf_count <= 0;
       end
-      else if(!c_state & M_AXIS_TVALID & M_AXIS_TREADY) begin
-	 c_state <= 1;
+      else if(header == 0 && M_AXIS_TVALID & M_AXIS_TREADY) begin
+	 header <= 1;
+
          if(M_AXIS_TDATA[159:144] == 16'h0806) arp_count <= arp_count + 1;
 	 else if(M_AXIS_TDATA[159:144] == 16'h0800) begin 
            if(M_AXIS_TDATA[143:140] == 4'd4) ipv4_count <= ipv4_count + 1;
 	   if(M_AXIS_TDATA[71:64] == 8'd89) ospf_count <= ospf_count + 1;
          end
       end
-      else if(c_state & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY) c_state <= 0;
+      else if(header & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY) header <= 0;
   end
 */
 

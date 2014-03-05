@@ -71,6 +71,18 @@ module first_stage
     wire [C_M_AXIS_TUSER_WIDTH-1:0]      M_AXIS_TUSER0;
     wire 				M_AXIS_TVALID0;
     wire 				M_AXIS_TLAST0;
+    reg [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA1;
+    reg [((C_M_AXIS_DATA_WIDTH/8))-1:0] M_AXIS_TSTRB1;
+    reg [C_M_AXIS_TUSER_WIDTH-1:0]      M_AXIS_TUSER1;
+    reg 				M_AXIS_TVALID1;
+    reg 				M_AXIS_TLAST1;
+    reg [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA2;
+    reg [((C_M_AXIS_DATA_WIDTH/8))-1:0] M_AXIS_TSTRB2;
+    reg [C_M_AXIS_TUSER_WIDTH-1:0]      M_AXIS_TUSER2;
+    reg 				M_AXIS_TVALID2;
+    reg 				M_AXIS_TLAST2;
+
+
 
     reg	[C_S_AXI_DATA_WIDTH-1:0] dest_ip_table [31:0];      // Value in table
 
@@ -120,14 +132,153 @@ module first_stage
 
   always@(posedge AXI_ACLK)
   begin
-    M_AXIS_TDATA  <= M_AXIS_TDATA0;
-    M_AXIS_TSTRB  <= M_AXIS_TSTRB0;
-    M_AXIS_TUSER  <= M_AXIS_TUSER0;
-    M_AXIS_TVALID <= M_AXIS_TVALID0;
-    M_AXIS_TLAST  <= M_AXIS_TLAST0;
+    M_AXIS_TDATA  <= M_AXIS_TDATA2;
+    M_AXIS_TSTRB  <= M_AXIS_TSTRB2;
+    M_AXIS_TUSER  <= M_AXIS_TUSER2;
+    M_AXIS_TVALID <= !drop ? M_AXIS_TVALID2 : 0;
+    M_AXIS_TLAST  <= M_AXIS_TLAST2;
+  end
+
+ always@(posedge AXI_ACLK)
+  begin
+    M_AXIS_TDATA2  <= M_AXIS_TDATA1;
+    M_AXIS_TSTRB2  <= M_AXIS_TSTRB1;
+    M_AXIS_TUSER2  <= M_AXIS_TUSER1;
+    M_AXIS_TVALID2 <= !drop ? M_AXIS_TVALID1 : 0;
+    M_AXIS_TLAST2  <= M_AXIS_TLAST1;
+  end
+
+ always@(posedge AXI_ACLK)
+  begin
+    M_AXIS_TDATA1  <= M_AXIS_TDATA0;
+    M_AXIS_TSTRB1  <= M_AXIS_TSTRB0;
+    M_AXIS_TUSER1  <= M_AXIS_TUSER0;
+    M_AXIS_TVALID1 <= M_AXIS_TVALID0;
+    M_AXIS_TLAST1  <= M_AXIS_TLAST0;
   end
 
 
+
+ reg [1:0] crc_state;
+ reg [191:0] crc_data;
+ reg [15:0] checksum;
+ reg [31:0] temp;
+ reg [15:0] temp1;
+ reg [15:0] temp2;
+ reg [31:0] temp3;
+ reg drop,drop1,drop2;
+
+ integer i;
+
+  always@(posedge AXI_ACLK)
+  begin
+     if(~AXI_RESETN) begin
+	crc_state <= 0;
+        checksum <= 0;
+	temp <= 0;
+	dropped_count <= 0;
+	cpu_count <= 0;
+	wrong_mac_count <= 0;
+     end
+     else if(reset == 1)
+     begin
+	dropped_count <= 0;
+	cpu_count <= 0;
+	wrong_mac_count <= 0;
+     end
+     else if(crc_state == 2'd0 & M_AXIS_TREADY & M_AXIS_TVALID0) 
+     begin
+//		if(M_AXIS_TDATA0[79:72] > 1) // Check TTL
+//		begin
+		// Compute Checksum if TTL is good
+			crc_state <= 1;
+			temp <= M_AXIS_TDATA0[143:128] + M_AXIS_TDATA0[127:112] + M_AXIS_TDATA0[111:96] 
+			        + M_AXIS_TDATA0[95:80] + M_AXIS_TDATA0[79:64] + M_AXIS_TDATA0[47:32]  
+			        + M_AXIS_TDATA0[31:16] + M_AXIS_TDATA0[15:0];
+//					  drop1 <= 0;
+//		end
+//		else 
+//		begin
+//			drop1 <= 1; // Drop if bad TTL
+			crc_state <= 1;
+//			temp <= 0;
+     end
+     else if(crc_state == 2'd1 & M_AXIS_TREADY & M_AXIS_TVALID0)
+     begin
+	crc_state <= 2;
+	// temp2 = M_AXIS_TDATA0[255:240];
+	temp3 = temp + M_AXIS_TDATA0[255:240];
+	temp1 = temp3[15:0] + temp3[19:16];
+	checksum = ~temp1;
+	if(checksum != M_AXIS_TDATA1[63:48]) 
+	begin
+	  drop <= 1; // Drop if Wrong Checksum
+	  // drop1 <= 1;
+	  dropped_count <= dropped_count + 1;
+	end
+	else 
+	begin
+
+	 if(M_AXIS_TUSER1[SRC_PORT_POS] && !(M_AXIS_TDATA1[255:208] == {mac0_high[15:0],mac0_low} || M_AXIS_TDATA1 == 48'hFFFFFFFFFFFF))
+	 begin 
+	  drop <= 1;
+	  wrong_mac_count <= wrong_mac_count + 1;  
+	 end
+	
+	 if(M_AXIS_TUSER1[SRC_PORT_POS+2] && !(M_AXIS_TDATA1[255:208] == {mac1_high[15:0],mac1_low} || M_AXIS_TDATA1 == 48'hFFFFFFFFFFFF))
+	 begin 
+	  drop <= 1;
+	  wrong_mac_count <= wrong_mac_count + 1;  
+	 end
+	
+	 if(M_AXIS_TUSER1[SRC_PORT_POS+6] && !(M_AXIS_TDATA1[255:208] == {mac2_high[15:0],mac2_low} || M_AXIS_TDATA1 == 48'hFFFFFFFFFFFF))
+	 begin 
+	  drop <= 1;
+	  wrong_mac_count <= wrong_mac_count + 1;  
+	 end
+	
+	 if(M_AXIS_TUSER1[SRC_PORT_POS+8] && !(M_AXIS_TDATA1[255:208] == {mac3_high[15:0],mac3_low} || M_AXIS_TDATA1 == 48'hFFFFFFFFFFFF))
+	 begin 
+	  drop <= 1;
+	  wrong_mac_count <= wrong_mac_count + 1;  
+ 	 end
+	
+	end
+      end
+      else if(crc_state == 2'd2 & M_AXIS_TLAST0 & M_AXIS_TVALID0 & M_AXIS_TREADY) begin 
+         crc_state <= 0;
+//	 drop1 <= 0;
+	 drop <= 1; // drop1;
+     end
+     else if( !M_AXIS_TVALID0)
+     begin
+      drop <= 0 ; // drop1;
+//      drop1 <= 0;
+     end
+  end
+
+
+
+  always@(posedge AXI_ACLK)
+  begin
+     if(~AXI_RESETN) begin
+	bad_ttl_count <= 0;
+     end
+     else if(reset == 1)
+     begin
+	bad_ttl_count <= 0;
+     end
+     else if(M_AXIS_TREADY & M_AXIS_TVALID0) begin
+	if(M_AXIS_TDATA0[79:72] < 1) // Check TTL
+	begin
+	  bad_ttl_count <= bad_ttl_count + 1;
+	end
+	if(M_AXIS_TDATA0[143:140] == 4)
+	begin
+	  ver_count <= ver_count + 1;
+	end
+     end
+  end
 /*
   always@(posedge AXI_ACLK)
   begin

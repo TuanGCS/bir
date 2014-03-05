@@ -47,6 +47,8 @@ module nf10_router_output_port_lookup
     parameter C_USE_WSTRB = 0,
     parameter C_DPHASE_TIMEOUT = 0,
     parameter C_S_AXI_ACLK_FREQ_HZ = 100,
+    parameter C_BASEADDR = 32'h76800000,
+    parameter C_HIGHADDR = 32'h7680FFFF,
     parameter C_BASEADDR0 = 32'h76800180,
     parameter C_HIGHADDR0 = 32'h768001FF,
     parameter C_BASEADDR1 = 32'h76800100,
@@ -124,7 +126,7 @@ module nf10_router_output_port_lookup
    localparam IN_PACKET     = 1;
    localparam NUM_WO_REGS	= 1;
    localparam NUM_RW_REGS       = 8;
-   localparam NUM_RO_REGS       = 10;
+   localparam NUM_RO_REGS       = 11;
 
 
    //------------- Wires ------------------
@@ -307,7 +309,7 @@ module nf10_router_output_port_lookup
 
  ipif_table_regs #
   (
-   .C_S_AXI_DATA_WIDTH(C_S_AXI_DATA_WIDTH),          
+   .C_S_AXI_DATA_WIDTH(C_S_AXI_DATA_WIDTH),  
    .C_S_AXI_ADDR_WIDTH(C_S_AXI_ADDR_WIDTH),   
    .TBL_NUM_COLS(3),
    .TBL_NUM_ROWS(ARP_TABLE_DEPTH)
@@ -401,8 +403,8 @@ module nf10_router_output_port_lookup
   wire [C_S_AXI_DATA_WIDTH-1:0] cpu_count;
 
    assign ro_regs = {cpu_count, ver_count, bad_ttl_count, dest_hit_count, forwarded_count, dropped_count, non_ip_count, arp_miss_count, lpm_miss_count, wrong_mac_count};
-   assign rw_regs = {mac3_high, mac3_low, mac2_high, mac2_low, mac1_high, mac1_low, mac0_high, mac0_low};
-   assign wo_regs = reset;
+   assign {mac3_high, mac3_low, mac2_high, mac2_low, mac1_high, mac1_low, mac0_high, mac0_low} = rw_regs;
+   assign reset  = wo_regs;
 
     // Master Stream Ports (interface to data path)
     wire [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA_0;
@@ -651,10 +653,17 @@ module nf10_router_output_port_lookup
                   if(M_AXIS_TUSER[SRC_PORT_POS+4]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b1000000;
                   if(M_AXIS_TUSER[SRC_PORT_POS+6]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000;
                 end
-		else M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b100;
-
- 
+		else //M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b100;
                /* Here's how we'd implement a NIC: */
+		// if(pkt_is_from_cpu)
+		begin
+                  if(M_AXIS_TUSER[SRC_PORT_POS+1]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00000010;
+                  if(M_AXIS_TUSER[SRC_PORT_POS+3]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00001000;
+                  if(M_AXIS_TUSER[SRC_PORT_POS+5]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00100000;
+                  if(M_AXIS_TUSER[SRC_PORT_POS+7]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000000;
+ 		 $display("T User Value - Src %x Dest %x\n",M_AXIS_TUSER[SRC_PORT_POS+7:SRC_PORT_POS],M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS]);
+		end
+ 
                /*
 	       if(pkt_is_from_cpu)
 	           M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = {1'b0,
@@ -705,6 +714,7 @@ module nf10_router_output_port_lookup
  reg [31:0] temp;
  reg [15:0] temp1;
  reg [15:0] temp2;
+ reg [31:0] temp3;
  integer i;
 
   always@(posedge AXI_ACLK)
@@ -724,8 +734,8 @@ module nf10_router_output_port_lookup
 	  begin
 			crc_state <= 2;
 			temp2 = M_AXIS_TDATA[255:240];
-			temp = temp + M_AXIS_TDATA[255:240];
-			temp1 = temp[15:0] + temp[19:16];
+			temp3 = temp + M_AXIS_TDATA[255:240];
+			temp1 = temp3[15:0] + temp3[19:16];
 			checksum <= ~temp1;
 	  end
      else if(crc_state == 2'd2 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY) begin 

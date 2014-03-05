@@ -76,6 +76,42 @@ nftest_barrier()
 #nftest_regread_expect(0x76800004,num_broadcast);
 #nftest_regread_expect(0x76800008,num_broadcast);
 
+pktsb = []
+for i in range(num_broadcast):
+    pkt = make_IP_pkt(src_MAC="aa:bb:cc:dd:ee:ff", dst_MAC=routerMAC[0],
+                      EtherType=0x800, src_IP="192.168.0.1",
+                      dst_IP="192.168.1.1", pkt_len=100)
+    pkt.time = ((i*(1e-8)) + (1e-6))
+    pkt[IP].proto = 89
+    pktsb.append(pkt)
+    if isHW():
+        nftest_send_phy('nf0', pkt)
+        nftest_expect_phy('nf1', pkt)
+
+#if not isHW():
+#    nftest_send_dma('nf0', pktsb)
+#    nftest_expect_dma('nf0', pktsb)
+#nftest_barrier()
+
+
+#if not isHW():
+#    nftest_send_dma('nf1', pktsb)
+#    nftest_expect_dma('nf0', pktsb)
+#nftest_barrier()
+
+
+#if not isHW():
+#    nftest_send_dma('nf2', pktsb)
+#    nftest_expect_dma('nf0', pktsb)
+#nftest_barrier()
+
+
+#if not isHW():
+#    nftest_send_dma('nf3', pktsb)
+#    nftest_expect_dma('nf0', pktsb)
+#nftest_barrier()
+
+
 
 mres=[]
 
