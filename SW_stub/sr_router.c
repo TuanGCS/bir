@@ -19,24 +19,56 @@
 
 #ifdef _CPUMODE_
 #include "reg_defines.h"
-void register_interface(router_t* router, interface_t * iface) {
-	printf("Adding interface...\n"); fflush(stdout);
+void register_interface(router_t* router, interface_t * iface, int interface_index) {
+	printf("NETFPGA: Assigning register values for interface %d; MAC: %s", interface_index, quick_mac_to_string(&iface->mac));
+	printf("; IP: %s\n", quick_ip_to_string(iface->ip));
 
 	const uint32_t mac_low = iface->mac.octet[0] | iface->mac.octet[1] | iface->mac.octet[2] | iface->mac.octet[3];
 	const uint32_t mac_high = iface->mac.octet[4] | iface->mac.octet[5];
 
-	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_0_LOW, mac_low);
-	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_0_HIGH, mac_high);
+	uint32_t mac_addr_low;
+	uint32_t mac_addr_high;
+
+	switch(interface_index) {
+	case 0:
+		mac_addr_low = XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_0_LOW;
+		mac_addr_high = XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_0_HIGH;
+		break;
+	case 1:
+		mac_addr_low = XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_1_LOW;
+		mac_addr_high = XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_1_HIGH;
+		break;
+	case 2:
+		mac_addr_low = XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_2_LOW;
+		mac_addr_high = XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_2_HIGH;
+		break;
+	case 3:
+		mac_addr_low = XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_3_LOW;
+		mac_addr_high = XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_3_HIGH;
+		break;
+	}
+
+	writeReg(router->nf.fd, mac_addr_low, mac_low);
+	writeReg(router->nf.fd, mac_addr_high, mac_high);
 
 	uint32_t read_mac_low;
 	uint32_t read_mac_high;
 
-	readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_0_LOW, &read_mac_low);
-	readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_0_HIGH, &read_mac_high);
+	readReg(router->nf.fd, mac_addr_low, &read_mac_low);
+	readReg(router->nf.fd, mac_addr_high, &read_mac_high);
 
-	printf("WROTE TO REG 0x%x val %x and read %x\n", XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_0_LOW, mac_low, read_mac_low);
-	printf("WROTE TO REG 0x%x val %x and read %x\n", XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_0_HIGH, mac_high, read_mac_high);
-	fflush(stdout);
+	assert(mac_low == read_mac_low);
+	assert(mac_high == read_mac_high);
+
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_IP, iface->ip);
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_WR_ADDR, interface_index);
+
+	uint32_t read_ip;
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_IP, 0);
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_RD_ADDR, interface_index);
+	readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_IP, &read_ip);
+
+	assert (read_ip == iface->ip);
 }
 #endif
 
@@ -248,12 +280,31 @@ void router_add_interface(router_t* router, const char* name, addr_ip_t ip,
 	// initialize the lock to ensure only one write per interface at a time
 	pthread_mutex_init(&intf->hw_lock, NULL);
 #endif
+#ifdef _CPUMODE_
+	int ifaceid;
+
+	if (strcmp(name + PREFIX_LENGTH, "eth0") == 0)
+		ifaceid = 0;
+	else if (strcmp(name + PREFIX_LENGTH, "eth1") == 0)
+		ifaceid = 1;
+	else if (strcmp(name + PREFIX_LENGTH, "eth2") == 0)
+		ifaceid = 2;
+	else if (strcmp(name + PREFIX_LENGTH, "eth3") == 0)
+		ifaceid = 3;
+	else {
+		debug_println(
+				"Unknown interface name: %s. Setting hw_id to interface number.\n",
+				name);
+		intf->hw_id = router->num_interfaces;
+	}
+
+	intf->hw_id = sr_cpu_init_intf_socket(ifaceid);
+	register_interface(router, intf, ifaceid);
+	pthread_mutex_init(&intf->hw_lock, NULL);
+#endif
 
 	router->num_interfaces += 1;
 
-#ifdef _CPUMODE_
-	register_interface(router, intf);
-#endif
 }
 
 int packetinfo_ip_allocate(router_t* router, packet_info_t ** pinfo, int size,

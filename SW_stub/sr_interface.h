@@ -22,6 +22,7 @@ typedef struct {
     bool enabled;          /* whether the interface is on  */
     addr_ip_t subnet_mask; /* subnet mask of the link */
 #if defined _CPUMODE_
+#   define PREFIX_LENGTH 3
 #   define INTF0 0x02
 #   define INTF1 0x08
 #   define INTF2 0x20
