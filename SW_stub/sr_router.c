@@ -20,7 +20,20 @@
 #ifdef _CPUMODE_
 #include "reg_defines.h"
 void register_interface(router_t* router, interface_t * iface) {
-	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_0_LOW, 0x1);
+	const uint32_t mac_low = iface->mac.octet[0] | iface->mac.octet[1] | iface->mac.octet[2] | iface->mac.octet[3];
+	const uint32_t mac_high = iface->mac.octet[4] | iface->mac.octet[5];
+
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_0_LOW, mac_low);
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_0_HIGH, mac_high);
+
+	uint32_t read_mac_low;
+	uint32_t read_mac_high;
+
+	readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_0_LOW, &read_mac_low);
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_0_HIGH, &read_mac_high);
+
+	printf("WROTE TO REG 0x%x val %x and read %x\n", XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_0_LOW, mac_low, read_mac_low);
+	printf("WROTE TO REG 0x%x val %x and read %x\n", XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_0_HIGH, mac_high, read_mac_high);
 }
 #endif
 
