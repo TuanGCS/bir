@@ -122,6 +122,14 @@ void queue_purge(dataqueue_t * queue) {
 	}
 }
 
+int queue_existsunsafe(dataqueue_t * queue, void * data) {
+	int i;
+	for (i = 0; i < queue->size; i++)
+		if (memcmp(queue->packet[i], data, queue->packet_sizes[i]) == 0)
+			return i;
+	return -1;
+}
+
 void queue_free(dataqueue_t * queue) {
 
 	queue_purge(queue);

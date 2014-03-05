@@ -3,6 +3,9 @@
 
 #include <pthread.h>
 
+// NOTE: Unsafe means that there is no guarantee that the data would not change by the time it is returned (in multithreaded scenario)
+// in order to use unsafe functions, first lockall, use the unsafe function and then unlockall
+
 typedef struct dataqueue {
 	void ** packet;
 	int * packet_sizes;
@@ -38,6 +41,9 @@ void queue_lockall(dataqueue_t * queue);
 void queue_unlockall(dataqueue_t * queue);
 
 int queue_getidunsafe(dataqueue_t * queue, int id, void ** data, int * size);
+
+// checks whether data exists and returns its id if it does
+int queue_existsunsafe(dataqueue_t * queue, void * data);
 
 
 #endif
