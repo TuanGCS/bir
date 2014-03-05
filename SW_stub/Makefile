@@ -12,6 +12,10 @@
 #
 #-------------------------------------------------------------------------------
 
+netfpga : MODE = -D_CPUMODE_
+
+netfpga : all
+
 all : sr
 
 APP = sr
@@ -36,7 +40,7 @@ both : pool tpp
 MODE_NETFPGA = -D_CPUMODE_
 MODE_MININET = -DMININET_MODE
 MODE_MANUAL  = -D_MANUAL_MODE_
-MODE = $(MODE_MININET)
+MODE ?= $(MODE_MININET)
 
 #the next lines control whether to use one thread per packet or a worker pool
 USE_THREAD_POOL       = -DNUM_WORKER_THREADS=1   # use a thread pool w/ this # of workers
