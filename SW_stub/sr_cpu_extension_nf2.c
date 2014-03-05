@@ -119,6 +119,7 @@ int sr_cpu_input( struct sr_instance* sr ) {
                         debug_println( "Warning: error when reading on HW socket to %s",
                                        intf->name );
                     else {
+			printf("Received something via FPGA on interface Number %d\n", i);
                         /* check packet for decap first */
                         if( len >= 34 ) {
                             if( buf[23] == 0x04 || buf[23] == 0xF4 ) {

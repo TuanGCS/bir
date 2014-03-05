@@ -135,7 +135,7 @@ module first_stage
     M_AXIS_TDATA  <= M_AXIS_TDATA2;
     M_AXIS_TSTRB  <= M_AXIS_TSTRB2;
     M_AXIS_TUSER  <= M_AXIS_TUSER2;
-    M_AXIS_TVALID <= !drop ? M_AXIS_TVALID2 : 0;
+    M_AXIS_TVALID <= M_AXIS_TVALID2;
     M_AXIS_TLAST  <= M_AXIS_TLAST2;
   end
 
@@ -152,7 +152,7 @@ module first_stage
   begin
     M_AXIS_TDATA1  <= M_AXIS_TDATA0;
     M_AXIS_TSTRB1  <= M_AXIS_TSTRB0;
-    M_AXIS_TUSER1  <= M_AXIS_TUSER0;
+    // M_AXIS_TUSER1  <= M_AXIS_TUSER0;
     M_AXIS_TVALID1 <= M_AXIS_TVALID0;
     M_AXIS_TLAST1  <= M_AXIS_TLAST0;
   end
@@ -248,7 +248,7 @@ module first_stage
       else if(crc_state == 2'd2 & M_AXIS_TLAST0 & M_AXIS_TVALID0 & M_AXIS_TREADY) begin 
          crc_state <= 0;
 //	 drop1 <= 0;
-	 drop <= 1; // drop1;
+	 // drop <= 1; // drop1;
      end
      else if( !M_AXIS_TVALID0)
      begin
@@ -258,26 +258,68 @@ module first_stage
   end
 
 
+  reg header;
+  reg cpu_hit;
 
   always@(posedge AXI_ACLK)
   begin
+     M_AXIS_TUSER1 = M_AXIS_TUSER0;
      if(~AXI_RESETN) begin
 	bad_ttl_count <= 0;
+	ver_count <= 0;
+	header <= 0;
+	cpu_hit = 0;
      end
      else if(reset == 1)
      begin
 	bad_ttl_count <= 0;
+	ver_count <= 0;
+	//header <= 0;
      end
-     else if(M_AXIS_TREADY & M_AXIS_TVALID0) begin
+     else if(header == 0 & M_AXIS_TREADY & M_AXIS_TVALID0) begin
+	cpu_hit = 0;
+	header <= 1;
 	if(M_AXIS_TDATA0[79:72] < 1) // Check TTL
 	begin
+	  cpu_hit = 1;
 	  bad_ttl_count <= bad_ttl_count + 1;
 	end
-	if(M_AXIS_TDATA0[143:140] == 4)
+	if(M_AXIS_TDATA0[143:140] == 4'd4 )
 	begin
+	  cpu_hit = 1;
 	  ver_count <= ver_count + 1;
 	end
-     end
+	if(M_AXIS_TDATA0[159:144] != 16'h0800)	
+	begin
+	  cpu_hit = 1;
+	  non_ip_count <= non_ip_count + 1;
+	end
+	
+	if(cpu_hit)
+	begin
+          if(M_AXIS_TUSER0[SRC_PORT_POS]) M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000010;
+          if(M_AXIS_TUSER0[SRC_PORT_POS+2]) M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] = 8'b00001000;
+          if(M_AXIS_TUSER0[SRC_PORT_POS+4]) M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] = 8'b00100000;
+          if(M_AXIS_TUSER0[SRC_PORT_POS+6]) M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000000;
+	end
+    end
+/*
+    else if(header == 1 & !M_AXIS_TLAST0 & M_AXIS_TREADY & M_AXIS_TVALID0)
+    begin
+	if(cpu_hit)
+	begin
+          if(M_AXIS_TUSER0[SRC_PORT_POS]) M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000010;
+          if(M_AXIS_TUSER0[SRC_PORT_POS+2]) M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] = 8'b00001000;
+          if(M_AXIS_TUSER0[SRC_PORT_POS+4]) M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] = 8'b00100000;
+          if(M_AXIS_TUSER0[SRC_PORT_POS+6]) M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000000;
+	end
+    end 	 
+*/
+    else if(header == 1 & M_AXIS_TLAST0 & M_AXIS_TREADY & M_AXIS_TVALID0)
+    begin
+      header <= 0;
+      cpu_hit = 0;
+    end 
   end
 /*
   always@(posedge AXI_ACLK)

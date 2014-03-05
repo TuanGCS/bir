@@ -151,6 +151,9 @@ void router_destroy(router_t* router) {
 }
 
 void router_handle_packet(packet_info_t* pi) {
+#ifdef _CPUMODE_
+	printf("Receiving packet with length %d on interface %s\n", pi->len, pi->interface->name);
+#endif
 
 	if (PACKET_CAN_MARSHALL(packet_ethernet_t, 0, pi->len)) {
 

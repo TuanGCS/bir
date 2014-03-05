@@ -583,7 +583,7 @@ module nf10_router_output_port_lookup
       .S_AXIS_TREADY ( M_AXIS_TREADY_2 ),
       .S_AXIS_TLAST ( M_AXIS_TLAST_2 ),
       .reset(reset),
-      .arp_miss_count(arp_mis_count),
+      .arp_miss_count(arp_miss_count),
    // -- Table ports
     .tbl_rd_req(tbl_rd_req3),       // Request a read
     .tbl_rd_ack(tbl_rd_ack3),       // Pulses hi on ACK
@@ -646,7 +646,7 @@ module nf10_router_output_port_lookup
 
                // Send all packets to ethernet port 1 (nf1)
 //		M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b100;
-		if(!pkt_is_from_cpu)
+/*		if(!pkt_is_from_cpu)
 		begin
                   if(M_AXIS_TUSER[SRC_PORT_POS]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] =   8'b100;
                   if(M_AXIS_TUSER[SRC_PORT_POS+2]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b1;
@@ -654,15 +654,24 @@ module nf10_router_output_port_lookup
                   if(M_AXIS_TUSER[SRC_PORT_POS+6]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000;
                 end
 		else //M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b100;
-               /* Here's how we'd implement a NIC: */
-		// if(pkt_is_from_cpu)
+*/              
+		 /* Here's how we'd implement a NIC: */
+		 if(pkt_is_from_cpu)
 		begin
-                  if(M_AXIS_TUSER[SRC_PORT_POS+1]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00000010;
+                 if(M_AXIS_TUSER[SRC_PORT_POS+1]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00000010;
                   if(M_AXIS_TUSER[SRC_PORT_POS+3]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00001000;
                   if(M_AXIS_TUSER[SRC_PORT_POS+5]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00100000;
                   if(M_AXIS_TUSER[SRC_PORT_POS+7]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000000;
- 		 $display("T User Value - Src %x Dest %x\n",M_AXIS_TUSER[SRC_PORT_POS+7:SRC_PORT_POS],M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS]);
+// 		 $display("T User Value - Src %x Dest %x\n",M_AXIS_TUSER[SRC_PORT_POS+7:SRC_PORT_POS],M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS]);
 		end
+		else 
+		begin
+                 if(M_AXIS_TUSER[SRC_PORT_POS+1]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00000010;
+                  if(M_AXIS_TUSER[SRC_PORT_POS+3]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00001000;
+                  if(M_AXIS_TUSER[SRC_PORT_POS+5]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00100000;
+                  if(M_AXIS_TUSER[SRC_PORT_POS+7]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000000;
+// 		 $display("T User Value - Src %x Dest %x\n",M_AXIS_TUSER[SRC_PORT_POS+7:SRC_PORT_POS],M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS]);
+		end		
  
                /*
 	       if(pkt_is_from_cpu)

@@ -6,7 +6,7 @@
 #include "sr_integration.h"
 #include "sr_interface.h"
 
-void ethernet_packet_send(struct sr_instance* sr, interface_t* intf,
+int ethernet_packet_send(struct sr_instance* sr, interface_t* intf,
 		addr_mac_t target_mac, addr_mac_t source_mac, uint16_t type,
 		packet_info_t* pi) {
 
@@ -22,7 +22,7 @@ void ethernet_packet_send(struct sr_instance* sr, interface_t* intf,
 	if (intf == NULL)
 		die("Requested to send a packet to an unknown interface");
 
-	sr_integ_low_level_output(sr, pi->packet, pi->len, intf);
+	return sr_integ_low_level_output(sr, pi->packet, pi->len, intf);
 }
 
 void update_ethernet_header(packet_info_t* pi, addr_mac_t dst_mac, addr_mac_t src_mac) {

@@ -537,7 +537,8 @@ void send_pwospf_hello_packet(router_t* router) {
 		generate_ipv4_header(router->interface[i].ip, sizeof(pwospf_packet_hello_t), ipv4);
 		generate_pwospf_hello_header(router->interface[i].ip, aid, router->interface[i].subnet_mask, pw_hello);
 
-		ethernet_packet_send(get_sr(), &router->interface[i], broadcast, router->interface[i].mac, htons(ETH_IP_TYPE), pi);
+		int stat = ethernet_packet_send(get_sr(), &router->interface[i], broadcast, router->interface[i].mac, htons(ETH_IP_TYPE), pi);
+		if (stat == -1) printf("Exception sending HELLO packet on interface %s\n", &router->interface[i].name);
 
 	}
 
