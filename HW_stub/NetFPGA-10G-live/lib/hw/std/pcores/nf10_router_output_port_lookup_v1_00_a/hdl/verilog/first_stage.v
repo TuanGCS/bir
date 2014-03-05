@@ -134,7 +134,7 @@ module first_stage
   begin
     M_AXIS_TDATA  <= M_AXIS_TDATA2;
     M_AXIS_TSTRB  <= M_AXIS_TSTRB2;
-    M_AXIS_TUSER  <= M_AXIS_TUSER2;
+//    M_AXIS_TUSER  <= M_AXIS_TUSER2;
     M_AXIS_TVALID <= M_AXIS_TVALID2;
     M_AXIS_TLAST  <= M_AXIS_TLAST2;
   end
@@ -269,12 +269,14 @@ module first_stage
 	ver_count <= 0;
 	header <= 0;
 	cpu_hit = 0;
+	non_ip_count <= 0;
      end
      else if(reset == 1)
      begin
 	bad_ttl_count <= 0;
 	ver_count <= 0;
 	//header <= 0;
+	non_ip_count <= 0;
      end
      else if(header == 0 & M_AXIS_TREADY & M_AXIS_TVALID0) begin
 	cpu_hit = 0;
@@ -284,7 +286,7 @@ module first_stage
 	  cpu_hit = 1;
 	  bad_ttl_count <= bad_ttl_count + 1;
 	end
-	if(M_AXIS_TDATA0[143:140] == 4'd4 )
+	if(M_AXIS_TDATA0[143:140] != 4'd4 )
 	begin
 	  cpu_hit = 1;
 	  ver_count <= ver_count + 1;
@@ -297,11 +299,12 @@ module first_stage
 	
 	if(cpu_hit)
 	begin
-          if(M_AXIS_TUSER0[SRC_PORT_POS]) M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000010;
+          if(M_AXIS_TUSER0[SRC_PORT_POS])   M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000010;
           if(M_AXIS_TUSER0[SRC_PORT_POS+2]) M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] = 8'b00001000;
           if(M_AXIS_TUSER0[SRC_PORT_POS+4]) M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] = 8'b00100000;
           if(M_AXIS_TUSER0[SRC_PORT_POS+6]) M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000000;
 	end
+	cpu_hit = 0;
     end
 /*
     else if(header == 1 & !M_AXIS_TLAST0 & M_AXIS_TREADY & M_AXIS_TVALID0)
@@ -321,28 +324,64 @@ module first_stage
       cpu_hit = 0;
     end 
   end
-/*
+
+
+  reg header1;	
+  reg [31:0] ip;
+  reg [31:0] ip_data_check;
+  reg [1:0]  state1;
+  reg ip_hit, ip_hit_reg;
+//  integer i;
+//  reg cpu_hit;
+
   always@(posedge AXI_ACLK)
   begin
-      if(~AXI_RESETN) begin
-	 c_state <= 0;
-         ipv4_count <= 0;
-         arp_count <= 0;
-         ospf_count <= 0;
-      end
-      else if(!c_state & M_AXIS_TVALID & M_AXIS_TREADY) begin
-	 c_state <= 1;
-         if(M_AXIS_TDATA[159:144] == 16'h0806) arp_count <= arp_count + 1;
-	 else if(M_AXIS_TDATA[159:144] == 16'h0800) begin 
-           if(M_AXIS_TDATA[143:140] == 4'd4) ipv4_count <= ipv4_count + 1;
-	   if(M_AXIS_TDATA[71:64] == 8'd89) ospf_count <= ospf_count + 1;
-         end
-      end
-      else if(c_state & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY) c_state <= 0;
+     M_AXIS_TUSER = M_AXIS_TUSER2;
+     if(~AXI_RESETN) begin
+	ip <= 0;
+	dest_hit_count <= 0;
+	state1 <= 0;
+     end
+     else if(reset == 1)
+     begin
+	dest_hit_count <= 0;
+     end
+     else if(state1 == 0 & M_AXIS_TREADY & M_AXIS_TVALID0) begin
+	ip <= {M_AXIS_TDATA0[15:0],16'd0};
+	state1 <= 1;
+     end
+     else if(state1 == 1 & M_AXIS_TREADY & M_AXIS_TVALID0) begin
+	state1 <= 2;
+	ip_data_check = {ip[31:16],M_AXIS_TDATA0[255:240]};
+	ip_hit = 0;
+	for(i=0; i<32; i=i+1)
+	begin
+	  if(!ip_hit)
+	  begin
+	    if(ip_data_check == dest_ip_table[i]) ip_hit = 1;
+	  end
+	end
+	ip_hit_reg <= ip_hit;
+     end
+     else if(state1 == 2)
+     begin 
+	state1 <= 3;
+	if(ip_hit_reg)
+	begin
+	  dest_hit_count <= dest_hit_count + 1;
+          if(M_AXIS_TUSER2[SRC_PORT_POS])   M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000010;
+          if(M_AXIS_TUSER2[SRC_PORT_POS+2]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00001000;
+          if(M_AXIS_TUSER2[SRC_PORT_POS+4]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00100000;
+          if(M_AXIS_TUSER2[SRC_PORT_POS+6]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000000;
+	end
+	ip_hit_reg <= 0;
+     end
+    else if(state1 == 3 & M_AXIS_TLAST1 & M_AXIS_TREADY & M_AXIS_TVALID1)
+    begin
+      state1 <= 0;
+      ip_hit_reg <= 0;
+    end 
   end
-*/
-
-
 
 
 
