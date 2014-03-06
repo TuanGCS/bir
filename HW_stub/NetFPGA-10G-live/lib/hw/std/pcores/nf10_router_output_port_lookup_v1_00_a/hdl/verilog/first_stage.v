@@ -55,6 +55,7 @@ module first_stage
     output reg [C_S_AXI_DATA_WIDTH-1:0] ver_count,
     output reg [C_S_AXI_DATA_WIDTH-1:0] cpu_count,
     output reg [C_S_AXI_DATA_WIDTH-1:0] dest_hit_count,
+    output reg [C_S_AXI_DATA_WIDTH-1:0] ip_addr,
     input tbl_rd_req,       // Request a read
     input tbl_wr_req,       // Request a write
     input 	[4:0] tbl_rd_addr,      // Address in table to read
@@ -362,6 +363,7 @@ module first_stage
 	  end
 	end
 	ip_hit_reg <= ip_hit;
+	ip_addr <= ip_data_check;
      end
      else if(state1 == 2)
      begin 
