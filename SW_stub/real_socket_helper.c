@@ -138,8 +138,10 @@ int real_writen( int fd, const void* buf, unsigned n ) {
         if( (nwritten = write(fd, chbuf, nleft)) <= 0 ) {
             if( nwritten < 0 && errno == EINTR )
                 continue;  /* interrupt: no bytes written: try again */
-            else
+            else {
+            	printf("Problem with write: %s errno %d\n", strerror(errno), errno);
                 return -1; /* problem with write: error! */
+            }
         }
 
         nleft -= nwritten;
