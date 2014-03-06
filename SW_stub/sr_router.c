@@ -286,22 +286,26 @@ void router_add_interface(router_t* router, const char* name, addr_ip_t ip,
 #ifdef _CPUMODE_
 	int ifaceid;
 
-	if (strcmp(name + PREFIX_LENGTH, "eth0") == 0)
+	if (strcmp(name + PREFIX_LENGTH, "eth0") == 0) {
 		ifaceid = 0;
-	else if (strcmp(name + PREFIX_LENGTH, "eth1") == 0)
+		intf->hw_id = INTF0;
+	} else if (strcmp(name + PREFIX_LENGTH, "eth1") == 0) {
 		ifaceid = 1;
-	else if (strcmp(name + PREFIX_LENGTH, "eth2") == 0)
+		intf->hw_id = INTF1;
+	} else if (strcmp(name + PREFIX_LENGTH, "eth2") == 0) {
 		ifaceid = 2;
-	else if (strcmp(name + PREFIX_LENGTH, "eth3") == 0)
+		intf->hw_id = INTF2;
+	} else if (strcmp(name + PREFIX_LENGTH, "eth3") == 0) {
 		ifaceid = 3;
-	else {
+		intf->hw_id = INTF3;
+	} else {
 		debug_println(
 				"Unknown interface name: %s. Setting hw_id to interface number.\n",
 				name);
 		intf->hw_id = router->num_interfaces;
 	}
 
-	intf->hw_id = sr_cpu_init_intf_socket(ifaceid);
+	intf->hw_fd = sr_cpu_init_intf_socket(ifaceid);
 	register_interface(router, intf, ifaceid);
 	pthread_mutex_init(&intf->hw_lock, NULL);
 #endif
