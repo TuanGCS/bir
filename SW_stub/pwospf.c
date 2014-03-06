@@ -497,7 +497,7 @@ void send_pwospf_lsa_packet(router_t* router) {
 		pi->interface = &router->interface[i];
 
 		generate_ipv4_header(router->interface[i].ip, sizeof(pwospf_packet_link_t), ipv4);
-		generate_pwospf_link_header(router->interface[i].ip, aid, router->interface[i].subnet_mask, topologysize, pw_link);
+		generate_pwospf_link_header(router->pw_router.router_id, aid, router->interface[i].subnet_mask, topologysize, pw_link);
 
 		ethernet_packet_send(get_sr(), &router->interface[i], broadcast, router->interface[i].mac, htons(ETH_IP_TYPE), pi);
 	}
@@ -535,10 +535,10 @@ void send_pwospf_hello_packet(router_t* router) {
 
 
 		generate_ipv4_header(router->interface[i].ip, sizeof(pwospf_packet_hello_t), ipv4);
-		generate_pwospf_hello_header(router->interface[i].ip, aid, router->interface[i].subnet_mask, pw_hello);
+		generate_pwospf_hello_header(router->pw_router.router_id, aid, router->interface[i].subnet_mask, pw_hello);
 
 		int stat = ethernet_packet_send(get_sr(), &router->interface[i], broadcast, router->interface[i].mac, htons(ETH_IP_TYPE), pi);
-		if (stat == -1) printf("Exception sending HELLO packet on interface %s\n", &router->interface[i].name);
+		if (stat == -1) printf("Exception sending HELLO packet on interface %s\n", router->interface[i].name);
 
 	}
 
