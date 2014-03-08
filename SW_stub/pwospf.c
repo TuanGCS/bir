@@ -161,6 +161,15 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 	pwospf_lsa_t * payload = (pwospf_lsa_t *) &pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t)];
 	const int payload_count = ntohl(packet->advert);
 
+	int i;
+	printf("Received %d LSU entries from %s:\n", payload_count, quick_ip_to_string(packet->pwospf_header.router_id));
+	for (i = 0; i < payload_count; i++) {
+		pwospf_lsa_t * intfentry = (pwospf_lsa_t *) &pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t) + i * sizeof(pwospf_lsa_t)];
+		printf("\tNetmask: %s; ", quick_ip_to_string(intfentry->netmask));
+		printf("Subnet: %s; ", quick_ip_to_string(intfentry->subnet));
+		printf("Routerid: %s (%d)\n", quick_ip_to_string(intfentry->router_id), intfentry->router_id);
+	}
+
 	if (pi->len < sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t)+payload_count*sizeof(pwospf_lsa_t)) {
 		fprintf(stderr, "PWOSPF LINK packet received partially. Dropping...\n");
 		return;
@@ -449,6 +458,8 @@ void unlockallneighbours(router_t * router) {
 	for (i = 0; i < router->num_interfaces; i++)
 		queue_unlockall(&router->interface[i].neighbours);
 }
+
+#define STACK_INIT void * data[2];
 
 void send_pwospf_lsa_packet(router_t* router) {
 
