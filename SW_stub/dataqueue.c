@@ -3,15 +3,21 @@
 #include "stdlib.h"
 #include "string.h"
 
+#define LOCKING_ENABLED (1)
+
 void queue_init(dataqueue_t * queue) {
 	queue->size = 0;
 
+#if LOCKING_ENABLED
 	pthread_mutex_init(&queue->locker, NULL);
+#endif
 }
 
 // a copy of the data is made
 void queue_add(dataqueue_t * queue, void * data, int size) {
+#if LOCKING_ENABLED
 	pthread_mutex_lock(&queue->locker); // global lock
+#endif
 
 	const int id = queue->size;
 
@@ -34,20 +40,31 @@ void queue_add(dataqueue_t * queue, void * data, int size) {
 	// announce we have a new element
 	queue->size++;
 
+#if LOCKING_ENABLED
 	pthread_mutex_unlock(&queue->locker);
+#endif
 }
 
 int queue_replace(dataqueue_t * queue, void * data, int size, int id) {
+#if LOCKING_ENABLED
 	pthread_mutex_lock(&queue->locker);
+#endif
 
-	if (id >= queue->size || id < 0) {pthread_mutex_unlock(&queue->locker); return 0;}
+	if (id >= queue->size || id < 0) {
+#if LOCKING_ENABLED
+		pthread_mutex_unlock(&queue->locker);
+#endif
+		return 0;
+	}
 
 	if (size != queue->packet_sizes[id])
 		queue->packet[id] = realloc(queue->packet[id], size);
 
 	memcpy(queue->packet[id],data,size);
 
+#if LOCKING_ENABLED
 	pthread_mutex_unlock(&queue->locker);
+#endif
 
 	return 1;
 }
@@ -55,7 +72,12 @@ int queue_replace(dataqueue_t * queue, void * data, int size, int id) {
 void queue_unlockidandremove(dataqueue_t * queue, int id) {
 
 	int i;
-	if (id >= queue->size || id < 0) {pthread_mutex_unlock(&queue->locker); return;};
+	if (id >= queue->size || id < 0) {
+#if LOCKING_ENABLED
+		pthread_mutex_unlock(&queue->locker);
+#endif
+		return;
+	};
 
 	const int size = queue->size;
 
@@ -74,7 +96,9 @@ void queue_unlockidandremove(dataqueue_t * queue, int id) {
 
 	queue->size--;
 
+#if LOCKING_ENABLED
 	pthread_mutex_unlock(&queue->locker);
+#endif
 }
 
 int queue_getcurrentsize(dataqueue_t * queue) {
@@ -82,11 +106,15 @@ int queue_getcurrentsize(dataqueue_t * queue) {
 }
 
 void queue_lockall(dataqueue_t * queue) {
+#if LOCKING_ENABLED
 	pthread_mutex_lock(&queue->locker);
+#endif
 }
 
 void queue_unlockall(dataqueue_t * queue) {
+#if LOCKING_ENABLED
 	pthread_mutex_unlock(&queue->locker);
+#endif
 }
 
 int queue_getidunsafe(dataqueue_t * queue, int id, void ** data, int * size) {
@@ -98,9 +126,16 @@ int queue_getidunsafe(dataqueue_t * queue, int id, void ** data, int * size) {
 }
 
 int queue_getidandlock(dataqueue_t * queue, int id, void ** data, int * size) {
+#if LOCKING_ENABLED
 	pthread_mutex_lock(&queue->locker);
+#endif
 
-	if (id >= queue->size || id < 0) {pthread_mutex_unlock(&queue->locker); return 0;}
+	if (id >= queue->size || id < 0) {
+#if LOCKING_ENABLED
+		pthread_mutex_unlock(&queue->locker);
+#endif
+		return 0;
+	}
 
 	*data = queue->packet[id];
 	*size = queue->packet_sizes[id];
@@ -108,7 +143,9 @@ int queue_getidandlock(dataqueue_t * queue, int id, void ** data, int * size) {
 }
 
 void queue_unlockid(dataqueue_t * queue, int id) {
+#if LOCKING_ENABLED
 	pthread_mutex_unlock(&queue->locker);
+#endif
 }
 
 void queue_purge(dataqueue_t * queue) {
@@ -134,7 +171,9 @@ void queue_free(dataqueue_t * queue) {
 
 	queue_purge(queue);
 
+#if LOCKING_ENABLED
 	pthread_mutex_destroy(&queue->locker);
+#endif
 
 	free(queue->packet);
 	free(queue->packet_sizes);

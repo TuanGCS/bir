@@ -45,6 +45,27 @@ typedef struct PACKED packet_icmp {
 	byte data[56];
 } packet_icmp_t;
 
+typedef struct PACKED packet_tcp {
+	uint16_t source_port;
+	uint16_t destination_port;
+	uint32_t sequence_number;
+	uint32_t ACK_number;
+	unsigned offset:4;
+	unsigned reserved:3;
+	unsigned NS:1;
+	unsigned CWR:1;
+	unsigned ECE:1;
+	unsigned URG:1;
+	unsigned ACK:1;
+	unsigned PSH:1;
+	unsigned RST:1;
+	unsigned SYN:1;
+	unsigned FIN:1;
+	uint16_t window_size;
+	uint16_t checksum;
+	uint16_t urgent_pointer;
+} packet_tcp_t;
+
 typedef struct arp_cache_entry {
 	addr_ip_t ip;
 	addr_mac_t mac;

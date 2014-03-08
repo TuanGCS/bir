@@ -31,7 +31,7 @@
 									<listOptionValue builtIn="false" value="/usr/include/"/>
 								</option>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.366401031" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
-									<listOptionValue builtIn="false" value="_CPUMODE_"/>
+									<listOptionValue builtIn="false" value="MININET_MODE"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1827797085" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>

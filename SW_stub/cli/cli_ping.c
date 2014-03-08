@@ -153,12 +153,12 @@ void cli_ping_request( router_t* rtr, int fd, addr_ip_t ip ) {
     pthread_mutex_unlock( &ping_list_lock );
 
     /* let the client know we sent the ping */
-    addr.s_addr = ip;
-    he = gethostbyaddr( &addr, sizeof(addr), AF_INET );
-    if( he && he->h_name )
-        writenf( fd, "PING %s (%s)\n", str_ip, he->h_name );
-    else
-        writenf( fd, "PING %s\n", str_ip );
+//    addr.s_addr = ip;
+//    he = gethostbyaddr( &addr, sizeof(addr), AF_INET );
+//    if( he && he->h_name )
+//        writenf( fd, "PING %s (%s)\n", str_ip, he->h_name );
+//    else
+//        writenf( fd, "PING %s\n", str_ip );
 }
 
 static void cli_ping_feedback( ping_t* p, bool worked ) {
