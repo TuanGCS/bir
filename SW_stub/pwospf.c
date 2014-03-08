@@ -503,6 +503,14 @@ void send_pwospf_lsa_packet(router_t* router) {
 		}
 	}
 
+	printf("Sending %d LSU entries:\n", c);
+	for (i = 0; i < c; i++) {
+		pwospf_lsa_t * intfentry = (pwospf_lsa_t *) &pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t) + i * sizeof(pwospf_lsa_t)];
+		printf("\tNetmask: %s; ", quick_ip_to_string(intfentry->netmask));
+		printf("Subnet: %s; ", quick_ip_to_string(intfentry->subnet));
+		printf("Routerid: %s (%d)\n", quick_ip_to_string(intfentry->router_id), intfentry->router_id);
+	}
+
 	unlockallneighbours(router);
 
 	assert(c == topologysize);
