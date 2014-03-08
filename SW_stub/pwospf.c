@@ -12,8 +12,11 @@
 #include "ip.h"
 #include "unistd.h"
 #include "djikstra.h"
+#include "stack.h"
 
 #include "sr_thread.h"
+
+void send_pwospf_lsa_packet(router_t* router);
 
 volatile uint16_t hid = 0;
 
@@ -123,10 +126,10 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 	const int payload_count = ntohl(packet->advert);
 
 	int i;
-	printf("Received %d LSU entries from %s:\n", payload_count, quick_ip_to_string(packet->pwospf_header.router_id));
+	printf("TEMPDEBUG: Received %d LSU entries from %s:\n", payload_count, quick_ip_to_string(packet->pwospf_header.router_id));
 	for (i = 0; i < payload_count; i++) {
 		pwospf_lsa_t * intfentry = (pwospf_lsa_t *) &pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t) + i * sizeof(pwospf_lsa_t)];
-		printf("\tNetmask: %s; ", quick_ip_to_string(intfentry->netmask));
+		printf("TEMPDEBUG: \tNetmask: %s; ", quick_ip_to_string(intfentry->netmask));
 		printf("Subnet: %s; ", quick_ip_to_string(intfentry->subnet));
 		printf("Routerid: %s (%d)\n", quick_ip_to_string(intfentry->router_id), intfentry->router_id);
 	}
@@ -198,7 +201,7 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 
 		//recompute_djikstra(pi->router);
 		djikstra_recompute(pi->router);
-		send_pwospf_lsa_packet(pi->router);
+		//send_pwospf_lsa_packet(pi->router);
 
 		return;
 	}
@@ -237,7 +240,7 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 	// recompute and tell everybody our table has changed
 	//recompute_djikstra(pi->router);
 	djikstra_recompute(pi->router);
-	send_pwospf_lsa_packet(pi->router);
+	//send_pwospf_lsa_packet(pi->router);
 }
 
 void pwospf_onreceive_hello(packet_info_t * pi, pwospf_packet_hello_t * packet) {
@@ -393,7 +396,8 @@ void generate_pwospf_link_header(addr_ip_t rid, addr_ip_t aid,
 
 }
 
-int get_topology_size_andlockall(router_t * router) {
+// fills the stack with the neighbour ids to add
+int get_topology_size_andlockall(router_t * router, stack_t * stack) {
 	int count = 0;
 
 	int i;
@@ -408,7 +412,10 @@ int get_topology_size_andlockall(router_t * router) {
 
 				assert(entry_size == sizeof(pwospf_list_entry_t));
 
-				count += entry->lsu_lastcontents_count;
+				if (!stack_contains(stack, entry->neighbour_id)) {
+					count += entry->lsu_lastcontents_count;
+					stack_push(stack, entry->neighbour_id);
+				}
 			}
 		}
 	}
@@ -422,18 +429,21 @@ void unlockallneighbours(router_t * router) {
 		queue_unlockall(&router->interface[i].neighbours);
 }
 
-#define STACK_INIT struct stack; typedef stack {int data, struct stack * next}
-#define STACK_PUSH(x)
-
 void send_pwospf_lsa_packet(router_t* router) {
 
-	const int topologysize = get_topology_size_andlockall(router) + router->num_interfaces;
+	stack_t stack_already_added;
+	stack_t stack;
+	stack_init(&stack);
+	stack_init(&stack_already_added);
+	const int topologysize = get_topology_size_andlockall(router,& stack) + router->num_interfaces;
 	// here since all the neighbours on all interfaces are locked
 	// we guarantee that topologysize will not change untill we unlock it
 	// IMPORTANT! Make sure you unlockallneigbours() before returning!
 
 	if (topologysize == 0) {
 		unlockallneighbours(router);
+		stack_free(&stack);
+		stack_free(&stack_already_added);
 		return;
 	}
 
@@ -451,6 +461,7 @@ void send_pwospf_lsa_packet(router_t* router) {
 
 	int i;
 	int c = 0;
+	int added = 0;
 	for (i = 0; i < router->num_interfaces; i++) {
 
 		// add info about interface
@@ -464,25 +475,43 @@ void send_pwospf_lsa_packet(router_t* router) {
 		for (n = 0; n < neighbours->size; n++) {
 			int entry_size;
 			pwospf_list_entry_t * entry;
+
 			if (queue_getidunsafe(neighbours, n, (void **) &entry, &entry_size)) {
 
 				assert(entry_size == sizeof(pwospf_list_entry_t));
 
-				int j;
-				for (j = 0; j < entry->lsu_lastcontents_count; j++) {
-					pwospf_lsa_t * lsa_entry = &entry->lsu_lastcontents[j];
+				if (stack_contains(&stack, entry->neighbour_id) && !stack_contains(&stack_already_added, entry->neighbour_id)) {
 
-					memcpy(&pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t) + (c++) * sizeof(pwospf_lsa_t)], (void *) lsa_entry, sizeof(pwospf_lsa_t));
+					int j;
+					for (j = 0; j < entry->lsu_lastcontents_count; j++) {
+						pwospf_lsa_t * lsa_entry = &entry->lsu_lastcontents[j];
+
+						memcpy(&pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t) + (c++) * sizeof(pwospf_lsa_t)], (void *) lsa_entry, sizeof(pwospf_lsa_t));
+					}
+
+					printf("TEMPDEBUG: Including data for neighbour id %s in LSU\n",quick_ip_to_string(entry->neighbour_id));
+					stack_push(&stack_already_added, entry->neighbour_id);
+					added++;
+
 				}
 
 			}
 		}
 	}
 
-	printf("Sending %d LSU entries:\n", c);
+	if (added != stack_size(&stack)) {
+		printf("Failed to send LSU! We expected to have %d LSU entries (excl our interfaces), but actually got %d\n", stack_size(&stack) , added);
+		stack_free(&stack);
+		stack_free(&stack_already_added);
+		free(pi->packet);
+		free(pi);
+		return;
+	}
+
+	printf("TEMPDEBUG: Sending %d LSU entries:\n", c);
 	for (i = 0; i < c; i++) {
 		pwospf_lsa_t * intfentry = (pwospf_lsa_t *) &pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t) + i * sizeof(pwospf_lsa_t)];
-		printf("\tNetmask: %s; ", quick_ip_to_string(intfentry->netmask));
+		printf("TEMPDEBUG:\tNetmask: %s; ", quick_ip_to_string(intfentry->netmask));
 		printf("Subnet: %s; ", quick_ip_to_string(intfentry->subnet));
 		printf("Routerid: %s (%d)\n", quick_ip_to_string(intfentry->router_id), intfentry->router_id);
 	}
@@ -511,6 +540,8 @@ void send_pwospf_lsa_packet(router_t* router) {
 
 	gettimeofday(&router->last_lsu, NULL);
 
+	stack_free(&stack_already_added);
+	stack_free(&stack);
 }
 
 void send_pwospf_hello_packet(router_t* router) {
@@ -601,7 +632,7 @@ void pwospf_thread(void *arg) {
 
 		if (changed) {
 			djikstra_recompute(router);
-			send_pwospf_lsa_packet(router);
+			//send_pwospf_lsa_packet(router);
 		}
 
 		if (difftime(now.tv_sec, router->last_lsu.tv_sec) > LSUINT)
