@@ -68,45 +68,6 @@ pwospf_list_entry_t * getneighbourfromidunsafe(dataqueue_t * neighbours, uint32_
 	return NULL;
 }
 
-void recompute_djikstra(router_t * router) {
-	// TODO! send LSU update notification
-
-	// Here's a stub that goes trhough the whole topology
-	int i;
-	for (i = 0; i < router->num_interfaces; i++) {
-		dataqueue_t * neighbours = &router->interface[i].neighbours;
-		int n;
-		for (n = 0; n < neighbours->size; n++) {
-			pwospf_list_entry_t * entry;
-			int entry_size;
-			if (queue_getidandlock(neighbours, n, (void **) &entry, &entry_size)) {
-
-				assert(entry_size == sizeof(pwospf_list_entry_t));
-
-				if (entry->lsu_lastcontents != NULL) {
-
-					int j;
-					for (j = 0; j < entry->lsu_lastcontents_count; j++) {
-						pwospf_lsa_t * lsa_entry = &entry->lsu_lastcontents[j];
-
-
-						// HERE you have
-						// lsa_entry is the jth entry of the nth neighbour of the ith interface (oh yeah)
-
-					}
-
-				} // else there is no LSU information available for that router yet
-
-				queue_unlockid(neighbours, n);
-				// entry is invalid from here on, whatever you do, do it inside
-			}
-		}
-	}
-
-	// stub for DJ Ikstra
-	debug_println("--- TODO!: Djikstra to be run! ---");
-}
-
 void pwospf_reflood_to(packet_info_t * pi, pwospf_packet_link_t * packet, addr_ip_t dest) {
 	// TODO write reflooding
 }
@@ -237,6 +198,7 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 
 		//recompute_djikstra(pi->router);
 		djikstra_recompute(pi->router);
+		send_pwospf_lsa_packet(pi->router);
 
 		return;
 	}
@@ -275,6 +237,7 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 	// recompute and tell everybody our table has changed
 	//recompute_djikstra(pi->router);
 	djikstra_recompute(pi->router);
+	send_pwospf_lsa_packet(pi->router);
 }
 
 void pwospf_onreceive_hello(packet_info_t * pi, pwospf_packet_hello_t * packet) {
@@ -459,7 +422,8 @@ void unlockallneighbours(router_t * router) {
 		queue_unlockall(&router->interface[i].neighbours);
 }
 
-#define STACK_INIT void * data[2];
+#define STACK_INIT struct stack {
+#define STACK_PUSH(x)
 
 void send_pwospf_lsa_packet(router_t* router) {
 
@@ -535,7 +499,8 @@ void send_pwospf_lsa_packet(router_t* router) {
 		generate_ipv4_header(router->interface[i].ip, sizeof(pwospf_packet_link_t), ipv4);
 		generate_pwospf_link_header(router->pw_router.router_id, aid, router->interface[i].subnet_mask, topologysize, pw_link);
 
-		ethernet_packet_send(get_sr(), &router->interface[i], broadcast, router->interface[i].mac, htons(ETH_IP_TYPE), pi);
+		if (ethernet_packet_send(get_sr(), &router->interface[i], broadcast, router->interface[i].mac, htons(ETH_IP_TYPE), pi) == -1)
+			fprintf(stderr, "Cannot send PWOSPF LUS packet on interface %s\n", router->interface[i].name);
 	}
 
 	free(pi->packet);
@@ -633,7 +598,10 @@ void pwospf_thread(void *arg) {
 			}
 		}
 
-		if (changed) djikstra_recompute(router);
+		if (changed) {
+			djikstra_recompute(router);
+			send_pwospf_lsa_packet(router);
+		}
 
 		if (difftime(now.tv_sec, router->last_lsu.tv_sec) > LSUINT)
 			send_pwospf_lsa_packet(router);
