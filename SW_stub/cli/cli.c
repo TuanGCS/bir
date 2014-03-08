@@ -385,19 +385,23 @@ void cli_show_ospf_topo() {
 
 				assert(entry_size == sizeof(pwospf_list_entry_t));
 
-				cli_send_strf("\n  * %d. Id %d (0x%x) \tIP: %s\n", n, entry->neighbour_id, entry->neighbour_id, quick_ip_to_string(entry->neighbour_ip));
+				if (entry->immediate_neighbour) {
 
-				if (entry->lsu_lastcontents == NULL)
-					cli_send_str("    <NO LINK STATE INFORMATION RECEIVED YET>\n");
-				else {
+					cli_send_strf("\n  * %d. Id %d (0x%x) \tIP: %s\n", n, entry->neighbour_id, entry->neighbour_id, quick_ip_to_string(entry->neighbour_ip));
 
-					int j;
-					for (j = 0; j < entry->lsu_lastcontents_count; j++) {
-						pwospf_lsa_t * lsa_entry = &entry->lsu_lastcontents[j];
+					if (entry->lsu_lastcontents == NULL)
+						cli_send_str("    <NO LINK STATE INFORMATION RECEIVED YET>\n");
+					else {
 
-						cli_send_strf("    -> %d:\tMask:%s", j, quick_ip_to_string(lsa_entry->netmask));
-						cli_send_strf("\tID:%s", quick_ip_to_string(lsa_entry->router_id));
-						cli_send_strf("\tSub:%s\n", quick_ip_to_string(lsa_entry->subnet));
+						int j;
+						for (j = 0; j < entry->lsu_lastcontents_count; j++) {
+							pwospf_lsa_t * lsa_entry = &entry->lsu_lastcontents[j];
+
+							cli_send_strf("    -> %d:\tMask:%s", j, quick_ip_to_string(lsa_entry->netmask));
+							cli_send_strf("\tID:%s", quick_ip_to_string(lsa_entry->router_id));
+							cli_send_strf("\tSub:%s\n", quick_ip_to_string(lsa_entry->subnet));
+
+						}
 
 					}
 

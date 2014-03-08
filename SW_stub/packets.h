@@ -117,6 +117,8 @@ typedef struct pwospf_list_entry {
 	struct timeval timestamp;
 	int received_hello;
 
+	int immediate_neighbour;
+
 	// for LSU
 	uint16_t lsu_lastseq;
 	pwospf_lsa_t * lsu_lastcontents;

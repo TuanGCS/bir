@@ -243,10 +243,15 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 	newneighbour.lsu_lastcontents_count = payload_count;
 	newneighbour.lsu_lastcontents = (pwospf_lsa_t *) malloc(newneighbour.lsu_lastcontents_count * sizeof(pwospf_lsa_t));
 	memcpy(newneighbour.lsu_lastcontents, payload, payload_count * sizeof(pwospf_lsa_t));
-	int g; for (g = 0; g < payload_count; g++) if (neighbour->lsu_lastcontents[g].router_id == 0) neighbour->lsu_lastcontents[g].router_id = packet->pwospf_header.router_id;
+	int g;
+	for (g = 0; g < payload_count; g++)
+		if (newneighbour.lsu_lastcontents[g].router_id == 0)
+			newneighbour.lsu_lastcontents[g].router_id = packet->pwospf_header.router_id;
 
 	newneighbour.lsu_lastseq = packet->seq; // this is the lastseq
 	gettimeofday(&newneighbour.lsu_timestamp, NULL); // update timestamp
+
+	newneighbour.immediate_neighbour = 0;
 
 	queue_add(neighbours, &newneighbour, sizeof(pwospf_list_entry_t));
 
@@ -322,6 +327,7 @@ void pwospf_onreceive_hello(packet_info_t * pi, pwospf_packet_hello_t * packet) 
 	newneighbour.lsu_lastcontents = NULL;
 	newneighbour.lsu_lastcontents_count = 0;
 	newneighbour.received_hello = 1;
+	newneighbour.immediate_neighbour = 1;
 	gettimeofday(&newneighbour.timestamp, NULL);
 
 	queue_add(neighbours, &newneighbour, sizeof(pwospf_list_entry_t));
