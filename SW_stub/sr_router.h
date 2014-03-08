@@ -36,7 +36,6 @@ struct router_t;
 #define LSUINT_TIMEOUT 3*LSUINT
 
 #define HELLOINT 5
-#define NEIGHBOR_TIMEOUT 3*HELLOINT
 
 /** router data structure */
 typedef struct router_t {

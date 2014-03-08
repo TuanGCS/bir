@@ -124,4 +124,16 @@ typedef struct pwospf_list_entry {
 	struct timeval lsu_timestamp;
 } pwospf_list_entry_t;
 
+typedef struct PACKED rtable_entry {
+	uint32_t subnet;
+	uint32_t netmask;
+	uint8_t metric;
+	interface_t * interface;
+} rtable_entry_t;
+
+typedef struct PACKED d_link {
+	uint32_t subnet;
+	uint32_t netmask;
+} d_link_t;
+
 #endif

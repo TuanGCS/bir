@@ -11,6 +11,7 @@
 #include "ethernet_packet.h"
 #include "ip.h"
 #include "unistd.h"
+#include "djikstra.h"
 
 #include "sr_thread.h"
 
@@ -154,9 +155,10 @@ void pwospf_reflood_packetpartiallyunsafe(packet_info_t * pi, pwospf_packet_link
 
 void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 	//printf("Received LINK from %s on interface %s\n", quick_ip_to_string(packet->pwospf_header.router_id), pi->interface->name);
+
 	dataqueue_t * neighbours = &pi->interface->neighbours;
 	packet_ip4_t * ip = PACKET_MARSHALL(packet_ip4_t, pi->packet, sizeof(packet_ethernet_t));
-	pwospf_lsa_t * payload = (pwospf_lsa_t *) &pi->packet[sizeof(packet_ethernet_t)+sizeof(pwospf_packet_link_t)];
+	pwospf_lsa_t * payload = (pwospf_lsa_t *) &pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t)];
 	const int payload_count = ntohl(packet->advert);
 
 	if (pi->len < sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t)+payload_count*sizeof(pwospf_lsa_t)) {
@@ -215,6 +217,8 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 
 		// copy the topology data in each neighbour's lastcontents
 		memcpy(neighbour->lsu_lastcontents, payload, payload_count * sizeof(pwospf_lsa_t));
+		int g; for (g = 0; g < payload_count; g++) if (neighbour->lsu_lastcontents[g].router_id == 0) neighbour->lsu_lastcontents[g].router_id=packet->pwospf_header.router_id;
+
 		neighbour->lsu_lastseq = packet->seq; // this is the lastseq
 		gettimeofday(&neighbour->lsu_timestamp, NULL); // update timestamp
 
@@ -222,7 +226,8 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 
 		debug_println("An already existing neighbour sent a new PWOSPF LINK update (%d entries)!", payload_count);
 
-		recompute_djikstra(pi->router);
+		//recompute_djikstra(pi->router);
+		djikstra_recompute(pi->router);
 
 		return;
 	}
@@ -238,6 +243,8 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 	newneighbour.lsu_lastcontents_count = payload_count;
 	newneighbour.lsu_lastcontents = (pwospf_lsa_t *) malloc(newneighbour.lsu_lastcontents_count * sizeof(pwospf_lsa_t));
 	memcpy(newneighbour.lsu_lastcontents, payload, payload_count * sizeof(pwospf_lsa_t));
+	int g; for (g = 0; g < payload_count; g++) if (neighbour->lsu_lastcontents[g].router_id == 0) neighbour->lsu_lastcontents[g].router_id = packet->pwospf_header.router_id;
+
 	newneighbour.lsu_lastseq = packet->seq; // this is the lastseq
 	gettimeofday(&newneighbour.lsu_timestamp, NULL); // update timestamp
 
@@ -252,7 +259,8 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 	queue_unlockall(neighbours);
 
 	// recompute and tell everybody our table has changed
-	recompute_djikstra(pi->router);
+	//recompute_djikstra(pi->router);
+	djikstra_recompute(pi->router);
 }
 
 void pwospf_onreceive_hello(packet_info_t * pi, pwospf_packet_hello_t * packet) {
@@ -384,9 +392,6 @@ void generate_pwospf_hello_header(addr_ip_t rid,
 			(unsigned short*) pw_hello, sizeof(pwospf_packet_hello_t));
 
 }
-
-
-
 
 void generate_pwospf_link_header(addr_ip_t rid, addr_ip_t aid,
 		uint32_t netmask, uint32_t advert, pwospf_packet_link_t* pw_link) {
@@ -597,7 +602,7 @@ void pwospf_thread(void *arg) {
 			}
 		}
 
-		if (changed) recompute_djikstra(router);
+		if (changed) djikstra_recompute(router);
 
 		if (difftime(now.tv_sec, router->last_lsu.tv_sec) > LSUINT)
 			send_pwospf_lsa_packet(router);
