@@ -372,11 +372,11 @@ void generate_pwospf_hello_header(addr_ip_t rid,
 }
 
 void generate_pwospf_link_header(addr_ip_t rid, addr_ip_t aid,
-		uint32_t netmask, uint32_t advert, pwospf_packet_link_t* pw_link) {
+		uint32_t netmask, uint32_t advert, pwospf_packet_link_t* pw_link, int len) {
 
 	pw_link->pwospf_header.version = OSPF_VERSION;
-	pw_link->pwospf_header.type = OSPF_TYPE_HELLO;
-	pw_link->pwospf_header.len = htons(32);
+	pw_link->pwospf_header.type = OSPF_TYPE_LINK;
+	pw_link->pwospf_header.len = htons(len);
 	pw_link->pwospf_header.router_id = rid;
 	pw_link->pwospf_header.area_id = aid;
 	pw_link->pwospf_header.autotype = 0;
@@ -422,7 +422,7 @@ void unlockallneighbours(router_t * router) {
 		queue_unlockall(&router->interface[i].neighbours);
 }
 
-#define STACK_INIT struct stack {
+#define STACK_INIT struct stack; typedef stack {int data, struct stack * next}
 #define STACK_PUSH(x)
 
 void send_pwospf_lsa_packet(router_t* router) {
@@ -438,7 +438,8 @@ void send_pwospf_lsa_packet(router_t* router) {
 	}
 
 	packet_info_t* pi = (packet_info_t *) malloc(sizeof(packet_info_t));
-	pi->len = sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t) + topologysize * sizeof(pwospf_lsa_t);
+	const int lsa_packet_length = sizeof(pwospf_packet_link_t) + topologysize * sizeof(pwospf_lsa_t);
+	pi->len = sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + lsa_packet_length;
 	pi->packet = (byte *) malloc(pi->len);
 	pi->router = router;
 
@@ -497,7 +498,7 @@ void send_pwospf_lsa_packet(router_t* router) {
 		pi->interface = &router->interface[i];
 
 		generate_ipv4_header(router->interface[i].ip, sizeof(pwospf_packet_link_t), ipv4);
-		generate_pwospf_link_header(router->pw_router.router_id, aid, router->interface[i].subnet_mask, topologysize, pw_link);
+		generate_pwospf_link_header(router->pw_router.router_id, aid, router->interface[i].subnet_mask, topologysize, pw_link, lsa_packet_length);
 
 		if (ethernet_packet_send(get_sr(), &router->interface[i], broadcast, router->interface[i].mac, htons(ETH_IP_TYPE), pi) == -1)
 			fprintf(stderr, "Cannot send PWOSPF LUS packet on interface %s\n", router->interface[i].name);
