@@ -452,7 +452,7 @@ void unlockallneighbours(router_t * router) {
 
 void send_pwospf_lsa_packet(router_t* router) {
 
-	const int topologysize = get_topology_size_andlockall(router);
+	const int topologysize = get_topology_size_andlockall(router) + router->num_interfaces;
 	// here since all the neighbours on all interfaces are locked
 	// we guarantee that topologysize will not change untill we unlock it
 	// IMPORTANT! Make sure you unlockallneigbours() before returning!
@@ -476,6 +476,13 @@ void send_pwospf_lsa_packet(router_t* router) {
 	int i;
 	int c = 0;
 	for (i = 0; i < router->num_interfaces; i++) {
+
+		// add info about interface
+		pwospf_lsa_t * intfentry = (pwospf_lsa_t *) &pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t) + (c++) * sizeof(pwospf_lsa_t)];
+		intfentry->netmask = router->interface[i].subnet_mask;
+		intfentry->subnet = router->interface[i].subnet_mask & router->interface[i].ip;
+		intfentry->router_id = router->pw_router.router_id;
+
 		dataqueue_t * neighbours = &router->interface[i].neighbours;
 		int n;
 		for (n = 0; n < neighbours->size; n++) {
@@ -489,8 +496,7 @@ void send_pwospf_lsa_packet(router_t* router) {
 				for (j = 0; j < entry->lsu_lastcontents_count; j++) {
 					pwospf_lsa_t * lsa_entry = &entry->lsu_lastcontents[j];
 
-					memcpy(&pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t) + c * sizeof(pwospf_lsa_t)], (void *) lsa_entry, sizeof(pwospf_lsa_t));
-					c++;
+					memcpy(&pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t) + (c++) * sizeof(pwospf_lsa_t)], (void *) lsa_entry, sizeof(pwospf_lsa_t));
 				}
 
 			}
