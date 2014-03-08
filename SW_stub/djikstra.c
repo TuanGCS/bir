@@ -44,6 +44,16 @@ void djikstra_recompute(router_t * router) {
 				& router->interface[i].ip;
 		subnet.netmask = router->interface[i].subnet_mask;
 
+		pwospf_lsa_t lsa_entry_t;
+		lsa_entry_t.netmask = router->interface[i].subnet_mask;
+		lsa_entry_t.subnet = router->interface[i].subnet_mask
+				& router->interface[i].ip;
+		lsa_entry_t.router_id = router->pw_router.router_id;
+
+		if (queue_existsunsafe(topology, &lsa_entry_t) == -1) {
+			queue_add(topology, &lsa_entry_t, sizeof(pwospf_lsa_t));
+		}
+
 		if (queue_existsunsafe(subnets, &subnet) == -1) {
 			queue_add(subnets, &subnet, sizeof(d_link_t));
 		}
@@ -64,7 +74,10 @@ void djikstra_recompute(router_t * router) {
 					int j;
 					for (j = 0; j < entry->lsu_lastcontents_count; j++) {
 						pwospf_lsa_t * lsa_entry = &entry->lsu_lastcontents[j];
-						queue_add(topology, lsa_entry, sizeof(pwospf_lsa_t));
+						if (queue_existsunsafe(topology, lsa_entry) == -1) {
+							queue_add(topology, lsa_entry,
+									sizeof(pwospf_lsa_t));
+						}
 
 						d_link_t subnet;
 						subnet.subnet = lsa_entry->subnet;
@@ -133,8 +146,18 @@ void djikstra_recompute(router_t * router) {
 					if (entry->router_id == entry_t->router_id
 							&& entry->subnet != entry_t->subnet) {
 
-						graph[k][p] = 1;
-						graph[p][k] = 1;
+						d_link_t link1;
+						link1.netmask = entry->netmask;
+						link1.subnet = entry->subnet;
+						int id1 = queue_existsunsafe(subnets, &link1);
+
+						d_link_t link2;
+						link2.netmask = entry_t->netmask;
+						link2.subnet = entry_t->subnet;
+						int id2 = queue_existsunsafe(subnets, &link2);
+
+						graph[id1][id2] = 1;
+						graph[id2][id1] = 1;
 
 					}
 				}
