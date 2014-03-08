@@ -115,6 +115,9 @@ void process_arpipqueue(dataqueue_t * queue, addr_ip_t ip, addr_mac_t mac) {
 
 					queue_unlockidandremove(queue, i); // release queue
 
+					// undo the ttl substraction orignally done by ip_headercheck
+					ip_packet_copy->ttl++;
+
 					// we have a match deal with the packet as if it was just received
 					ip_onreceive(entry_copy, ip_packet_copy);
 
@@ -178,7 +181,7 @@ void arp_putincache(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac,
 
 	queue_add(cache, &result, sizeof(arp_cache_entry_t));
 
-	arp_print_cache(cache);
+	//arp_print_cache(cache);
 }
 
 /* NOTE! After using arp_send, the original packet will be destroyed! Don't try to access fields in arp after the call of this function! */

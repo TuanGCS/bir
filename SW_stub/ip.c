@@ -198,8 +198,7 @@ void ip_putintable(dataqueue_t * table, addr_ip_t ip, interface_t* interface,
 
 	queue_add(table, (void *) &existing, sizeof(ip_table_entry_t));
 
-	// for debug TODO remove after use
-	ip_print_table(table);
+	//ip_print_table(table);
 }
 
 void sr_transport_input(uint8_t* packet /* borrowed */); // this function does the transport input to the system
@@ -297,6 +296,7 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 	// Check the validity of the IP header
 	if (!ip_header_check(pi, ipv4)) {
 		fprintf(stderr, "Invalid IP received\n");
+		ip_print(ipv4);
 		return;
 	}
 
@@ -395,7 +395,7 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 	} else {
 		printf("Longest prefix matching failed to find an interface for %s\n",
 				quick_ip_to_string(ipv4->dst_ip));
-		ip_print_table(&pi->router->ip_table);
+		//ip_print_table(&pi->router->ip_table);
 
 		icmp_type_dst_unreach(pi, ipv4, ICMP_CODE_HOST_UNREACH);
 	}
