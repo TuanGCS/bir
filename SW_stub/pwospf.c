@@ -12,7 +12,6 @@
 #include "ip.h"
 #include "unistd.h"
 #include "djikstra.h"
-#include "stack.h"
 
 #include "sr_thread.h"
 
@@ -75,6 +74,29 @@ void pwospf_reflood_to(packet_info_t * pi, pwospf_packet_link_t * packet, addr_i
 	// TODO write reflooding
 }
 
+int compare_lsus(pwospf_lsa_t * a, pwospf_lsa_t * b, int size) {
+	int i, j;
+
+	for (i = 0; i < size; i++) {
+		pwospf_lsa_t * entry = &a[i];
+		int discovered = 0;
+
+		for (j = 0; j < size; j++) {
+			pwospf_lsa_t * entry2 = &b[j];
+
+			if (memcmp(entry, entry2, sizeof(pwospf_lsa_t)) == 0) {
+				discovered = 1;
+				break;
+			}
+		}
+
+		if (!discovered) return 0;
+	}
+
+	return 1;
+}
+
+
 // excluded_neighbour points to a location in the dataqueue locked_neighbours
 // for all other dataqueues, explicit lock must be used
 void pwospf_reflood_packetpartiallyunsafe(packet_info_t * pi, pwospf_packet_link_t * packet, pwospf_list_entry_t * excluded_neighbour, dataqueue_t * locked_neighbours) {
@@ -118,21 +140,13 @@ void pwospf_reflood_packetpartiallyunsafe(packet_info_t * pi, pwospf_packet_link
 }
 
 void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
+
 	//printf("Received LINK from %s on interface %s\n", quick_ip_to_string(packet->pwospf_header.router_id), pi->interface->name);
 
 	dataqueue_t * neighbours = &pi->interface->neighbours;
 	packet_ip4_t * ip = PACKET_MARSHALL(packet_ip4_t, pi->packet, sizeof(packet_ethernet_t));
 	pwospf_lsa_t * payload = (pwospf_lsa_t *) &pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t)];
 	const int payload_count = ntohl(packet->advert);
-
-	int i;
-	printf("TEMPDEBUG: Received %d LSU entries from %s:\n", payload_count, quick_ip_to_string(packet->pwospf_header.router_id));
-	for (i = 0; i < payload_count; i++) {
-		pwospf_lsa_t * intfentry = (pwospf_lsa_t *) &pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t) + i * sizeof(pwospf_lsa_t)];
-		printf("TEMPDEBUG: \tNetmask: %s; ", quick_ip_to_string(intfentry->netmask));
-		printf("Subnet: %s; ", quick_ip_to_string(intfentry->subnet));
-		printf("Routerid: %s (%d)\n", quick_ip_to_string(intfentry->router_id), intfentry->router_id);
-	}
 
 	if (pi->len < sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t)+payload_count*sizeof(pwospf_lsa_t)) {
 		fprintf(stderr, "PWOSPF LINK packet received partially. Dropping...\n");
@@ -167,8 +181,9 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 
 		// if a new packet is received for neighbour that we know about
 		if (neighbour->lsu_lastcontents != NULL && neighbour->lsu_lastcontents_count == payload_count) {
+			printf("YEY! Neighbour sent the same size data! Yey!\n");
 			// if we have previously received packets from this guy
-			if (memcmp(neighbour->lsu_lastcontents, payload, neighbour->lsu_lastcontents_count*sizeof(pwospf_lsa_t)) == 0) {
+			if (compare_lsus(neighbour->lsu_lastcontents, payload, neighbour->lsu_lastcontents_count)) {
 
 				neighbour->lsu_lastseq = packet->seq; // this is the lastseq
 				gettimeofday(&neighbour->lsu_timestamp, NULL); // update timestamp
@@ -199,9 +214,8 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 
 		debug_println("An already existing neighbour sent a new PWOSPF LINK update (%d entries)!", payload_count);
 
-		//recompute_djikstra(pi->router);
-		djikstra_recompute(pi->router);
-		//send_pwospf_lsa_packet(pi->router);
+		//djikstra_recompute(pi->router);
+		send_pwospf_lsa_packet(pi->router);
 
 		return;
 	}
@@ -212,7 +226,6 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 	pwospf_list_entry_t newneighbour;
 	newneighbour.neighbour_id = packet->pwospf_header.router_id;
 	newneighbour.neighbour_ip = ip->src_ip;
-	newneighbour.received_hello = 0;
 
 	newneighbour.lsu_lastcontents_count = payload_count;
 	newneighbour.lsu_lastcontents = (pwospf_lsa_t *) malloc(newneighbour.lsu_lastcontents_count * sizeof(pwospf_lsa_t));
@@ -238,9 +251,8 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 	queue_unlockall(neighbours);
 
 	// recompute and tell everybody our table has changed
-	//recompute_djikstra(pi->router);
-	djikstra_recompute(pi->router);
-	//send_pwospf_lsa_packet(pi->router);
+	//djikstra_recompute(pi->router);
+	send_pwospf_lsa_packet(pi->router);
 }
 
 void pwospf_onreceive_hello(packet_info_t * pi, pwospf_packet_hello_t * packet) {
@@ -281,7 +293,7 @@ void pwospf_onreceive_hello(packet_info_t * pi, pwospf_packet_hello_t * packet) 
 				}
 
 				entry->helloint = ntohs(packet->helloint);
-				entry->received_hello = 1;
+				entry->immediate_neighbour = 1;
 
 				gettimeofday(&entry->timestamp, NULL);
 			}
@@ -301,7 +313,6 @@ void pwospf_onreceive_hello(packet_info_t * pi, pwospf_packet_hello_t * packet) 
 	newneighbour.helloint = ntohs(packet->helloint);
 	newneighbour.lsu_lastcontents = NULL;
 	newneighbour.lsu_lastcontents_count = 0;
-	newneighbour.received_hello = 1;
 	newneighbour.immediate_neighbour = 1;
 	gettimeofday(&newneighbour.timestamp, NULL);
 
@@ -397,25 +408,42 @@ void generate_pwospf_link_header(addr_ip_t rid, addr_ip_t aid,
 }
 
 // fills the stack with the neighbour ids to add
-int get_topology_size_andlockall(router_t * router, stack_t * stack) {
+int get_topology(router_t * router, dataqueue_t * topology) {
 	int count = 0;
 
 	int i;
 	for (i = 0; i < router->num_interfaces; i++) {
+
+		// add info about interface
+		pwospf_lsa_t intfentry;
+		intfentry.netmask = router->interface[i].subnet_mask;
+		intfentry.subnet = router->interface[i].subnet_mask & router->interface[i].ip;
+		intfentry.router_id = router->pw_router.router_id;
+		if (queue_existsunsafe(topology, &intfentry) == -1) {
+			count++;
+			queue_add(topology, &intfentry, sizeof(pwospf_lsa_t));
+		}
+
 		dataqueue_t * neighbours = &router->interface[i].neighbours;
-		queue_lockall(neighbours);
 		int n;
 		for (n = 0; n < neighbours->size; n++) {
 			pwospf_list_entry_t * entry;
 			int entry_size;
-			if (queue_getidunsafe(neighbours, n, (void **) &entry, &entry_size)) {
+			if (queue_getidandlock(neighbours, n, (void **) &entry, &entry_size)) {
 
 				assert(entry_size == sizeof(pwospf_list_entry_t));
 
-				if (!stack_contains(stack, entry->neighbour_id)) {
-					count += entry->lsu_lastcontents_count;
-					stack_push(stack, entry->neighbour_id);
+				int j;
+				for (j = 0; j < entry->lsu_lastcontents_count; j++) {
+					pwospf_lsa_t * lsa_entry = &entry->lsu_lastcontents[j];
+
+					if (queue_existsunsafe(topology, lsa_entry) == -1) {
+						count++;
+						queue_add(topology, lsa_entry, sizeof(pwospf_lsa_t));
+					}
 				}
+
+				queue_unlockid(neighbours, n);
 			}
 		}
 	}
@@ -423,27 +451,17 @@ int get_topology_size_andlockall(router_t * router, stack_t * stack) {
 	return count;
 }
 
-void unlockallneighbours(router_t * router) {
-	int i;
-	for (i = 0; i < router->num_interfaces; i++)
-		queue_unlockall(&router->interface[i].neighbours);
-}
-
 void send_pwospf_lsa_packet(router_t* router) {
 
-	stack_t stack_already_added;
-	stack_t stack;
-	stack_init(&stack);
-	stack_init(&stack_already_added);
-	const int topologysize = get_topology_size_andlockall(router,& stack) + router->num_interfaces;
-	// here since all the neighbours on all interfaces are locked
-	// we guarantee that topologysize will not change untill we unlock it
-	// IMPORTANT! Make sure you unlockallneigbours() before returning!
+	// since topology will be used by only one thread there is no need for locking/unlocking
+	dataqueue_t topology;
+
+	queue_init(&topology);
+	const int topologysize = get_topology(router, &topology);
 
 	if (topologysize == 0) {
-		unlockallneighbours(router);
-		stack_free(&stack);
-		stack_free(&stack_already_added);
+		printf("LSU will not be sent this time! Topology is empty!\n");
+		queue_free(&topology);
 		return;
 	}
 
@@ -460,65 +478,16 @@ void send_pwospf_lsa_packet(router_t* router) {
 	addr_mac_t broadcast = MAC_BROADCAST;
 
 	int i;
-	int c = 0;
-	int added = 0;
-	for (i = 0; i < router->num_interfaces; i++) {
 
-		// add info about interface
-		pwospf_lsa_t * intfentry = (pwospf_lsa_t *) &pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t) + (c++) * sizeof(pwospf_lsa_t)];
-		intfentry->netmask = router->interface[i].subnet_mask;
-		intfentry->subnet = router->interface[i].subnet_mask & router->interface[i].ip;
-		intfentry->router_id = router->pw_router.router_id;
+	for (i = 0; i < queue_getcurrentsize(&topology); i++) {
+		int entry_size;
+		pwospf_lsa_t * entry;
+		assert(queue_getidunsafe(&topology, i, (void **) &entry, &entry_size));
+		assert(entry_size == sizeof(pwospf_lsa_t));
 
-		dataqueue_t * neighbours = &router->interface[i].neighbours;
-		int n;
-		for (n = 0; n < neighbours->size; n++) {
-			int entry_size;
-			pwospf_list_entry_t * entry;
-
-			if (queue_getidunsafe(neighbours, n, (void **) &entry, &entry_size)) {
-
-				assert(entry_size == sizeof(pwospf_list_entry_t));
-
-				if (stack_contains(&stack, entry->neighbour_id) && !stack_contains(&stack_already_added, entry->neighbour_id)) {
-
-					int j;
-					for (j = 0; j < entry->lsu_lastcontents_count; j++) {
-						pwospf_lsa_t * lsa_entry = &entry->lsu_lastcontents[j];
-
-						memcpy(&pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t) + (c++) * sizeof(pwospf_lsa_t)], (void *) lsa_entry, sizeof(pwospf_lsa_t));
-					}
-
-					printf("TEMPDEBUG: Including data for neighbour id %s in LSU\n",quick_ip_to_string(entry->neighbour_id));
-					stack_push(&stack_already_added, entry->neighbour_id);
-					added++;
-
-				}
-
-			}
-		}
+		// we have entry i
+		memcpy(&pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t) + i * sizeof(pwospf_lsa_t)], (void *) entry, sizeof(pwospf_lsa_t));
 	}
-
-	if (added != stack_size(&stack)) {
-		printf("Failed to send LSU! We expected to have %d LSU entries (excl our interfaces), but actually got %d\n", stack_size(&stack) , added);
-		stack_free(&stack);
-		stack_free(&stack_already_added);
-		free(pi->packet);
-		free(pi);
-		return;
-	}
-
-	printf("TEMPDEBUG: Sending %d LSU entries:\n", c);
-	for (i = 0; i < c; i++) {
-		pwospf_lsa_t * intfentry = (pwospf_lsa_t *) &pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t) + i * sizeof(pwospf_lsa_t)];
-		printf("TEMPDEBUG:\tNetmask: %s; ", quick_ip_to_string(intfentry->netmask));
-		printf("Subnet: %s; ", quick_ip_to_string(intfentry->subnet));
-		printf("Routerid: %s (%d)\n", quick_ip_to_string(intfentry->router_id), intfentry->router_id);
-	}
-
-	unlockallneighbours(router);
-
-	assert(c == topologysize);
 
 	packet_ip4_t* ipv4 = (packet_ip4_t *) &pi->packet[sizeof(packet_ethernet_t)];
 	pwospf_packet_link_t* pw_link = (pwospf_packet_link_t *) &pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t)];
@@ -536,12 +505,11 @@ void send_pwospf_lsa_packet(router_t* router) {
 	free(pi->packet);
 	free(pi);
 
-	printf("Send LSA\n");
+	printf("Send LSA (%d entries)\n", topologysize);
 
 	gettimeofday(&router->last_lsu, NULL);
 
-	stack_free(&stack_already_added);
-	stack_free(&stack);
+	queue_free(&topology);
 }
 
 void send_pwospf_hello_packet(router_t* router) {
@@ -608,7 +576,7 @@ void pwospf_thread(void *arg) {
 
 					assert(entry_size == sizeof(pwospf_list_entry_t));
 
-					if ((entry->received_hello && difftime(now.tv_sec, entry->timestamp.tv_sec) > 3*entry->helloint) ||
+					if ((entry->immediate_neighbour && difftime(now.tv_sec, entry->timestamp.tv_sec) > 3*entry->helloint) ||
 							(entry->lsu_lastcontents != NULL && difftime(now.tv_sec, entry->lsu_timestamp.tv_sec) > LSUINT_TIMEOUT)) {
 
 						if (difftime(now.tv_sec, entry->timestamp.tv_sec) > 3*entry->helloint)
@@ -632,7 +600,7 @@ void pwospf_thread(void *arg) {
 
 		if (changed) {
 			djikstra_recompute(router);
-			//send_pwospf_lsa_packet(router);
+			send_pwospf_lsa_packet(router);
 		}
 
 		if (difftime(now.tv_sec, router->last_lsu.tv_sec) > LSUINT)

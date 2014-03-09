@@ -7,6 +7,8 @@
 
 void queue_init(dataqueue_t * queue) {
 	queue->size = 0;
+	queue->packet = NULL;
+	queue->packet_sizes = NULL;
 
 #if LOCKING_ENABLED
 	pthread_mutex_init(&queue->locker, NULL);
@@ -175,6 +177,6 @@ void queue_free(dataqueue_t * queue) {
 	pthread_mutex_destroy(&queue->locker);
 #endif
 
-	free(queue->packet);
-	free(queue->packet_sizes);
+	if (queue->packet != NULL) free(queue->packet);
+	if (queue->packet_sizes != NULL) free(queue->packet_sizes);
 }

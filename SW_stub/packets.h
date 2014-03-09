@@ -136,7 +136,6 @@ typedef struct pwospf_list_entry {
 	addr_ip_t neighbour_ip;
 	uint16_t helloint;
 	struct timeval timestamp;
-	int received_hello;
 
 	int immediate_neighbour;
 
