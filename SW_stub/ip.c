@@ -11,6 +11,7 @@
 #include "icmp_type.h"
 #include "pwospf.h"
 #include "cli/cli_ping.h"
+#include "cli/cli_trace.h"
 
 #include <string.h>
 
@@ -328,6 +329,12 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 
 				} else if (icmp->type == ICMP_TYPE_REPLAY) {
 					cli_ping_handle_reply(ipv4->src_ip, icmp->seq_num);
+					return;
+				} else if (icmp->type == ICMP_TYPE_DST_UNREACH) {
+					cli_traceroute_handle_reply(ipv4->src_ip, icmp);
+					return;
+				} else {
+					fprintf(stderr, "Unknown type of ICMP %d (0x%x) was targeted at router interface %s\n", icmp->type, icmp->type, quick_ip_to_string( pi->router->interface[i].ip));
 					return;
 				}
 

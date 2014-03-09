@@ -58,7 +58,7 @@ PURIFY= purify ${PFLAGS}
 
 #------------------------------------------------------------------------------
 
-RESTRICTED_CLI_SRCS = cli/cli.c cli/cli_help.c cli/cli_ping.c\
+RESTRICTED_CLI_SRCS = cli/cli.c cli/cli_help.c cli/cli_ping.c cli/cli_trace.c\
                       cli/search_state.c cli/cli_local.c\
                       cli/lex.yy.c cli/y.tab.c
 CLI_SRCS = cli/cli_main.c cli/socket_helper.c $(RESTRICTED_CLI_SRCS) sr_lwtcp_glue.c
