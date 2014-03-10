@@ -12,7 +12,7 @@ YACC = bison
 COMP_LIBS = -lm -lpthread
 
 PARSER_MAGIC_OBJS = y.tab.o lex.yy.o ../debug.o
-PARSER_SRCS = cli.c cli_help.c cli_ping.c socket_helper.c
+PARSER_SRCS = cli.c cli_help.c cli_ping.c cli_trace.c socket_helper.c
 PARSER_OBJS = $(patsubst %.c, %.o, $(PARSER_SRCS))
 PARSER_ALL_OBJS = $(PARSER_MAGIC_OBJS) $(PARSER_OBJS)
 

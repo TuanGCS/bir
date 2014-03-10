@@ -142,12 +142,13 @@ int writen( int fd, const void* buf, unsigned n ) {
     nleft = n;
     while( nleft > 0 ) {
 
-    	const int towrite = (nleft < 5) ? (nleft) : (5);
-        if( (nwritten = write(fd, chbuf, towrite)) <= 0 ) {
+        if( (nwritten = write(fd, chbuf, nleft)) <= 0 ) {
             if( nwritten < 0 && errno == EINTR )
                 continue;  /* interrupt: no bytes written: try again */
-            else
+            else {
+            	fprintf(stderr, "Problem with writen!\n");
                 return -1; /* problem with write: error! */
+            }
         }
 
         nleft -= nwritten;

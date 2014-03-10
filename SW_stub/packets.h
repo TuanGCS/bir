@@ -45,6 +45,27 @@ typedef struct PACKED packet_icmp {
 	byte data[56];
 } packet_icmp_t;
 
+typedef struct PACKED packet_tcp {
+	uint16_t source_port;
+	uint16_t destination_port;
+	uint32_t sequence_number;
+	uint32_t ACK_number;
+	unsigned offset:4;
+	unsigned reserved:3;
+	unsigned NS:1;
+	unsigned CWR:1;
+	unsigned ECE:1;
+	unsigned URG:1;
+	unsigned ACK:1;
+	unsigned PSH:1;
+	unsigned RST:1;
+	unsigned SYN:1;
+	unsigned FIN:1;
+	uint16_t window_size;
+	uint16_t checksum;
+	uint16_t urgent_pointer;
+} packet_tcp_t;
+
 typedef struct arp_cache_entry {
 	addr_ip_t ip;
 	addr_mac_t mac;
@@ -115,7 +136,8 @@ typedef struct pwospf_list_entry {
 	addr_ip_t neighbour_ip;
 	uint16_t helloint;
 	struct timeval timestamp;
-	int received_hello;
+
+	int immediate_neighbour;
 
 	// for LSU
 	uint16_t lsu_lastseq;
@@ -123,5 +145,17 @@ typedef struct pwospf_list_entry {
 	int lsu_lastcontents_count;
 	struct timeval lsu_timestamp;
 } pwospf_list_entry_t;
+
+typedef struct PACKED rtable_entry {
+	uint32_t subnet;
+	uint32_t netmask;
+	uint8_t metric;
+	interface_t * interface;
+} rtable_entry_t;
+
+typedef struct PACKED d_link {
+	uint32_t subnet;
+	uint32_t netmask;
+} d_link_t;
 
 #endif

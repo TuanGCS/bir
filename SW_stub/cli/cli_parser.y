@@ -417,8 +417,8 @@ bool cli_parser_handle_client( cli_client_t* client ) {
     char* pch;
     int num;
 
-    debug_println( "Parser preparing to handle command from client #%d",
-                   client->fd );
+    //debug_println( "Parser preparing to handle command from client #%d",
+    //               client->fd );
     search_state_debug_print( &client->state );
 
     sbuf = client->state.chbuf;

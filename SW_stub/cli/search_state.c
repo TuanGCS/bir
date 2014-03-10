@@ -59,6 +59,5 @@ int search_state_grow_if_full( search_state_t* state ) {
 }
 
 void search_state_debug_print( search_state_t* s ) {
-    debug_println( "State: %uB of %uB used.  Search Offset=%u  Needle=%u\n  Buf=%s",
-                   s->used, s->capacity, s->search_offset, s->needle_offset, s->chbuf );
+    debug_println( "Client requested: %s", s->chbuf );
 }

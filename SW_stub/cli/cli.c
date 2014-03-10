@@ -10,6 +10,7 @@
 #include "cli.h"
 #include "cli_network.h"         /* make_thread()                     */
 #include "cli_ping.h"            /* cli_ping_init(), cli_ping_request() */
+#include "cli_trace.h"
 #include "socket_helper.h"       /* writenstr()                       */
 #include "../sr_base_internal.h" /* struct sr_instance                */
 #include "../sr_common.h"        /* ...                               */
@@ -145,6 +146,7 @@ void cli_init() {
     router_shutdown = FALSE;
     skip_next_prompt = FALSE;
     cli_ping_init();
+    cli_traceroute_init();
 }
 
 bool cli_is_time_to_shutdown() {
@@ -385,19 +387,23 @@ void cli_show_ospf_topo() {
 
 				assert(entry_size == sizeof(pwospf_list_entry_t));
 
-				cli_send_strf("\n  * %d. Id %d (0x%x) \tIP: %s\n", n, entry->neighbour_id, entry->neighbour_id, quick_ip_to_string(entry->neighbour_ip));
+				if (entry->immediate_neighbour) {
 
-				if (entry->lsu_lastcontents == NULL)
-					cli_send_str("    <NO LINK STATE INFORMATION RECEIVED YET>\n");
-				else {
+					cli_send_strf("\n  * %d. Id %d (0x%x) \tIP: %s\n", n, entry->neighbour_id, entry->neighbour_id, quick_ip_to_string(entry->neighbour_ip));
 
-					int j;
-					for (j = 0; j < entry->lsu_lastcontents_count; j++) {
-						pwospf_lsa_t * lsa_entry = &entry->lsu_lastcontents[j];
+					if (entry->lsu_lastcontents == NULL)
+						cli_send_str("    <NO LINK STATE INFORMATION RECEIVED YET>\n");
+					else {
 
-						cli_send_strf("    -> %d:\tMask:%s", j, quick_ip_to_string(lsa_entry->netmask));
-						cli_send_strf("\tID:%s", quick_ip_to_string(lsa_entry->router_id));
-						cli_send_strf("\tSub:%s\n", quick_ip_to_string(lsa_entry->subnet));
+						int j;
+						for (j = 0; j < entry->lsu_lastcontents_count; j++) {
+							pwospf_lsa_t * lsa_entry = &entry->lsu_lastcontents[j];
+
+							cli_send_strf("    -> %d:\tMask:%s", j, quick_ip_to_string(lsa_entry->netmask));
+							cli_send_strf("\tID:%s", quick_ip_to_string(lsa_entry->router_id));
+							cli_send_strf("\tSub:%s\n", quick_ip_to_string(lsa_entry->subnet));
+
+						}
 
 					}
 
@@ -586,11 +592,13 @@ void cli_shutdown() {
     cli_send_str( "Shutting down the router ...\n" );
     router_shutdown = TRUE;
     cli_ping_destroy();
+    cli_traceroute_destroy();
     raise( SIGINT ); /* wake up cli_main thread blocked on accept() */
 }
 
 void cli_traceroute( gross_ip_t* data ) {
-    cli_send_str( "traceroute is not yet operational.\n" );
+	cli_traceroute_request( ROUTER, fd, data->ip );
+	skip_next_prompt = TRUE;
 }
 
 void cli_opt_verbose( gross_option_t* data ) {

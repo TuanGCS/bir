@@ -11,6 +11,7 @@
 #include "icmp_type.h"
 #include "pwospf.h"
 #include "cli/cli_ping.h"
+#include "cli/cli_trace.h"
 
 #include <string.h>
 
@@ -59,6 +60,60 @@ void ip_print(packet_ip4_t * packet) {
 			ntohs(packet->header_checksum));
 	printf("packet->src_ip=\"%s\" //==htons(0x%x)==0x%x\n", quick_ip_to_string(packet->src_ip), ntohl(packet->src_ip), packet->src_ip);
 	printf("packet->dst_ip=\"%s\" //==htons(0x%x)==0x%x\n", quick_ip_to_string(packet->dst_ip), ntohl(packet->dst_ip), packet->dst_ip);
+	printf("\n");
+
+	switch (packet->protocol) {
+	case IP_TYPE_TCP: {
+		packet_tcp_t * tcp = (packet_tcp_t *) (((byte *) packet) + sizeof(packet_ip4_t));
+
+		printf("tcp->source_port=htons(%d)\n", ntohs(tcp->source_port));
+		printf("tcp->destination_port=htons(%d)\n", ntohs(tcp->destination_port));
+		printf("tcp->sequence_number=htonl(%d)\n", ntohl(tcp->sequence_number));
+		printf("tcp->ACK_number=htonl(%d)\n", ntohl(tcp->ACK_number));
+		printf("tcp->offset=%d\n", tcp->offset);
+		if (tcp->NS) printf("tcp->NS=1; //ECN-nonce concealment protection\n");
+		if (tcp->CWR) printf("tcp->CWR=1; //Congestion Window Reduced\n");
+		if (tcp->ECE) printf("tcp->ECE=1; //ECN-Echo\n");
+		if (tcp->URG) printf("tcp->URG=1; //Urgent pointer field is significant\n");
+		if (tcp->ACK) printf("tcp->ACK=1; //Acknowldegement field is significant\n");
+		if (tcp->PSH) printf("tcp->PSH=1; //Push function\n");
+		if (tcp->RST) printf("tcp->RST=1; //Reset TCP connection\n");
+		if (tcp->SYN) printf("tcp->SYN=1; //Start TCP connection\n");
+		if (tcp->FIN) printf("tcp->FIN=1; //Closing TCP connection\n");
+		printf("tcp->window_size=htons(%d)\n", ntohs(tcp->window_size));
+		printf("tcp->checksum=htons(%d)\n", ntohs(tcp->checksum));
+		printf("tcp->urgent_pointer=htons(%d)\n", ntohs(tcp->urgent_pointer));
+
+		int i;
+		const int datasize = ntohs(packet->total_length) - sizeof(packet_ip4_t) - sizeof(packet_tcp_t) - tcp->offset;
+		byte * data = ((byte *) packet) + sizeof(packet_ip4_t) + sizeof(packet_tcp_t) + tcp->offset;
+
+		printf("\n::: TCP DATA chars :::\n");
+		for (i = 0; i < datasize; i++) printf("%c",(data[i] < ' ' || data[i] > '~') ? '.' : data[i]);
+		printf("\n");
+
+		printf("::: TCP DATA hex :::\n");
+		for (i = 0; i < datasize; i++) printf("%02x ", data[i]);
+		printf("\n");
+	} break;
+	default: {
+		int i;
+		const int datasize = ntohs(packet->total_length) - sizeof(packet_ip4_t);
+		byte * data = ((byte *) packet) + sizeof(packet_ip4_t);
+
+		printf("::: DATA chars :::\n");
+		for (i = 0; i < datasize; i++) printf("%c",(data[i] < ' ' || data[i] > '~') ? '.' : data[i]);
+		printf("\n");
+
+		printf("::: DATA hex :::\n");
+		for (i = 0; i < datasize; i++) printf("%02x ", data[i]);
+		printf("\n");
+	} break;
+	}
+
+
+
+
 	printf("\n");
 	fflush(stdout);
 }
@@ -144,8 +199,7 @@ void ip_putintable(dataqueue_t * table, addr_ip_t ip, interface_t* interface,
 
 	queue_add(table, (void *) &existing, sizeof(ip_table_entry_t));
 
-	// for debug TODO remove after use
-	ip_print_table(table);
+	//ip_print_table(table);
 }
 
 void sr_transport_input(uint8_t* packet /* borrowed */); // this function does the transport input to the system
@@ -243,6 +297,7 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 	// Check the validity of the IP header
 	if (!ip_header_check(pi, ipv4)) {
 		fprintf(stderr, "Invalid IP received\n");
+		ip_print(ipv4);
 		return;
 	}
 
@@ -274,6 +329,12 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 
 				} else if (icmp->type == ICMP_TYPE_REPLAY) {
 					cli_ping_handle_reply(ipv4->src_ip, icmp->seq_num);
+					return;
+				} else if (icmp->type == ICMP_TYPE_DST_UNREACH) {
+					cli_traceroute_handle_reply(ipv4->src_ip, icmp);
+					return;
+				} else {
+					fprintf(stderr, "Unknown type of ICMP %d (0x%x) was targeted at router interface %s\n", icmp->type, icmp->type, quick_ip_to_string( pi->router->interface[i].ip));
 					return;
 				}
 
@@ -341,7 +402,7 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 	} else {
 		printf("Longest prefix matching failed to find an interface for %s\n",
 				quick_ip_to_string(ipv4->dst_ip));
-		ip_print_table(&pi->router->ip_table);
+		//ip_print_table(&pi->router->ip_table);
 
 		icmp_type_dst_unreach(pi, ipv4, ICMP_CODE_HOST_UNREACH);
 	}

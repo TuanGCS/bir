@@ -1,10 +1,10 @@
-/* Filename: cli_ping.c */
+#include "cli_trace.h"
+
 
 #include <netdb.h>
 #include <stdlib.h>              /* malloc()                          */
 #include <sys/time.h>            /* gettimeofday(), select(), timeval */
 #include "cli.h"                 /* cli_is_time_to_shutdown()         */
-#include "cli_ping.h"
 #include "cli_network.h"         /* make_thread()                     */
 #include "socket_helper.h"       /* writenstr()                       */
 #include "../sr_integration.h"   /* sr_integ_findsrcip()              */
@@ -31,7 +31,7 @@ typedef struct ping_t {
 static ping_t* ping_list;
 
 /** synchronize access to the ping list */
-static pthread_mutex_t ping_list_lock;
+static pthread_mutex_t traceroute_list_lock;
 
 /** ping scrubber thread sleeps on this condition */
 static pthread_cond_t  ping_list_cond;
@@ -47,23 +47,23 @@ static uint16_t ping_count;
  * up.  Whenever it finds outstanding ping(s), it waits for a reply.  When a
  * reply is received or a ping times out the requesting client is notified.
  */
-THREAD_RETURN_TYPE cli_ping_scrubber_main( void* nil );
+THREAD_RETURN_TYPE cli_traceroute_scrubber_main( void* nil );
 
-void cli_ping_init() {
+void cli_traceroute_init() {
     ping_list = NULL;
-    pthread_mutex_init( &ping_list_lock, NULL );
+    pthread_mutex_init( &traceroute_list_lock, NULL );
     pthread_cond_init(  &ping_list_cond, NULL );
     pthread_cond_init(  &ping_scrubber_off_cond, NULL );
-    make_thread( cli_ping_scrubber_main, NULL );
+    make_thread( cli_traceroute_scrubber_main, NULL );
 }
 
-void cli_ping_destroy() {
+void cli_traceroute_destroy() {
     ping_t* p_to_free;
 
     /* wait for the scrubber thread to terminate */
-    pthread_mutex_lock( &ping_list_lock );
+    pthread_mutex_lock( &traceroute_list_lock );
     pthread_cond_signal( &ping_list_cond );
-    pthread_cond_wait( &ping_scrubber_off_cond, &ping_list_lock );
+    pthread_cond_wait( &ping_scrubber_off_cond, &traceroute_list_lock );
 
     /* cleanup anything left on the ping list */
     while( ping_list ) {
@@ -72,12 +72,12 @@ void cli_ping_destroy() {
         free( p_to_free );
     }
 
-    pthread_mutex_destroy( &ping_list_lock );
+    pthread_mutex_destroy( &traceroute_list_lock );
     pthread_cond_destroy( &ping_list_cond );
     pthread_cond_destroy( &ping_scrubber_off_cond );
 }
 
-void cli_ping_request( router_t* rtr, int fd, addr_ip_t ip ) {
+void cli_traceroute_request( router_t* rtr, int fd, addr_ip_t ip ) {
     ping_t* p_new;
     char str_ip[STRLEN_IP];
     struct in_addr addr;
@@ -86,7 +86,7 @@ void cli_ping_request( router_t* rtr, int fd, addr_ip_t ip ) {
     /* get the lock now so the handler thread doesn't run while we're sending
        the request and therefore maybe get the reply before we put the item in
        the list */
-    pthread_mutex_lock( &ping_list_lock );
+    pthread_mutex_lock( &traceroute_list_lock );
 
     /* send the echo request (via the router directly ...) */
 
@@ -94,7 +94,7 @@ void cli_ping_request( router_t* rtr, int fd, addr_ip_t ip ) {
 
     if( !icmp_allocate_and_send( rtr, ip, 0, ICMP_TYPE_REQUEST, PING_ID, ping_count, NULL, 0 ) ) {
 
-    	pthread_mutex_unlock( &ping_list_lock );
+    	pthread_mutex_unlock( &traceroute_list_lock );
 
     	writenf( fd, "Error: cannot find route to %s\n", str_ip );
 
@@ -150,18 +150,10 @@ void cli_ping_request( router_t* rtr, int fd, addr_ip_t ip ) {
     }
 
     pthread_cond_signal( &ping_list_cond );
-    pthread_mutex_unlock( &ping_list_lock );
-
-    /* let the client know we sent the ping */
-//    addr.s_addr = ip;
-//    he = gethostbyaddr( &addr, sizeof(addr), AF_INET );
-//    if( he && he->h_name )
-//        writenf( fd, "PING %s (%s)\n", str_ip, he->h_name );
-//    else
-//        writenf( fd, "PING %s\n", str_ip );
+    pthread_mutex_unlock( &traceroute_list_lock );
 }
 
-static void cli_ping_feedback( ping_t* p, bool worked ) {
+static void cli_traceroute_feedback( ping_t* p, bool worked ) {
     char str_ip[STRLEN_IP];
     float msec_passed;
 
@@ -180,7 +172,8 @@ static void cli_ping_feedback( ping_t* p, bool worked ) {
     cli_send_prompt();
 }
 
-void cli_ping_handle_reply( addr_ip_t ip, uint16_t seq ) {
+void cli_traceroute_handle_reply( addr_ip_t ip, packet_icmp_t* icmp ) {
+	const uint16_t seq = ntohs(icmp->seq_num);
 	printf("CLI received a ping rely from %s seq %d\n", quick_ip_to_string(ip), seq); fflush(stdout);
     ping_t* p;
 
@@ -189,7 +182,7 @@ void cli_ping_handle_reply( addr_ip_t ip, uint16_t seq ) {
         return;
 
     /* search the ping_list for a matching request */
-    pthread_mutex_lock( &ping_list_lock );
+    pthread_mutex_lock( &traceroute_list_lock );
     p = ping_list;
     while( p ) {
         if( p->dst_ip == ip ) {
@@ -206,7 +199,7 @@ void cli_ping_handle_reply( addr_ip_t ip, uint16_t seq ) {
                     p->next->prev = p->prev;
 
                 /* tell the client about the reply */
-                cli_ping_feedback( p, TRUE );
+                cli_traceroute_feedback( p, TRUE );
 
                 /* all done with this ping request */
                 free( p );
@@ -221,17 +214,17 @@ void cli_ping_handle_reply( addr_ip_t ip, uint16_t seq ) {
     else if( !p )
         debug_println( "Echo Reply does not match any outstanding request." );
 
-    pthread_mutex_unlock( &ping_list_lock );
+    pthread_mutex_unlock( &traceroute_list_lock );
 }
 
-THREAD_RETURN_TYPE cli_ping_scrubber_main( void* nil ) {
+THREAD_RETURN_TYPE cli_traceroute_scrubber_main( void* nil ) {
     ping_t* p_to_free;
     struct timeval now, timeout;
 
     debug_pthread_init( "Ping Scrubber", "CLI Ping Request Scrubber" );
     pthread_detach( pthread_self() );
 
-    pthread_mutex_lock( &ping_list_lock );
+    pthread_mutex_lock( &traceroute_list_lock );
     while( !cli_is_time_to_shutdown() ) {
         while( ping_list && !cli_is_time_to_shutdown() ) {
             /* remove expired pings */
@@ -245,7 +238,7 @@ THREAD_RETURN_TYPE cli_ping_scrubber_main( void* nil ) {
                                ping_list->expire_time.tv_usec );
 
                 /* let the list know that ping_list has expired */
-                cli_ping_feedback( ping_list, FALSE );
+                cli_traceroute_feedback( ping_list, FALSE );
 
                 p_to_free = ping_list;
                 ping_list = ping_list->next;
@@ -269,16 +262,17 @@ THREAD_RETURN_TYPE cli_ping_scrubber_main( void* nil ) {
             }
 
             /* wait for timeout */
-            pthread_mutex_unlock( &ping_list_lock );
+            pthread_mutex_unlock( &traceroute_list_lock );
             select( 0, NULL, NULL, NULL, &timeout );
-            pthread_mutex_lock( &ping_list_lock );
+            pthread_mutex_lock( &traceroute_list_lock );
         }
 
         /* wait for more work */
-        pthread_cond_wait( &ping_list_cond, &ping_list_lock );
+        pthread_cond_wait( &ping_list_cond, &traceroute_list_lock );
     }
 
     pthread_cond_signal( &ping_scrubber_off_cond );
-    pthread_mutex_unlock( &ping_list_lock );
+    pthread_mutex_unlock( &traceroute_list_lock );
     THREAD_RETURN_NIL;
 }
+

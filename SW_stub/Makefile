@@ -58,7 +58,7 @@ PURIFY= purify ${PFLAGS}
 
 #------------------------------------------------------------------------------
 
-RESTRICTED_CLI_SRCS = cli/cli.c cli/cli_help.c cli/cli_ping.c\
+RESTRICTED_CLI_SRCS = cli/cli.c cli/cli_help.c cli/cli_ping.c cli/cli_trace.c\
                       cli/search_state.c cli/cli_local.c\
                       cli/lex.yy.c cli/y.tab.c
 CLI_SRCS = cli/cli_main.c cli/socket_helper.c $(RESTRICTED_CLI_SRCS) sr_lwtcp_glue.c
@@ -102,7 +102,7 @@ SR_SRCS_BASE =  sr_router.c sr_common.c \
 	        sr_interface.c \
 	        sr_work_queue.c \
 	        arp.c ethernet_packet.c ip.c \
-	        dataqueue.c icmp_type.c globals.c pwospf.c
+	        dataqueue.c stack.c icmp_type.c globals.c pwospf.c djikstra.c
 
 SR_SRCS = $(SR_SRCS_MAIN) $(SR_SRCS_BASE)
 
