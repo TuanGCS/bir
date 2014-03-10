@@ -7,6 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include "sr_common.h"
 #include "common/nf10util.h"
 #include "sr_cpu_extension_nf2.h"
 #include "sr_router.h"
@@ -23,8 +24,8 @@ void register_interface(router_t* router, interface_t * iface, int interface_ind
 	printf("NETFPGA: Assigning register values for interface %d; MAC: %s", interface_index, quick_mac_to_string(&iface->mac));
 	printf("; IP: %s\n", quick_ip_to_string(iface->ip));
 
-	const uint32_t mac_low = iface->mac.octet[0] | iface->mac.octet[1] | iface->mac.octet[2] | iface->mac.octet[3];
-	const uint32_t mac_high = iface->mac.octet[4] | iface->mac.octet[5];
+	const uint32_t mac_low = mac_lo(&iface->mac);
+	const uint32_t mac_high = mac_hi(&iface->mac);
 
 	uint32_t mac_addr_low;
 	uint32_t mac_addr_high;

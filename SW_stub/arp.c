@@ -4,6 +4,7 @@
 
 #include "sr_interface.h"
 #include "sr_integration.h"
+#include "sr_common.h"
 #include "ethernet_packet.h"
 
 #include <stdio.h>
@@ -164,8 +165,10 @@ void hardware_arp_putincache(router_t * router, addr_ip_t ip, addr_mac_t mac, in
 		return;
 	}
 
-	const uint32_t mac_low = mac.octet[0] | mac.octet[1] | mac.octet[2] | mac.octet[3];
-	const uint32_t mac_high = mac.octet[4] |mac.octet[5];
+	const uint32_t mac_low = mac_lo(&mac);
+	const uint32_t mac_high = mac_hi(&mac);
+
+	printf("DEBUG: MAC \n");
 
 	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_IP, ip);
 	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_MAC_HIGH, mac_high);
