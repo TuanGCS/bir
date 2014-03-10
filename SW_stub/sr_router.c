@@ -218,7 +218,7 @@ void router_handle_work(work_t* work) {
 #endif
 
 interface_t* router_lookup_interface_via_ip(router_t* router, addr_ip_t ip) {
-	ip_table_entry_t entry;
+	rtable_entry_t entry;
 	if (ip_longestprefixmatch(&router->ip_table, ip, &entry) >= 0)
 		return entry.interface;
 	else
@@ -322,7 +322,7 @@ int packetinfo_ip_allocate(router_t* router, packet_info_t ** pinfo, int size,
 	(*pinfo)->packet = (byte *) malloc(size);
 	(*pinfo)->router = router;
 
-	ip_table_entry_t entry;
+	rtable_entry_t entry;
 	if (ip_longestprefixmatch(&router->ip_table, dest, &entry) >= 0) {
 		(*pinfo)->interface = entry.interface;
 

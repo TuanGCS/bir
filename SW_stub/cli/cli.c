@@ -295,15 +295,15 @@ void cli_show_ip_intf() {
 
 	int i;
 	for (i = 0; i < table->size; i++) {
-		ip_table_entry_t * entry;
+		rtable_entry_t * entry;
 		int entry_size;
 		if (queue_getidandlock(table, i, (void **) &entry, &entry_size)) {
 
-			assert(entry_size == sizeof(ip_table_entry_t));
+			assert(entry_size == sizeof(rtable_entry_t));
 
 			char entrystr[100];
-			sprintf(entrystr, "%d. IP: %s/%d @ iface %s \n", i,
-					quick_ip_to_string(entry->ip), entry->netmask,
+			sprintf(entrystr, "%d. IP: %s/%d %d @ iface %s \n", i,
+					quick_ip_to_string(entry->subnet), entry->netmask,entry->metric,
 					entry->interface->name);
 
 			queue_unlockid(table, i);

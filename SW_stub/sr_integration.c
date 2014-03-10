@@ -59,9 +59,10 @@ void sr_integ_hw_setup( struct sr_instance* sr ) {
     debug_println( "Performing post-hw setup initialization" );
 
 	// TODO! STATIC IP TABLE REMOVE THIS
-    ip_putintable(&router->ip_table, IP_CONVERT(10,0,1,2), &router->interface[0], 32, FALSE);
-    ip_putintable(&router->ip_table, IP_CONVERT(10,0,2,2), &router->interface[1], 32, FALSE);
-    ip_putintable(&router->ip_table, IP_CONVERT(10,0,3,2), &router->interface[2], 32, FALSE);
+    int i;
+    for(i = 0; i< router->num_interfaces; i++) {
+    	ip_putintable(&router->ip_table, router->interface[i].ip & router->interface[i].subnet_mask, &router->interface[i], router->interface[i].subnet_mask, FALSE, 0, 0);
+    }
 
     // TODO! REGISTER THOSE WITH NETFPGA
 
@@ -163,7 +164,7 @@ void sr_integ_destroy(struct sr_instance* sr) {
  * @return 0 on failure to find a route to dest.
  */
 uint32_t sr_integ_findsrcip(uint32_t dest /* nbo */) {
-	ip_table_entry_t entry;
+	rtable_entry_t entry;
 
 	if (ip_longestprefixmatch(&get_router()->ip_table, dest, &entry) < 0)
 		return 0;

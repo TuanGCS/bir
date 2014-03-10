@@ -26,8 +26,7 @@ void arp_print_cache(dataqueue_t * cache) {
 
 			printf("%d. MAC: %s, IP: %s, timeout %ld \n", i,
 					quick_mac_to_string(&entry->mac),
-					quick_ip_to_string(entry->ip),
-					entry->tv.tv_sec);
+					quick_ip_to_string(entry->ip), entry->tv.tv_sec);
 
 			queue_unlockid(cache, i);
 		}
@@ -44,7 +43,8 @@ int match_mac(addr_mac_t mac1, addr_mac_t mac2) {
 		return 0;
 }
 
-int arp_getcachebymac(dataqueue_t * cache, addr_mac_t mac, arp_cache_entry_t * result) {
+int arp_getcachebymac(dataqueue_t * cache, addr_mac_t mac,
+		arp_cache_entry_t * result) {
 	int i;
 	for (i = 0; i < cache->size; i++) {
 		arp_cache_entry_t * entry;
@@ -65,7 +65,8 @@ int arp_getcachebymac(dataqueue_t * cache, addr_mac_t mac, arp_cache_entry_t * r
 	return -1;
 }
 
-int arp_getcachebyip(dataqueue_t * cache, addr_ip_t ip, arp_cache_entry_t * result) {
+int arp_getcachebyip(dataqueue_t * cache, addr_ip_t ip,
+		arp_cache_entry_t * result) {
 	int i;
 	for (i = 0; i < cache->size; i++) {
 		arp_cache_entry_t * entry;
@@ -87,7 +88,7 @@ int arp_getcachebyip(dataqueue_t * cache, addr_ip_t ip, arp_cache_entry_t * resu
 }
 
 // looks for queued ip packets that are there due to unknown mac match to the ip and forward them
-void process_arpipqueue(dataqueue_t * queue, addr_ip_t ip, addr_mac_t mac) {
+void process_arpipqueue(dataqueue_t * queue, addr_ip_t ip, addr_mac_t mac, router_t * router) {
 	int i;
 	for (i = 0; i < queue->size; i++) {
 		byte * data;
@@ -102,16 +103,33 @@ void process_arpipqueue(dataqueue_t * queue, addr_ip_t ip, addr_mac_t mac) {
 
 			assert(data_size == (entry->len + sizeof(packet_info_t)));
 
-			if (PACKET_CAN_MARSHALL(packet_ip4_t, sizeof(packet_ethernet_t), entry->len)) {
-				packet_ip4_t * ip_packet = PACKET_MARSHALL(packet_ip4_t, entry->packet, sizeof(packet_ethernet_t));
+			if (PACKET_CAN_MARSHALL(packet_ip4_t, sizeof(packet_ethernet_t),
+					entry->len)) {
+				packet_ip4_t * ip_packet = PACKET_MARSHALL(packet_ip4_t,
+						entry->packet, sizeof(packet_ethernet_t));
 
-				if (ip == ip_packet->dst_ip) {
+				rtable_entry_t dest_ip_entry; // memory allocation ;(
+
+				if (ip_longestprefixmatch(&router->ip_table, ip_packet->dst_ip,
+						&dest_ip_entry) >= 0) {
+
+					if (dest_ip_entry.router_ip == 0) {
+						dest_ip_entry.router_ip = ip_packet->dst_ip;
+					}
+
+				} else {
+					printf("TODO");
+				}
+
+				if (ip == dest_ip_entry.router_ip) {
 					// make a copy of the packet
 					byte data_copy[data_size];
 					memcpy(data_copy, data, data_size);
 					packet_info_t * entry_copy = (packet_info_t *) data_copy;
 					entry_copy->packet = &data_copy[sizeof(packet_info_t)];
-					packet_ip4_t * ip_packet_copy = PACKET_MARSHALL(packet_ip4_t, entry_copy->packet, sizeof(packet_ethernet_t));
+					packet_ip4_t * ip_packet_copy = PACKET_MARSHALL(
+							packet_ip4_t, entry_copy->packet,
+							sizeof(packet_ethernet_t));
 
 					queue_unlockidandremove(queue, i); // release queue
 
@@ -129,7 +147,6 @@ void process_arpipqueue(dataqueue_t * queue, addr_ip_t ip, addr_mac_t mac) {
 				fprintf(stderr, "Invalid IP packet in queue!\n");
 			}
 
-
 		}
 	}
 }
@@ -140,7 +157,7 @@ void arp_putincache(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac,
 	arp_cache_entry_t result;
 
 	int id = arp_getcachebymac(cache, mac, &result);
-	if (id  >= 0) {
+	if (id >= 0) {
 		// just the guy with this mac got a new ip
 		result.ip = ip;
 
@@ -155,7 +172,7 @@ void arp_putincache(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac,
 	}
 
 	id = arp_getcachebyip(cache, ip, &result);
-	if (id  >= 0) {
+	if (id >= 0) {
 		// just the guy with this mac got a new ip
 		result.mac = mac;
 
@@ -215,7 +232,8 @@ void arp_onreceive(packet_info_t* pi, packet_arp_t * arp) {
 			&& arp->protocoladdresslength == 4) {
 
 		// check for pending ip packets and process them
-		process_arpipqueue(&pi->router->iparp_buffer, arp->sender_ip, arp->sender_mac);
+		process_arpipqueue(&pi->router->iparp_buffer, arp->sender_ip,
+				arp->sender_mac, pi->router);
 
 		dataqueue_t * cache = &pi->router->arp_cache;
 
@@ -226,13 +244,15 @@ void arp_onreceive(packet_info_t* pi, packet_arp_t * arp) {
 
 			// ARPs to remote subnetworks are send to the gateway address
 			if (arp->target_ip == pi->interface->ip) {
-				arp_putincache(cache, arp->sender_ip, arp->sender_mac, ARP_CACHE_TIMEOUT_REQUEST);
+				arp_putincache(cache, arp->sender_ip, arp->sender_mac,
+				ARP_CACHE_TIMEOUT_REQUEST);
 
 				arp_send(get_sr(), pi->interface, arp, pi, ARP_OP_REPLY,
 						arp->sender_ip, arp->sender_mac, pi->interface->ip,
 						pi->interface->mac);
 			} else {
-				arp_putincache(cache, arp->sender_ip, arp->sender_mac, ARP_CACHE_TIMEOUT_BROADCAST);
+				arp_putincache(cache, arp->sender_ip, arp->sender_mac,
+				ARP_CACHE_TIMEOUT_BROADCAST);
 			}
 
 			break;
@@ -241,7 +261,8 @@ void arp_onreceive(packet_info_t* pi, packet_arp_t * arp) {
 		case ARP_OPCODE_REPLAY: {
 			if (arp->target_ip == pi->interface->ip
 					&& match_mac(arp->target_mac, pi->interface->mac)) {
-				arp_putincache(cache, arp->sender_ip, arp->sender_mac, ARP_CACHE_TIMEOUT_REQUEST);
+				arp_putincache(cache, arp->sender_ip, arp->sender_mac,
+				ARP_CACHE_TIMEOUT_REQUEST);
 				// Push packets from queue?
 			} else {
 				fprintf(stderr, "Invalid ARP Replay from %s!\n",
@@ -284,8 +305,7 @@ void arp_maintain_cache(dataqueue_t * cache) {
 
 				// Check if dynamic entry and if expired
 				if (entry->tv.tv_sec != -1
-						&& difftime(entry->tv.tv_sec, tv_diff.tv_sec)
-							<= 0) {
+						&& difftime(entry->tv.tv_sec, tv_diff.tv_sec) <= 0) {
 					// REMOVE
 					queue_unlockidandremove(cache, i);
 				} else
@@ -363,8 +383,7 @@ void arp_remove_static_mac(packet_info_t* pi, addr_mac_t mac) {
 
 			assert(entry_size == sizeof(arp_cache_entry_t));
 
-			if (match_mac(entry->mac, mac)
-							&& entry->tv.tv_sec == -1) {
+			if (match_mac(entry->mac, mac) && entry->tv.tv_sec == -1) {
 				// REMOVE
 				queue_unlockidandremove(cache, i);
 			} else
@@ -415,17 +434,20 @@ void arp_clear_all(dataqueue_t * cache) {
 	queue_purge(cache);
 }
 
-void arp_send_request(router_t* router, interface_t* interface, addr_ip_t target_ip) {
+void arp_send_request(router_t* router, interface_t* interface,
+		addr_ip_t target_ip) {
 
 	packet_info_t pi;
 	pi.router = router;
 	pi.packet = (byte *) malloc(
-			sizeof(packet_ethernet_t) + sizeof(packet_arp_t));;
+			sizeof(packet_ethernet_t) + sizeof(packet_arp_t));
+	;
 	pi.len = sizeof(packet_ethernet_t) + sizeof(packet_arp_t);
 	pi.interface = interface;
 
 	packet_arp_t* arp = (packet_arp_t *) &pi.packet[sizeof(packet_ethernet_t)];
-	addr_mac_t mac_broadcast = {.octet = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF}};
+	addr_mac_t mac_broadcast =
+			{ .octet = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF } };
 
 	arp_send(get_sr(), pi.interface, arp, &pi, ARP_OPCODE_REQUEST, target_ip,
 			mac_broadcast, pi.interface->ip, pi.interface->mac);

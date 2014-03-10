@@ -214,7 +214,7 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 
 		debug_println("An already existing neighbour sent a new PWOSPF LINK update (%d entries)!", payload_count);
 
-		//djikstra_recompute(pi->router);
+		djikstra_recompute(pi->router);
 		send_pwospf_lsa_packet(pi->router);
 
 		return;
@@ -251,7 +251,7 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 	queue_unlockall(neighbours);
 
 	// recompute and tell everybody our table has changed
-	//djikstra_recompute(pi->router);
+	djikstra_recompute(pi->router);
 	send_pwospf_lsa_packet(pi->router);
 }
 

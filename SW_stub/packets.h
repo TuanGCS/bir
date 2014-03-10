@@ -86,12 +86,14 @@ typedef struct PACKED packet_ip4 {
 	addr_ip_t dst_ip;
 } packet_ip4_t;
 
-typedef struct ip_table_entry {
-	addr_ip_t ip;
+typedef struct rtable_entry {
+	addr_ip_t router_ip;
+	addr_ip_t subnet;
+	addr_ip_t netmask;
 	interface_t* interface;
-	int netmask;
+	int metric;
 	bool dynamic;
-} ip_table_entry_t;
+} rtable_entry_t;
 
 typedef struct PACKED pwospf_packet {
 	uint8_t version;
@@ -131,6 +133,11 @@ typedef struct PACKED pwospf_lsa {
 	uint32_t router_id;
 } pwospf_lsa_t;
 
+typedef struct PACKED pwospf_lsa_dj {
+	pwospf_lsa_t lsa;
+	addr_ip_t router_ip;
+} pwospf_lsa_dj_t;
+
 typedef struct pwospf_list_entry {
 	uint32_t neighbour_id;
 	addr_ip_t neighbour_ip;
@@ -146,16 +153,14 @@ typedef struct pwospf_list_entry {
 	struct timeval lsu_timestamp;
 } pwospf_list_entry_t;
 
-typedef struct PACKED rtable_entry {
-	uint32_t subnet;
-	uint32_t netmask;
-	uint8_t metric;
-	interface_t * interface;
-} rtable_entry_t;
-
 typedef struct PACKED d_link {
 	uint32_t subnet;
 	uint32_t netmask;
 } d_link_t;
+
+typedef struct PACKED djikstra_entry {
+	interface_t* intf;
+	int metric;
+} djikstra_entry_t;
 
 #endif
