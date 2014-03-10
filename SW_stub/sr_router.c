@@ -254,7 +254,7 @@ void router_add_interface(router_t* router, const char* name, addr_ip_t ip,
 	intf->helloint = HELLOINT;
 	queue_init(&intf->neighbours);
 
-	arp_putincache(&router->arp_cache, ip, mac, ARP_CACHE_TIMEOUT_STATIC);
+	arp_putincache(router, &router->arp_cache, ip, mac, ARP_CACHE_TIMEOUT_STATIC);
 
 #ifdef MININET_MODE
 	// open a socket to talk to the hw on this interface
