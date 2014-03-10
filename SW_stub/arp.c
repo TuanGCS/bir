@@ -4,6 +4,7 @@
 
 #include "sr_interface.h"
 #include "sr_integration.h"
+#include "sr_common.h"
 #include "ethernet_packet.h"
 
 #include <stdio.h>
@@ -13,6 +14,12 @@
 #include <string.h>
 #include "packets.h"
 #include "ip.h"
+
+#ifdef _CPUMODE_
+#include "common/nf10util.h"
+#include "reg_defines.h"
+#endif
+
 
 void arp_print_cache(dataqueue_t * cache) {
 	int i;
@@ -151,8 +158,45 @@ void process_arpipqueue(dataqueue_t * queue, addr_ip_t ip, addr_mac_t mac, route
 	}
 }
 
-void arp_putincache(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac,
-		time_t timeout) {
+#ifdef _CPUMODE_
+void hardware_arp_putincache(router_t * router, addr_ip_t ip, addr_mac_t mac, int id) {
+	if (id < 0 || id > 31) {
+		fprintf(stderr, "ARP table is bigger than 32 addresses! This is not supported by hardware!\n");
+		return;
+	}
+
+	const uint32_t mac_low = mac_lo(&mac);
+	const uint32_t mac_high = mac_hi(&mac);
+
+	printf("DEBUG: MAC \n");
+
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_IP, ip);
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_MAC_HIGH, mac_high);
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_MAC_LOW, mac_low);
+
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_WR_ADDR, id);
+
+
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_IP, 0);
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_MAC_HIGH, 0);
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_MAC_LOW, 0);
+
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_RD_ADDR, id);
+
+	uint32_t read_ip, read_mac_low, read_mac_high;
+	readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_IP, &read_ip);
+	readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_MAC_HIGH, &read_mac_high);
+	readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_MAC_LOW, &read_mac_low);
+
+	assert (read_ip == ip);
+	assert (mac_low == read_mac_low);
+	assert (mac_high == read_mac_high);
+}
+#endif
+
+
+
+void arp_putincache(router_t* router, dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac, time_t timeout) {
 
 	arp_cache_entry_t result;
 
@@ -168,6 +212,7 @@ void arp_putincache(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac,
 		result.tv.tv_sec = timeout;
 
 		queue_replace(cache, &result, sizeof(arp_cache_entry_t), id);
+		hardware_arp_putincache(router, ip, mac, id);
 		return;
 	}
 
@@ -183,7 +228,7 @@ void arp_putincache(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac,
 		result.tv.tv_sec = timeout;
 
 		queue_replace(cache, &result, sizeof(arp_cache_entry_t), id);
-
+		hardware_arp_putincache(router, ip, mac, id);
 		return;
 	}
 
@@ -197,8 +242,7 @@ void arp_putincache(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac,
 	result.tv.tv_sec = timeout;
 
 	queue_add(cache, &result, sizeof(arp_cache_entry_t));
-
-	//arp_print_cache(cache);
+	hardware_arp_putincache(router, ip, mac, queue_getcurrentsize(cache));
 }
 
 /* NOTE! After using arp_send, the original packet will be destroyed! Don't try to access fields in arp after the call of this function! */
@@ -244,14 +288,14 @@ void arp_onreceive(packet_info_t* pi, packet_arp_t * arp) {
 
 			// ARPs to remote subnetworks are send to the gateway address
 			if (arp->target_ip == pi->interface->ip) {
-				arp_putincache(cache, arp->sender_ip, arp->sender_mac,
+				arp_putincache(pi->router, cache, arp->sender_ip, arp->sender_mac,
 				ARP_CACHE_TIMEOUT_REQUEST);
 
 				arp_send(get_sr(), pi->interface, arp, pi, ARP_OP_REPLY,
 						arp->sender_ip, arp->sender_mac, pi->interface->ip,
 						pi->interface->mac);
 			} else {
-				arp_putincache(cache, arp->sender_ip, arp->sender_mac,
+				arp_putincache(pi->router, cache, arp->sender_ip, arp->sender_mac,
 				ARP_CACHE_TIMEOUT_BROADCAST);
 			}
 
@@ -261,7 +305,7 @@ void arp_onreceive(packet_info_t* pi, packet_arp_t * arp) {
 		case ARP_OPCODE_REPLAY: {
 			if (arp->target_ip == pi->interface->ip
 					&& match_mac(arp->target_mac, pi->interface->mac)) {
-				arp_putincache(cache, arp->sender_ip, arp->sender_mac,
+				arp_putincache(pi->router, cache, arp->sender_ip, arp->sender_mac,
 				ARP_CACHE_TIMEOUT_REQUEST);
 				// Push packets from queue?
 			} else {
@@ -282,7 +326,7 @@ void arp_onreceive(packet_info_t* pi, packet_arp_t * arp) {
 }
 
 // probably would require to change the argument to a router instance because of threading
-void arp_maintain_cache(dataqueue_t * cache) {
+void arp_maintain_cache(router_t * router, dataqueue_t * cache) {
 
 	int i;
 	struct timespec timeout, ts;
@@ -322,13 +366,13 @@ void arp_maintain_cache(dataqueue_t * cache) {
 }
 
 // Add a static entry given IP, MAC and Interface
-void arp_add_static(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac) {
+void arp_add_static(router_t * router, dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac) {
 
-	arp_putincache(cache, ip, mac, ARP_CACHE_TIMEOUT_STATIC);
+	arp_putincache(router, cache, ip, mac, ARP_CACHE_TIMEOUT_STATIC);
 
 }
 
-void arp_remove_ip_mac(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac) {
+void arp_remove_ip_mac(router_t * router, dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac) {
 
 	int i;
 	for (i = 0; i < cache->size; i++) {
@@ -349,7 +393,7 @@ void arp_remove_ip_mac(dataqueue_t * cache, addr_ip_t ip, addr_mac_t mac) {
 }
 
 // Remove static entries based on IP address
-void arp_remove_static_ip(packet_info_t* pi, addr_ip_t ip) {
+void arp_remove_static_ip(router_t * router, packet_info_t* pi, addr_ip_t ip) {
 	dataqueue_t * cache = &pi->router->arp_cache;
 
 	int i;
@@ -394,7 +438,7 @@ void arp_remove_static_mac(packet_info_t* pi, addr_mac_t mac) {
 }
 
 // Delete all static entries in the ARP cache
-void arp_clear_static(dataqueue_t * cache) {
+void arp_clear_static(router_t * router, dataqueue_t * cache) {
 	int i;
 	for (i = 0; i < cache->size; i++) {
 		arp_cache_entry_t * entry;
@@ -412,7 +456,7 @@ void arp_clear_static(dataqueue_t * cache) {
 	}
 }
 
-void arp_clear_dynamic(dataqueue_t * cache) {
+void arp_clear_dynamic(router_t * router, dataqueue_t * cache) {
 	int i;
 	for (i = 0; i < cache->size; i++) {
 		arp_cache_entry_t * entry;
@@ -430,7 +474,7 @@ void arp_clear_dynamic(dataqueue_t * cache) {
 	}
 }
 
-void arp_clear_all(dataqueue_t * cache) {
+void arp_clear_all(router_t * router, dataqueue_t * cache) {
 	queue_purge(cache);
 }
 

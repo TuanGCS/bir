@@ -2,6 +2,7 @@
 #define PACKETS_H_
 
 #include <stdint.h>
+#include <sys/time.h>
 #include "sr_interface.h"
 #include "sr_common.h"
 

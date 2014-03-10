@@ -18,7 +18,7 @@
 					<folderInfo id="cdt.managedbuild.toolchain.gnu.base.1282996641.2004758588" name="/" resourcePath="">
 						<toolChain id="cdt.managedbuild.toolchain.gnu.base.178002623" name="cdt.managedbuild.toolchain.gnu.base" superClass="cdt.managedbuild.toolchain.gnu.base">
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="cdt.managedbuild.target.gnu.platform.base.1897295389" name="Debug Platform" osList="linux,hpux,aix,qnx" superClass="cdt.managedbuild.target.gnu.platform.base"/>
-							<builder id="cdt.managedbuild.target.gnu.builder.base.890269483" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.target.gnu.builder.base">
+							<builder id="cdt.managedbuild.target.gnu.builder.base.890269483" incrementalBuildTarget="netfpga" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.target.gnu.builder.base">
 								<outputEntries>
 									<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="outputPath" name=""/>
 								</outputEntries>
@@ -31,7 +31,7 @@
 									<listOptionValue builtIn="false" value="/usr/include/"/>
 								</option>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.366401031" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
-									<listOptionValue builtIn="false" value="MININET_MODE"/>
+									<listOptionValue builtIn="false" value="_CPUMODE_"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1827797085" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
@@ -69,10 +69,10 @@
 	<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 	<storageModule moduleId="scannerConfiguration">
 		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-		<scannerConfigBuildInfo instanceId="0.529920079">
+		<scannerConfigBuildInfo instanceId="cdt.managedbuild.toolchain.gnu.base.1282996641;cdt.managedbuild.toolchain.gnu.base.1282996641.2004758588;cdt.managedbuild.tool.gnu.c.compiler.base.661578715;cdt.managedbuild.tool.gnu.c.compiler.input.1827797085">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
 		</scannerConfigBuildInfo>
-		<scannerConfigBuildInfo instanceId="cdt.managedbuild.toolchain.gnu.base.1282996641;cdt.managedbuild.toolchain.gnu.base.1282996641.2004758588;cdt.managedbuild.tool.gnu.c.compiler.base.661578715;cdt.managedbuild.tool.gnu.c.compiler.input.1827797085">
+		<scannerConfigBuildInfo instanceId="0.529920079">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
 		</scannerConfigBuildInfo>
 	</storageModule>

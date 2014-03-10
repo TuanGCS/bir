@@ -7,6 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include "sr_common.h"
 #include "common/nf10util.h"
 #include "sr_cpu_extension_nf2.h"
 #include "sr_router.h"
@@ -19,12 +20,32 @@
 
 #ifdef _CPUMODE_
 #include "reg_defines.h"
+
+void register_ownip(router_t* router, addr_ip_t  ip) {
+	static int owniptableid = 0;
+
+	assert (owniptableid < 32);
+
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_IP, ip);
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_WR_ADDR, owniptableid);
+
+	uint32_t read_ip;
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_IP, 0);
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_RD_ADDR, owniptableid);
+	readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_IP, &read_ip);
+
+	assert (read_ip == ip);
+
+	owniptableid++;
+}
+
 void register_interface(router_t* router, interface_t * iface, int interface_index) {
+
 	printf("NETFPGA: Assigning register values for interface %d; MAC: %s", interface_index, quick_mac_to_string(&iface->mac));
 	printf("; IP: %s\n", quick_ip_to_string(iface->ip));
 
-	const uint32_t mac_low = iface->mac.octet[0] | iface->mac.octet[1] | iface->mac.octet[2] | iface->mac.octet[3];
-	const uint32_t mac_high = iface->mac.octet[4] | iface->mac.octet[5];
+	const uint32_t mac_low = mac_lo(&iface->mac);
+	const uint32_t mac_high = mac_hi(&iface->mac);
 
 	uint32_t mac_addr_low;
 	uint32_t mac_addr_high;
@@ -60,15 +81,7 @@ void register_interface(router_t* router, interface_t * iface, int interface_ind
 	assert(mac_low == read_mac_low);
 	assert(mac_high == read_mac_high);
 
-	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_IP, iface->ip);
-	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_WR_ADDR, interface_index);
-
-	uint32_t read_ip;
-	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_IP, 0);
-	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_RD_ADDR, interface_index);
-	readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_IP, &read_ip);
-
-	assert (read_ip == iface->ip);
+	register_ownip(router, iface->ip);
 }
 #endif
 
@@ -86,6 +99,9 @@ void router_init(router_t* router) {
 		pause.tv_nsec = 5000 * 1000; /* 5ms */
 		nanosleep( &pause, NULL );
 	}
+
+	// define all IP packet destinations that will be routed to software here
+	register_ownip(router, IP_CONVERT(244,0,0,5));
 #endif
 
 	router->is_router_running = 1;
@@ -254,7 +270,7 @@ void router_add_interface(router_t* router, const char* name, addr_ip_t ip,
 	intf->helloint = HELLOINT;
 	queue_init(&intf->neighbours);
 
-	arp_putincache(&router->arp_cache, ip, mac, ARP_CACHE_TIMEOUT_STATIC);
+	arp_putincache(router, &router->arp_cache, ip, mac, ARP_CACHE_TIMEOUT_STATIC);
 
 #ifdef MININET_MODE
 	// open a socket to talk to the hw on this interface

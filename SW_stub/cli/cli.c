@@ -465,27 +465,27 @@ void cli_show_vns_vhost() {
 void cli_manip_ip_arp_add( gross_arp_t* data ) {
 	dataqueue_t * cache = &ROUTER->arp_cache;
 
-	arp_add_static(cache, data->ip, data->mac);
+	arp_add_static(ROUTER, cache, data->ip, data->mac);
 	cli_show_ip_arp();
 }
 
 void cli_manip_ip_arp_del( gross_arp_t* data ) {
 	dataqueue_t * cache = &ROUTER->arp_cache;
 
-	arp_remove_ip_mac(cache, data->ip, data->mac);
+	arp_remove_ip_mac(ROUTER, cache, data->ip, data->mac);
 	cli_show_ip_arp();
 }
 
 void cli_manip_ip_arp_purge_all() {
-	arp_clear_all(&ROUTER->arp_cache);
+	arp_clear_all(ROUTER, &ROUTER->arp_cache);
 }
 
 void cli_manip_ip_arp_purge_dyn() {
-	arp_clear_dynamic(&ROUTER->arp_cache);
+	arp_clear_dynamic(ROUTER, &ROUTER->arp_cache);
 }
 
 void cli_manip_ip_arp_purge_sta() {
-	arp_clear_static(&ROUTER->arp_cache);
+	arp_clear_static(ROUTER, &ROUTER->arp_cache);
 }
 
 void cli_manip_ip_intf_set( gross_intf_t* data ) {
