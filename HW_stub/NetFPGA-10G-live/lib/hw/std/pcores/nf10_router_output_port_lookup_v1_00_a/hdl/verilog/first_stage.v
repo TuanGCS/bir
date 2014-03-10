@@ -262,71 +262,6 @@ module first_stage
   reg header;
   reg cpu_hit;
 
-  always@(posedge AXI_ACLK)
-  begin
-     M_AXIS_TUSER1 = M_AXIS_TUSER0;
-     if(~AXI_RESETN) begin
-	bad_ttl_count <= 0;
-	ver_count <= 0;
-	header <= 0;
-	cpu_hit = 0;
-	non_ip_count <= 0;
-     end
-     else if(reset == 1)
-     begin
-	bad_ttl_count <= 0;
-	ver_count <= 0;
-	//header <= 0;
-	non_ip_count <= 0;
-     end
-     else if(header == 0 & M_AXIS_TREADY & M_AXIS_TVALID0) begin
-	cpu_hit = 0;
-	header <= 1;
-	if(M_AXIS_TDATA0[79:72] < 1) // Check TTL
-	begin
-	  cpu_hit = 1;
-	  bad_ttl_count <= bad_ttl_count + 1;
-	end
-	if(M_AXIS_TDATA0[143:140] != 4'd4 )
-	begin
-	  cpu_hit = 1;
-	  ver_count <= ver_count + 1;
-	end
-	if(M_AXIS_TDATA0[159:144] != 16'h0800)	
-	begin
-	  cpu_hit = 1;
-	  non_ip_count <= non_ip_count + 1;
-	end
-	
-	if(cpu_hit)
-	begin
-          if(M_AXIS_TUSER0[SRC_PORT_POS])   M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000010;
-          if(M_AXIS_TUSER0[SRC_PORT_POS+2]) M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] = 8'b00001000;
-          if(M_AXIS_TUSER0[SRC_PORT_POS+4]) M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] = 8'b00100000;
-          if(M_AXIS_TUSER0[SRC_PORT_POS+6]) M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000000;
-	end
-	cpu_hit = 0;
-    end
-/*
-    else if(header == 1 & !M_AXIS_TLAST0 & M_AXIS_TREADY & M_AXIS_TVALID0)
-    begin
-	if(cpu_hit)
-	begin
-          if(M_AXIS_TUSER0[SRC_PORT_POS]) M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000010;
-          if(M_AXIS_TUSER0[SRC_PORT_POS+2]) M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] = 8'b00001000;
-          if(M_AXIS_TUSER0[SRC_PORT_POS+4]) M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] = 8'b00100000;
-          if(M_AXIS_TUSER0[SRC_PORT_POS+6]) M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000000;
-	end
-    end 	 
-*/
-    else if(header == 1 & M_AXIS_TLAST0 & M_AXIS_TREADY & M_AXIS_TVALID0)
-    begin
-      header <= 0;
-      cpu_hit = 0;
-    end 
-  end
-
-
   reg header1;	
   reg [31:0] ip;
   reg [31:0] ip_data_check;
@@ -388,4 +323,60 @@ module first_stage
 
 
 endmodule
+
+
+
+/*
+  always@(posedge AXI_ACLK)
+  begin
+     M_AXIS_TUSER1 = M_AXIS_TUSER0;
+     if(~AXI_RESETN) begin
+	bad_ttl_count <= 0;
+	ver_count <= 0;
+	header <= 0;
+	cpu_hit = 0;
+	non_ip_count <= 0;
+     end
+     else if(reset == 1)
+     begin
+	bad_ttl_count <= 0;
+	ver_count <= 0;
+	//header <= 0;
+	non_ip_count <= 0;
+     end
+     else if(header == 0 & M_AXIS_TREADY & M_AXIS_TVALID0) begin
+	cpu_hit = 0;
+	header <= 1;
+	if(M_AXIS_TDATA0[79:72] < 1) // Check TTL
+	begin
+	  cpu_hit = 1;
+	  bad_ttl_count <= bad_ttl_count + 1;
+	end
+	if(M_AXIS_TDATA0[143:140] != 4'd4 )
+	begin
+	  cpu_hit = 1;
+	  ver_count <= ver_count + 1;
+	end
+	if(M_AXIS_TDATA0[159:144] != 16'h0800)	
+	begin
+	  cpu_hit = 1;
+	  non_ip_count <= non_ip_count + 1;
+	end
+	
+	if(cpu_hit)
+	begin
+          if(M_AXIS_TUSER0[SRC_PORT_POS])   M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000010;
+          if(M_AXIS_TUSER0[SRC_PORT_POS+2]) M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] = 8'b00001000;
+          if(M_AXIS_TUSER0[SRC_PORT_POS+4]) M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] = 8'b00100000;
+          if(M_AXIS_TUSER0[SRC_PORT_POS+6]) M_AXIS_TUSER1[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000000;
+	end
+	cpu_hit = 0;
+    end
+   else if(header == 1 & M_AXIS_TLAST0 & M_AXIS_TREADY & M_AXIS_TVALID0)
+    begin
+      header <= 0;
+      cpu_hit = 0;
+    end 
+  end
+*/
 

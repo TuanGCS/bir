@@ -1,6 +1,6 @@
 
 
-module checksum_ttl
+module ip_addr_checksum_delay
 #(
     parameter C_S_AXI_DATA_WIDTH = 32,
     parameter C_S_AXI_ADDR_WIDTH = 32,
@@ -23,7 +23,7 @@ module checksum_ttl
     // Master Stream Ports (interface to data path)
     output [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA,
     output [((C_M_AXIS_DATA_WIDTH/8))-1:0]M_AXIS_TSTRB,
-    output reg [C_M_AXIS_TUSER_WIDTH-1:0]M_AXIS_TUSER,
+    output [C_M_AXIS_TUSER_WIDTH-1:0]M_AXIS_TUSER,
     output 				M_AXIS_TVALID,
     input  				M_AXIS_TREADY,
     output				M_AXIS_TLAST,
@@ -34,7 +34,8 @@ module checksum_ttl
     input [C_S_AXIS_TUSER_WIDTH-1:0] 	S_AXIS_TUSER,
     input  				S_AXIS_TVALID,
     output 				S_AXIS_TREADY,
-    input  				S_AXIS_TLAST
+    input  				S_AXIS_TLAST,
+    output reg	[15:0] low_ip_addr
 /*
     output reg [C_S_AXI_DATA_WIDTH-1:0] ipv4_count,
     output reg [C_S_AXI_DATA_WIDTH-1:0] arp_count,
@@ -53,7 +54,7 @@ module checksum_ttl
            .MAX_DEPTH_BITS(2))
       input_fifo
         (// Outputs
-         .dout                           ({M_AXIS_TLAST, M_AXIS_TUSER0, M_AXIS_TSTRB, M_AXIS_TDATA}),
+         .dout                           ({M_AXIS_TLAST, M_AXIS_TUSER, M_AXIS_TSTRB, M_AXIS_TDATA}),
          .full                           (),
          .nearly_full                    (in_fifo_nearly_full),
          .prog_full                      (),
@@ -69,86 +70,42 @@ module checksum_ttl
    assign M_AXIS_TVALID = !in_fifo_empty;
    assign S_AXIS_TREADY = !in_fifo_nearly_full;
 
-/*
- always@(posedge AXI_ACLK)
+  reg [1:0] header , header_next;
+  
+  always@* //(posedge AXI_ACLK)
   begin
-    M_AXIS_TDATA  <= M_AXIS_TDATA0;
-    M_AXIS_TSTRB  <= M_AXIS_TSTRB0;
-    // M_AXIS_TUSER1  <= M_AXIS_TUSER0;
-    M_AXIS_TVALID <= M_AXIS_TVALID0;
-    M_AXIS_TLAST  <= M_AXIS_TLAST0;
+     header_next = header;
+     if(header == 2'd0 & M_AXIS_TVALID & M_AXIS_TREADY) begin
+	header_next = 1;
+     end
+     else if(header == 2'd1 & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY)
+     begin
+	header_next = 2;
+        low_ip_addr = M_AXIS_TDATA[255:240];
+     end
+     else if(header == 2'd1 & M_AXIS_TVALID & M_AXIS_TLAST & M_AXIS_TREADY)
+     begin
+	header_next = 0;
+        low_ip_addr = M_AXIS_TDATA[255:240];
+     end
+     else if(header == 2'd2 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
+     begin
+        header_next = 0;
+ //       low_ip_addr = 16'd0;
+     end 
   end
-*/
-  reg [31:0] reset, bad_ttl_count_next, non_ip_count_next, ver_count_next;
-  reg header_next;
-  reg cpu_hit;
-  reg [31:0] bad_ttl_count, non_ip_count, ver_count;
-  reg header;
+
 
   always@(posedge AXI_ACLK)
   begin
      if(~AXI_RESETN) begin
-	bad_ttl_count <= 0;
-	ver_count <= 0;
 	header <= 0;
-	non_ip_count <= 0;
-     end
-     else if(reset == 1)
-     begin
-	bad_ttl_count <= 0;
-	ver_count <= 0;
-	header <= header_next;
-	non_ip_count <= 0;
      end
      else
      begin
-	bad_ttl_count <= bad_ttl_count_next;
-	ver_count <= ver_count_next;
 	header <= header_next;
-	non_ip_count <= non_ip_count_next;
      end
   end
-
-  always@* //(posedge AXI_ACLK)
-  begin
-     header_next = header;
-     M_AXIS_TUSER = M_AXIS_TUSER0;
-     if(header == 0 & M_AXIS_TVALID) begin
-	cpu_hit = 0;
-	header_next = 1;
-	if(M_AXIS_TDATA[79:72] < 1) // Check TTL
-	begin
-	  cpu_hit = 1;
-	  bad_ttl_count_next = bad_ttl_count_next + 1;
-	end
-	if(M_AXIS_TDATA[143:140] != 4'd4 )
-	begin
-	  cpu_hit = 1;
-	  ver_count_next = ver_count_next + 1;
-	end
-	if(M_AXIS_TDATA[159:144] != 16'h0800)	
-	begin
-	  cpu_hit = 1;
-	  non_ip_count_next = non_ip_count_next + 1;
-	end
-	
-	if(cpu_hit)
-	begin
-          if(M_AXIS_TUSER0[SRC_PORT_POS])   M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000010;
-          if(M_AXIS_TUSER0[SRC_PORT_POS+2]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00001000;
-          if(M_AXIS_TUSER0[SRC_PORT_POS+4]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00100000;
-          if(M_AXIS_TUSER0[SRC_PORT_POS+6]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000000;
-	end
-	cpu_hit = 0;
-    end
-    else if(header == 1 & M_AXIS_TLAST & M_AXIS_TVALID)
-    begin
-      header_next = 0;
-      cpu_hit = 0;
-    end 
-  end
-
-
 
 endmodule
 

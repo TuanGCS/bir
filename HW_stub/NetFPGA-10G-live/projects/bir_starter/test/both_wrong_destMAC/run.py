@@ -68,6 +68,7 @@ if not isHW():
     nftest_barrier()
     simReg.regDelay(1000)
 
+#nftest_barrier()
 # Read the counters
 if isHW():
     rres1=nftest_regread_expect(XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_PKT_DROPPED_WRONG_DST_MAC(), 60)
