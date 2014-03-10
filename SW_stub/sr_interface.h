@@ -27,6 +27,11 @@ typedef struct {
 #   define INTF1 0x08
 #   define INTF2 0x20
 #   define INTF3 0x80
+    byte hw_oq;
+#   define OUT_INTF0 0x01
+#   define OUT_INTF1 0x04
+#   define OUT_INTF2 0x10
+#   define OUT_INTF3 0x40
 #endif /* _CPUMODE_ */
 #if defined MININET_MODE
 #   define PREFIX_LENGTH 3   /* length of "rx-" prefix in bytes */

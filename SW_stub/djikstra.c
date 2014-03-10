@@ -14,6 +14,54 @@
 
 dataqueue_t rtable;
 
+#ifdef _CPUMODE_
+#include "common/nf10util.h"
+#include "reg_defines.h"
+
+void update_hardwarearp(router_t * router, dataqueue_t * table) {
+	int i;
+	for (i = 0; i < table->size; i++) {
+		rtable_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(table, i, (void **) &entry, &entry_size)) {
+
+			assert(entry_size == sizeof(rtable_entry_t));
+
+			if (i < 32) {
+
+				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP, entry->subnet);
+				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP_MASK, entry->netmask);
+				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_NEXT_HOP_IP, entry->router_ip);
+				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_OQ, entry->interface->hw_oq);
+
+				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_WR_ADDR, i);
+
+				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP, 0);
+				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP_MASK, 0);
+				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_NEXT_HOP_IP, 0);
+				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_OQ, 0);
+
+				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_RD_ADDR, i);
+
+				uint32_t read_ip, read_ip_mask, read_next_hop_ip, read_lpm_oq;
+				readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP, &read_ip);
+				readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP_MASK, &read_ip_mask);
+				readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_NEXT_HOP_IP, &read_next_hop_ip);
+				readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_OQ, &read_lpm_oq);
+
+				assert (read_ip == entry->subnet);
+				assert (read_ip_mask == entry->netmask);
+				assert (read_next_hop_ip == entry->router_ip);
+				assert (read_lpm_oq == entry->interface->hw_oq);
+			} else
+				fprintf(stderr, "Longest Prefix Match table is overflowing and some values will not be written to hardware!\n");
+			queue_unlockid(table, i);
+		}
+	}
+
+}
+#endif
+
 int minDistance(int dist[], bool sptSet[], int V) {
 	int min = INT_MAX, min_index;
 
@@ -333,5 +381,9 @@ void djikstra_recompute(router_t * router) {
 
 	queue_free(topology);
 	queue_free(subnets);
+
+#ifdef _CPUMODE_
+	update_hardwarearp(router, &router->ip_table);
+#endif
 }
 

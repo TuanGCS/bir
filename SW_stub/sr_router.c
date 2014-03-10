@@ -302,23 +302,28 @@ void router_add_interface(router_t* router, const char* name, addr_ip_t ip,
 	if (strcmp(name + PREFIX_LENGTH, "eth0") == 0) {
 		ifaceid = 0;
 		intf->hw_id = INTF0;
+		intf->hw_oq = OUT_INTF0;
 		strcpy(intf->name, "nf0");
 	} else if (strcmp(name + PREFIX_LENGTH, "eth1") == 0) {
 		ifaceid = 1;
 		intf->hw_id = INTF1;
+		intf->hw_oq = OUT_INTF1;
 		strcpy(intf->name, "nf1");
 	} else if (strcmp(name + PREFIX_LENGTH, "eth2") == 0) {
 		ifaceid = 2;
 		intf->hw_id = INTF2;
+		intf->hw_oq = OUT_INTF2;
 		strcpy(intf->name, "nf2");
 	} else if (strcmp(name + PREFIX_LENGTH, "eth3") == 0) {
 		ifaceid = 3;
 		intf->hw_id = INTF3;
+		intf->hw_oq = OUT_INTF3;
 		strcpy(intf->name, "nf3");
 	} else {
 		debug_println(
 				"Unknown interface name: %s. Setting hw_id to interface number.\n",
 				name);
+		intf->hw_oq = router->num_interfaces;
 		intf->hw_id = router->num_interfaces;
 	}
 
