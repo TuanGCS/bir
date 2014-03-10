@@ -21,9 +21,9 @@ module arp
     input 				AXI_RESETN,
 
     // Master Stream Ports (interface to data path)
-    output [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA,
+    output reg[C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA,
     output [((C_M_AXIS_DATA_WIDTH/8))-1:0]M_AXIS_TSTRB,
-    output [C_M_AXIS_TUSER_WIDTH-1:0]M_AXIS_TUSER,
+    output reg[C_M_AXIS_TUSER_WIDTH-1:0]M_AXIS_TUSER,
     output 				M_AXIS_TVALID,
     input  				M_AXIS_TREADY,
     output 				M_AXIS_TLAST,
@@ -44,13 +44,25 @@ module arp
     input 	[C_S_AXI_DATA_WIDTH*3-1:0] tbl_wr_data,      // Value to write to table
     output reg 	[C_S_AXI_DATA_WIDTH*3-1:0] tbl_rd_data,      // Value in table
     output reg tbl_wr_ack,       // Pulses hi on ACK
-    output reg tbl_rd_ack      // Pulses hi on ACK
+    output reg tbl_rd_ack,      // Pulses hi on ACK
+    input arp_lookup,
+    input [31:0] nh_reg,
+    input [31:0] oq_reg,
+    input [C_S_AXI_DATA_WIDTH-1:0] mac0_low,
+    input [C_S_AXI_DATA_WIDTH-1:0] mac0_high,
+    input [C_S_AXI_DATA_WIDTH-1:0] mac1_low,
+    input [C_S_AXI_DATA_WIDTH-1:0] mac1_high,
+    input [C_S_AXI_DATA_WIDTH-1:0] mac2_low,
+    input [C_S_AXI_DATA_WIDTH-1:0] mac2_high,
+    input [C_S_AXI_DATA_WIDTH-1:0] mac3_low,
+    input [C_S_AXI_DATA_WIDTH-1:0] mac3_high
 /*
     output reg [C_S_AXI_DATA_WIDTH-1:0] ipv4_count,
     output reg [C_S_AXI_DATA_WIDTH-1:0] arp_count,
     output reg [C_S_AXI_DATA_WIDTH-1:0] ospf_count
- */
+*/
 );
+
 
     reg	[C_S_AXI_DATA_WIDTH*3-1:0] arp_table [31:0];      // Value in table
 
@@ -76,24 +88,19 @@ module arp
     else tbl_rd_ack <= 0; 
   end
 
-//    wire [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA0;
-//    wire [((C_M_AXIS_DATA_WIDTH/8))-1:0] M_AXIS_TSTRB0;
-//    wire [C_M_AXIS_TUSER_WIDTH-1:0]      M_AXIS_TUSER0;
-//    wire 				M_AXIS_TVALID0;
-//    wire 				M_AXIS_TLAST0;
-
-	always@(posedge AXI_ACLK)
-	begin
-		arp_miss_count <= 32'haaaa5555;
-
-	end
+  wire [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA0 ;
+  reg [C_M_AXIS_DATA_WIDTH-1:0] 	tdata;
+  wire [((C_M_AXIS_DATA_WIDTH/8))-1:0] M_AXIS_TSTRB0;
+  wire [C_M_AXIS_TUSER_WIDTH-1:0]      M_AXIS_TUSER0;
+  wire 				M_AXIS_TVALID0;
+  wire 				M_AXIS_TLAST0;
 
    fallthrough_small_fifo
         #( .WIDTH(C_M_AXIS_DATA_WIDTH+C_M_AXIS_TUSER_WIDTH+C_M_AXIS_DATA_WIDTH/8+1),
            .MAX_DEPTH_BITS(2))
       input_fifo
         (// Outputs
-         .dout                           ({M_AXIS_TLAST, M_AXIS_TUSER, M_AXIS_TSTRB, M_AXIS_TDATA}),
+         .dout                           ({M_AXIS_TLAST, M_AXIS_TUSER0, M_AXIS_TSTRB, M_AXIS_TDATA0}),
          .full                           (),
          .nearly_full                    (in_fifo_nearly_full),
          .prog_full                      (),
@@ -109,33 +116,165 @@ module arp
    assign M_AXIS_TVALID = !in_fifo_empty;
    assign S_AXIS_TREADY = !in_fifo_nearly_full;
 
-
-   reg header;
 /*
-  always@(posedge AXI_ACLK)
+ always@(posedge AXI_ACLK)
   begin
-      if(~AXI_RESETN) begin
-	 header <= 0;
-//         ipv4_count <= 0;
-//         arp_count <= 0;
-//         ospf_count <= 0;
-      end
-      else if(header == 0 && M_AXIS_TVALID & M_AXIS_TREADY) begin
-	 header <= 1;
-
-         if(M_AXIS_TDATA[159:144] == 16'h0806) arp_count <= arp_count + 1;
-	 else if(M_AXIS_TDATA[159:144] == 16'h0800) begin 
-           if(M_AXIS_TDATA[143:140] == 4'd4) ipv4_count <= ipv4_count + 1;
-	   if(M_AXIS_TDATA[71:64] == 8'd89) ospf_count <= ospf_count + 1;
-         end
-      end
-      else if(header & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY) header <= 0;
+    // M_AXIS_TDATA  <= M_AXIS_TDATA0;
+    M_AXIS_TSTRB  <= M_AXIS_TSTRB0;
+    // M_AXIS_TUSER1  <= M_AXIS_TUSER0;
+    M_AXIS_TVALID <= M_AXIS_TVALID0;
+    M_AXIS_TLAST  <= M_AXIS_TLAST0;
   end
 */
 
 
+  reg [1:0] state, state_next;
+   reg arp_hit;
+   reg [31:0] arp_miss_next, ip_check,ip_temp,mask_temp,queue;
+	reg [47:0] dest_mac;
+   reg [31:0] ip_mask, net_mask, next_hop, oq;
+   integer i;
 
 
+   always@*
+   begin
+     M_AXIS_TUSER   = M_AXIS_TUSER0;
+     M_AXIS_TDATA   = M_AXIS_TDATA0;
+	  state_next = state;
+	  arp_miss_next = arp_miss_count;
+       if( state == 2'd0 & M_AXIS_TVALID) 
+       begin	
+	state_next = 1;	 
+	if(arp_lookup)
+	begin
+	 dest_mac = 0;
+	 queue = 0;
+	 arp_hit = 0; 
+	 for(i=0;i<32;i=i+1)
+	 begin
+	     if( !arp_hit & nh_reg == arp_table[i][31:0])
+	     begin
+		dest_mac = arp_table[i][79:32];
+		arp_hit = 1;
+	     end
+	 end
+	if(arp_hit)
+	begin
+	  case(oq_reg)	
+          0: M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000001;
+          1: M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00000100;
+          2: M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00010000;
+          3: M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b01000000;
+          4: M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00000010;	 
+	  endcase
+	  M_AXIS_TDATA[255:208] = dest_mac;
+	  case(oq_reg)	
+          0: M_AXIS_TDATA[207:160] = {mac0_high[15:0],mac0_low};
+          1: M_AXIS_TDATA[207:160] = {mac1_high[15:0],mac1_low};
+          2: M_AXIS_TDATA[207:160] = {mac2_high[15:0],mac2_low};
+          3: M_AXIS_TDATA[207:160] = {mac3_high[15:0],mac3_low};
+          4: M_AXIS_TDATA[207:160] = {mac0_high[15:0],mac0_low};
+//          4: M_AXIS_TUSER[207:158] = 8'b00000010;	 
+	  endcase
+	  M_AXIS_TDATA[79:72] = M_AXIS_TDATA0[79:72] - 1;
+//`	  M_AXIS_TDATA[63:48] = M_AXIS_TDATA0[63:48] + 1;
+	  M_AXIS_TDATA[63:56] = M_AXIS_TDATA0[63:56] + 1;
+          tdata = M_AXIS_TDATA;
+	end
+	else 
+	begin
+	  arp_miss_next <= arp_miss_next + 1;
+          if(M_AXIS_TUSER0[SRC_PORT_POS])   M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000010;
+          if(M_AXIS_TUSER0[SRC_PORT_POS+2]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00001000;
+          if(M_AXIS_TUSER0[SRC_PORT_POS+4]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00100000;
+          if(M_AXIS_TUSER0[SRC_PORT_POS+6]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000000;
+
+	end
+	end
+       end
+       else if( state == 1 & M_AXIS_TVALID & M_AXIS_TREADY)
+       begin
+
+	M_AXIS_TDATA = tdata;
+	state_next = 2;
+
+       end
+       else if( state == 2 & M_AXIS_TLAST & M_AXIS_TVALID)
+       begin
+	state_next = 0;
+       end
+   end
+
+
+  always@(posedge AXI_ACLK)
+  begin
+      if(~AXI_RESETN)
+      begin
+        state <= 0;
+	arp_miss_count <= 0;
+      end
+      else if(reset == 32'd1)
+      begin
+        arp_miss_count <= 0;
+      end
+      else 
+      begin
+	state <= state_next;
+	arp_miss_count <= arp_miss_next;
+      end
+  end
 
 endmodule
+/*
+     else if(state == 0 & M_AXIS_TVALID0 & M_AXIS_TREADY)
+     begin
+       state <= 1; 
+       if( !(M_AXIS_TUSER0[DST_PORT_POS+1] || M_AXIS_TUSER0[DST_PORT_POS+3] || M_AXIS_TUSER0[DST_PORT_POS+5] || M_AXIS_TUSER0[DST_PORT_POS+7]) )
+       begin
+	 ip_check = ip_addr;
+	 ip_mask = 0;
+	 net_mask = 0;
+	 lpm_hit = 0;
+	 for(i=0;i<32;i=i+1)
+	 begin
+	   ip_temp = lpm_table[i][31:0];
+	   mask_temp = lpm_table[i][63:32];
+	   if(ip_temp||mask_temp > ip_mask) 
+	   begin
+	     ip_mask = ip_temp; 
+	     net_mask = mask_temp;
+	     lpm_hit = 1;
+	     oq = lpm_table[i][127:96];
+	     next_hop = lpm_table[i][95:64];
+	   end
+	   else if(ip_temp||mask_temp == ip_mask)
+	   begin
+	     if(mask_temp > net_mask )
+	     begin
+		ip_mask = ip_temp;
+		net_mask = mask_temp;
+		lpm_hit = 1;
+	   	oq = lpm_table[i][127:96];
+	   	next_hop = lpm_table[i][95:64];
+	     end
+	   end
+	 end
+	
+	if(!lpm_hit)
+	begin
+	  lpm_miss_count <= lpm_miss_count + 1;
+          if(M_AXIS_TUSER0[SRC_PORT_POS])   M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000010;
+          if(M_AXIS_TUSER0[SRC_PORT_POS+2]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00001000;
+          if(M_AXIS_TUSER0[SRC_PORT_POS+4]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00100000;
+          if(M_AXIS_TUSER0[SRC_PORT_POS+6]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000000;
+	end
+	else
+	begin
+ 	  oq_reg <= oq;	
+	  nh_reg <= next_hop;
+	  arp_lookup <= lpm_hit;
+	end
 
+       end
+       end
+*/

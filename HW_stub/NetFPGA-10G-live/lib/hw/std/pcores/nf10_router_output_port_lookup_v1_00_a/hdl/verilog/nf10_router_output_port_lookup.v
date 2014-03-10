@@ -76,7 +76,7 @@ module nf10_router_output_port_lookup
     // Master Stream Ports (interface to data path)
     output [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA,
     output [((C_M_AXIS_DATA_WIDTH/8))-1:0]M_AXIS_TSTRB,
-    output reg [C_M_AXIS_TUSER_WIDTH-1:0]M_AXIS_TUSER,
+    output [C_M_AXIS_TUSER_WIDTH-1:0]M_AXIS_TUSER,
     output 				M_AXIS_TVALID,
     input  				M_AXIS_TREADY,
     output 				M_AXIS_TLAST,
@@ -436,10 +436,16 @@ module nf10_router_output_port_lookup
     wire  				M_AXIS_TREADY_3;
     wire 				M_AXIS_TLAST_3;
 
+    wire [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA_4;
+    wire [((C_M_AXIS_DATA_WIDTH/8))-1:0]M_AXIS_TSTRB_4;
+    wire [C_M_AXIS_TUSER_WIDTH-1:0]	M_AXIS_TUSER_4;
+    wire 				M_AXIS_TVALID_4;
+    wire  				M_AXIS_TREADY_4;
+    wire 				M_AXIS_TLAST_4;
 
    fallthrough_small_fifo
         #( .WIDTH(C_M_AXIS_DATA_WIDTH+C_M_AXIS_TUSER_WIDTH+C_M_AXIS_DATA_WIDTH/8+1),
-           .MAX_DEPTH_BITS(2))
+           .MAX_DEPTH_BITS(4))
       input_fifo
         (// Outputs
          .dout                           ({M_AXIS_TLAST_0, M_AXIS_TUSER_0, M_AXIS_TSTRB_0, M_AXIS_TDATA_0}),
@@ -469,7 +475,11 @@ module nf10_router_output_port_lookup
    assign M_AXIS_TVALID_0 = !in_fifo_empty;
 
 
-   first_stage
+
+
+   wire [15:0] low_ip_addr;
+
+   ip_addr_checksum_delay
     #(
       .C_S_AXI_DATA_WIDTH ( 32 ),
       .C_S_AXI_ADDR_WIDTH ( 32 ),
@@ -479,7 +489,7 @@ module nf10_router_output_port_lookup
       .C_M_AXIS_TUSER_WIDTH ( 128 ),
       .C_S_AXIS_TUSER_WIDTH ( 128 )
     )
-    first_stage (
+    ip_addr_checksum_delay (
       .AXI_ACLK ( AXI_ACLK ),
       .AXI_RESETN ( AXI_RESETN ),
       .M_AXIS_TDATA ( M_AXIS_TDATA_1 ),
@@ -494,34 +504,12 @@ module nf10_router_output_port_lookup
       .S_AXIS_TVALID ( M_AXIS_TVALID_0 ),
       .S_AXIS_TREADY ( M_AXIS_TREADY_0 ),
       .S_AXIS_TLAST ( M_AXIS_TLAST_0 ),
-	.reset(reset),
-	.mac0_low (mac0_low),
-	.mac0_high(mac0_high),
-	.mac1_low (mac1_low),
-	.mac1_high(mac1_high),
-	.mac2_low (mac2_low),
-	.mac2_high(mac2_high),
-	.mac3_low (mac3_low),
-	.mac3_high(mac3_high),
-	.ip_addr(ip_addr),
-	.wrong_mac_count(wrong_mac_count),
-	.non_ip_count(non_ip_count),
-	.dropped_count(dropped_count),
-	.bad_ttl_count(bad_ttl_count),
-	.ver_count(ver_count),
-	.cpu_count(cpu_count),
-	.dest_hit_count(dest_hit_count),
-	.tbl_rd_req(tbl_rd_req1),       // Request a read
-	.tbl_rd_ack(tbl_rd_ack1),       // Pulses hi on ACK
-	.tbl_rd_addr(tbl_rd_addr1),      // Address in table to read
-	.tbl_rd_data(tbl_rd_data1),      // Value in table
-	.tbl_wr_req(tbl_wr_req1),       // Request a write
-	.tbl_wr_ack(tbl_wr_ack1),       // Pulses hi on ACK
-	.tbl_wr_addr(tbl_wr_addr1),      // Address in table to write
-	.tbl_wr_data(tbl_wr_data1)       // Value to write to table
+	.low_ip_addr(low_ip_addr)
    );
 
-   lpm 
+    wire [31:0] destip_addr;
+  
+    drop_packets
     #(
       .C_S_AXI_DATA_WIDTH ( 32 ),
       .C_S_AXI_ADDR_WIDTH ( 32 ),
@@ -531,7 +519,7 @@ module nf10_router_output_port_lookup
       .C_M_AXIS_TUSER_WIDTH ( 128 ),
       .C_S_AXIS_TUSER_WIDTH ( 128 )
     )
-    lpm (
+    drop_packets (
       .AXI_ACLK ( AXI_ACLK ),
       .AXI_RESETN ( AXI_RESETN ),
       .M_AXIS_TDATA ( M_AXIS_TDATA_2 ),
@@ -545,29 +533,151 @@ module nf10_router_output_port_lookup
       .S_AXIS_TUSER ( M_AXIS_TUSER_1 ),
       .S_AXIS_TVALID ( M_AXIS_TVALID_1 ),
       .S_AXIS_TREADY ( M_AXIS_TREADY_1 ),
-      .S_AXIS_TLAST ( M_AXIS_TLAST_1 ), 
+      .S_AXIS_TLAST ( M_AXIS_TLAST_1 ),
+	.reset(reset),
+	.mac0_low (mac0_low),
+	.mac0_high(mac0_high),
+	.mac1_low (mac1_low),
+	.mac1_high(mac1_high),
+	.mac2_low (mac2_low),
+	.mac2_high(mac2_high),
+	.mac3_low (mac3_low),
+	.mac3_high(mac3_high),
+	.low_ip_addr(low_ip_addr),
+	.wrong_mac_count(wrong_mac_count),
+	.dropped_count(dropped_count),
+	.destip_addr(destip_addr)
+   );
+
+    dest_ip
+    #(
+      .C_S_AXI_DATA_WIDTH ( 32 ),
+      .C_S_AXI_ADDR_WIDTH ( 32 ),
+      .C_S_AXI_ACLK_FREQ_HZ ( 160000000 ),
+      .C_M_AXIS_DATA_WIDTH ( 256 ),
+      .C_S_AXIS_DATA_WIDTH ( 256 ),
+      .C_M_AXIS_TUSER_WIDTH ( 128 ),
+      .C_S_AXIS_TUSER_WIDTH ( 128 )
+    )
+    dest_ip (
+      .AXI_ACLK ( AXI_ACLK ),
+      .AXI_RESETN ( AXI_RESETN ),
+      .M_AXIS_TDATA ( M_AXIS_TDATA_3 ),
+      .M_AXIS_TSTRB ( M_AXIS_TSTRB_3 ),
+      .M_AXIS_TUSER ( M_AXIS_TUSER_3 ),
+      .M_AXIS_TVALID ( M_AXIS_TVALID_3),
+      .M_AXIS_TREADY ( M_AXIS_TREADY_3 ),
+      .M_AXIS_TLAST ( M_AXIS_TLAST_3 ),
+      .S_AXIS_TDATA ( M_AXIS_TDATA_2 ),
+      .S_AXIS_TSTRB ( M_AXIS_TSTRB_2 ),
+      .S_AXIS_TUSER ( M_AXIS_TUSER_2 ),
+      .S_AXIS_TVALID ( M_AXIS_TVALID_2 ),
+      .S_AXIS_TREADY ( M_AXIS_TREADY_2 ),
+      .S_AXIS_TLAST ( M_AXIS_TLAST_2 ),
+	.reset(reset),
+	.non_ip_count(non_ip_count),
+//	.dropped_count(dropped_count),
+	.bad_ttl_count(bad_ttl_count),
+	.ver_count(ver_count),
+//	.cpu_count(cpu_count),
+	.dest_hit_count(dest_hit_count),
+        .destip_addr(destip_addr),
+        .ip_addr(ip_addr),
+	.tbl_rd_req(tbl_rd_req1),       // Request a read
+	.tbl_rd_ack(tbl_rd_ack1),       // Pulses hi on ACK
+	.tbl_rd_addr(tbl_rd_addr1),      // Address in table to read
+	.tbl_rd_data(tbl_rd_data1),      // Value in table
+	.tbl_wr_req(tbl_wr_req1),       // Request a write
+	.tbl_wr_ack(tbl_wr_ack1),       // Pulses hi on ACK
+	.tbl_wr_addr(tbl_wr_addr1),      // Address in table to write
+	.tbl_wr_data(tbl_wr_data1)       // Value to write to table
+   );
+/*
+   checksum_ttl
+    #(
+      .C_S_AXI_DATA_WIDTH ( 32 ),
+      .C_S_AXI_ADDR_WIDTH ( 32 ),
+      .C_S_AXI_ACLK_FREQ_HZ ( 160000000 ),
+      .C_M_AXIS_DATA_WIDTH ( 256 ),
+      .C_S_AXIS_DATA_WIDTH ( 256 ),
+      .C_M_AXIS_TUSER_WIDTH ( 128 ),
+      .C_S_AXIS_TUSER_WIDTH ( 128 )
+    )
+    checksum_ttl (
+      .AXI_ACLK ( AXI_ACLK ),
+      .AXI_RESETN ( AXI_RESETN ),
+      .M_AXIS_TDATA ( M_AXIS_TDATA ),
+      .M_AXIS_TSTRB ( M_AXIS_TSTRB ),
+      .M_AXIS_TUSER ( M_AXIS_TUSER ),
+      .M_AXIS_TVALID ( M_AXIS_TVALID ),
+      .M_AXIS_TREADY ( M_AXIS_TREADY ),
+      .M_AXIS_TLAST ( M_AXIS_TLAST ),
+      .S_AXIS_TDATA ( M_AXIS_TDATA_0 ),
+      .S_AXIS_TSTRB ( M_AXIS_TSTRB_0 ),
+      .S_AXIS_TUSER ( M_AXIS_TUSER_0 ),
+      .S_AXIS_TVALID ( M_AXIS_TVALID_0 ),
+      .S_AXIS_TREADY ( M_AXIS_TREADY_0 ),
+      .S_AXIS_TLAST ( M_AXIS_TLAST_0 )
+//	.reset(reset)
+   // -- Table ports
+);
+*/
+/*
+    .tbl_rd_req(tbl_rd_req0),       // Request a read
+    .tbl_rd_ack(tbl_rd_ack0),       // Pulses hi on ACK
+    .tbl_rd_addr(tbl_rd_addr0),      // Address in table to read
+    .tbl_rd_data(tbl_rd_data0),      // Value in table
+    .tbl_wr_req(tbl_wr_req0),       // Request a write
+    .tbl_wr_ack(tbl_wr_ack0),       // Pulses hi on ACK
+    .tbl_wr_addr(tbl_wr_addr0),      // Address in table to write
+    .tbl_wr_data(tbl_wr_data0)       // Value to write to table
+*/
+
+   wire arp_lookup;
+   wire [31:0] nh_reg, oq_reg;
+   
+  lpm 
+    #(
+      .C_S_AXI_DATA_WIDTH ( 32 ),
+      .C_S_AXI_ADDR_WIDTH ( 32 ),
+      .C_S_AXI_ACLK_FREQ_HZ ( 160000000 ),
+      .C_M_AXIS_DATA_WIDTH ( 256 ),
+      .C_S_AXIS_DATA_WIDTH ( 256 ),
+      .C_M_AXIS_TUSER_WIDTH ( 128 ),
+      .C_S_AXIS_TUSER_WIDTH ( 128 )
+    )
+    lpm (
+      .AXI_ACLK ( AXI_ACLK ),
+      .AXI_RESETN ( AXI_RESETN ),
+     .M_AXIS_TDATA ( M_AXIS_TDATA_4 ),
+      .M_AXIS_TSTRB ( M_AXIS_TSTRB_4 ),
+      .M_AXIS_TUSER ( M_AXIS_TUSER_4 ),
+      .M_AXIS_TVALID ( M_AXIS_TVALID_4 ),
+      .M_AXIS_TREADY ( M_AXIS_TREADY_4 ),
+      .M_AXIS_TLAST ( M_AXIS_TLAST_4 ),
+      .S_AXIS_TDATA ( M_AXIS_TDATA_3 ),
+      .S_AXIS_TSTRB ( M_AXIS_TSTRB_3 ),
+      .S_AXIS_TUSER ( M_AXIS_TUSER_3 ),
+      .S_AXIS_TVALID ( M_AXIS_TVALID_3 ),
+      .S_AXIS_TREADY ( M_AXIS_TREADY_3 ),
+      .S_AXIS_TLAST ( M_AXIS_TLAST_3 ), 
       .ip_addr(ip_addr),
       .reset(reset),
       .lpm_miss_count(lpm_miss_count),
-    .arp_miss_count(arp_miss_count),
    // -- Table ports
-    .tbl_rd_req0(tbl_rd_req3),       // Request a read
-    .tbl_rd_ack0(tbl_rd_ack3),       // Pulses hi on ACK
-    .tbl_rd_addr0(tbl_rd_addr3),      // Address in table to read
-    .tbl_rd_data0(tbl_rd_data3),      // Value in table
-    .tbl_wr_req0(tbl_wr_req3),       // Request a write
-    .tbl_wr_ack0(tbl_wr_ack3),       // Pulses hi on ACK
-    .tbl_wr_addr0(tbl_wr_addr3),     // Address in table to write
-    .tbl_wr_data0(tbl_wr_data3),       // Value to write to table
-    .tbl_rd_req(tbl_rd_req2),       // Request a read
+     .tbl_rd_req(tbl_rd_req2),       // Request a read
     .tbl_rd_ack(tbl_rd_ack2),       // Pulses hi on ACK
     .tbl_rd_addr(tbl_rd_addr2),      // Address in table to read
     .tbl_rd_data(tbl_rd_data2),      // Value in table
     .tbl_wr_req(tbl_wr_req2),       // Request a write
     .tbl_wr_ack(tbl_wr_ack2),       // Pulses hi on ACK
     .tbl_wr_addr(tbl_wr_addr2),      // Address in table to write
-    .tbl_wr_data(tbl_wr_data2)       // Value to write to table
+    .tbl_wr_data(tbl_wr_data2),       // Value to write to table
+    .arp_lookup(arp_lookup),
+    .nh_reg(nh_reg),
+    .oq_reg(oq_reg)
     );
+
 
     arp 
     #(
@@ -582,22 +692,31 @@ module nf10_router_output_port_lookup
     arp (
       .AXI_ACLK ( AXI_ACLK ),
       .AXI_RESETN ( AXI_RESETN ),
-      .M_AXIS_TDATA ( M_AXIS_TDATA_3 ),
-      .M_AXIS_TSTRB ( M_AXIS_TSTRB_3 ),
-      .M_AXIS_TUSER ( M_AXIS_TUSER_3 ),
-      .M_AXIS_TVALID ( M_AXIS_TVALID_3 ),
-      .M_AXIS_TREADY ( M_AXIS_TREADY_3 ),
-      .M_AXIS_TLAST ( M_AXIS_TLAST_3 ),
-      .S_AXIS_TDATA ( M_AXIS_TDATA_2 ),
-      .S_AXIS_TSTRB ( M_AXIS_TSTRB_2 ),
-      .S_AXIS_TUSER ( M_AXIS_TUSER_2 ),
-      .S_AXIS_TVALID ( M_AXIS_TVALID_2 ),
-      .S_AXIS_TREADY ( M_AXIS_TREADY_2 ),
-      .S_AXIS_TLAST ( M_AXIS_TLAST_2 )
-
-/*
+      .M_AXIS_TDATA ( M_AXIS_TDATA ),
+      .M_AXIS_TSTRB ( M_AXIS_TSTRB ),
+      .M_AXIS_TUSER ( M_AXIS_TUSER ),
+      .M_AXIS_TVALID ( M_AXIS_TVALID ),
+      .M_AXIS_TREADY ( M_AXIS_TREADY ),
+      .M_AXIS_TLAST ( M_AXIS_TLAST ),
+      .S_AXIS_TDATA ( M_AXIS_TDATA_4 ),
+      .S_AXIS_TSTRB ( M_AXIS_TSTRB_4 ),
+      .S_AXIS_TUSER ( M_AXIS_TUSER_4 ),
+      .S_AXIS_TVALID ( M_AXIS_TVALID_4 ),
+      .S_AXIS_TREADY ( M_AXIS_TREADY_4 ),
+      .S_AXIS_TLAST ( M_AXIS_TLAST_4 ),
       .reset(reset),
       .arp_miss_count(arp_miss_count),
+      .arp_lookup(arp_lookup),
+    .nh_reg(nh_reg),
+	.mac0_low (mac0_low),
+	.mac0_high(mac0_high),
+	.mac1_low (mac1_low),
+	.mac1_high(mac1_high),
+	.mac2_low (mac2_low),
+	.mac2_high(mac2_high),
+	.mac3_low (mac3_low),
+	.mac3_high(mac3_high),
+    .oq_reg(oq_reg),
    // -- Table ports
     .tbl_rd_req(tbl_rd_req3),       // Request a read
     .tbl_rd_ack(tbl_rd_ack3),       // Pulses hi on ACK
@@ -607,9 +726,9 @@ module nf10_router_output_port_lookup
     .tbl_wr_ack(tbl_wr_ack3),       // Pulses hi on ACK
     .tbl_wr_addr(tbl_wr_addr3),      // Address in table to write
     .tbl_wr_data(tbl_wr_data3)       // Value to write to table
-*/
     );
 
+/*
    checksum_ttl
     #(
       .C_S_AXI_DATA_WIDTH ( 32 ),
@@ -636,6 +755,7 @@ module nf10_router_output_port_lookup
       .S_AXIS_TREADY ( M_AXIS_TREADY_3 ),
       .S_AXIS_TLAST ( M_AXIS_TLAST_3 )
    // -- Table ports
+	*/
 /*
     .tbl_rd_req(tbl_rd_req0),       // Request a read
     .tbl_rd_ack(tbl_rd_ack0),       // Pulses hi on ACK
@@ -646,13 +766,13 @@ module nf10_router_output_port_lookup
     .tbl_wr_addr(tbl_wr_addr0),      // Address in table to write
     .tbl_wr_data(tbl_wr_data0)       // Value to write to table
 */
-    );
+//    );
 
 
 
    // modify the dst port in tuser
    always @(*) begin
-      M_AXIS_TUSER = tuser_fifo;
+//      M_AXIS_TUSER = tuser_fifo;
       state_next      = state;
 
       case(state)

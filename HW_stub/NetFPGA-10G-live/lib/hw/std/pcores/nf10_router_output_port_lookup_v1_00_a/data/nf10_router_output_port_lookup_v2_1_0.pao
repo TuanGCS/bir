@@ -45,3 +45,5 @@ lib nf10_router_output_port_lookup_v1_00_a dest_ip verilog
 lib nf10_router_output_port_lookup_v1_00_a lpm verilog
 lib nf10_router_output_port_lookup_v1_00_a arp verilog
 lib nf10_router_output_port_lookup_v1_00_a checksum_ttl verilog
+lib nf10_router_output_port_lookup_v1_00_a drop_packets verilog
+lib nf10_router_output_port_lookup_v1_00_a ip_addr_checksum_delay verilog
