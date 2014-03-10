@@ -54,7 +54,8 @@ void pwospf_hello_print(pwospf_packet_hello_t * packet) {
 }
 
 // TODO! IMPORTANT! Does this lookup needs to be done via router_id or source ip??????
-pwospf_list_entry_t * getneighbourfromidunsafe(dataqueue_t * neighbours, uint32_t router_id) {
+pwospf_list_entry_t * getneighbourfromidunsafe(dataqueue_t * neighbours,
+		uint32_t router_id) {
 	int n;
 	for (n = 0; n < neighbours->size; n++) {
 		pwospf_list_entry_t * entry;
@@ -70,7 +71,8 @@ pwospf_list_entry_t * getneighbourfromidunsafe(dataqueue_t * neighbours, uint32_
 	return NULL;
 }
 
-void pwospf_reflood_to(packet_info_t * pi, pwospf_packet_link_t * packet, addr_ip_t dest) {
+void pwospf_reflood_to(packet_info_t * pi, pwospf_packet_link_t * packet,
+		addr_ip_t dest) {
 	// TODO write reflooding
 }
 
@@ -90,16 +92,18 @@ int compare_lsus(pwospf_lsa_t * a, pwospf_lsa_t * b, int size) {
 			}
 		}
 
-		if (!discovered) return 0;
+		if (!discovered)
+			return 0;
 	}
 
 	return 1;
 }
 
-
 // excluded_neighbour points to a location in the dataqueue locked_neighbours
 // for all other dataqueues, explicit lock must be used
-void pwospf_reflood_packetpartiallyunsafe(packet_info_t * pi, pwospf_packet_link_t * packet, pwospf_list_entry_t * excluded_neighbour, dataqueue_t * locked_neighbours) {
+void pwospf_reflood_packetpartiallyunsafe(packet_info_t * pi,
+		pwospf_packet_link_t * packet, pwospf_list_entry_t * excluded_neighbour,
+		dataqueue_t * locked_neighbours) {
 	router_t * router = pi->router;
 
 	int i;
@@ -111,25 +115,36 @@ void pwospf_reflood_packetpartiallyunsafe(packet_info_t * pi, pwospf_packet_link
 			int entry_size;
 
 			if (neighbours != locked_neighbours) {
-				if (queue_getidandlock(neighbours, n, (void **) &entry, &entry_size)) {
+				if (queue_getidandlock(neighbours, n, (void **) &entry,
+						&entry_size)) {
 
 					assert(entry_size == sizeof(pwospf_list_entry_t));
 
-					debug_print("Reflooding PWOSPF LINK from %s ", quick_ip_to_string(excluded_neighbour->neighbour_ip));
-					debug_println("to IP %s (%d entries)", quick_ip_to_string(entry->neighbour_ip), ntohl(packet->advert));
+					debug_print("Reflooding PWOSPF LINK from %s ",
+							quick_ip_to_string(
+									excluded_neighbour->neighbour_ip));
+					debug_println("to IP %s (%d entries)",
+							quick_ip_to_string(entry->neighbour_ip),
+							ntohl(packet->advert));
 					pwospf_reflood_to(pi, packet, entry->neighbour_ip);
 
 					queue_unlockid(neighbours, n);
 					// entry is invalid from here on, whatever you do, do it inside
 				}
 			} else {
-				if (queue_getidunsafe(neighbours, n, (void **) &entry, &entry_size)) {
+				if (queue_getidunsafe(neighbours, n, (void **) &entry,
+						&entry_size)) {
 
 					assert(entry_size == sizeof(pwospf_list_entry_t));
 
-					if (entry->neighbour_ip != excluded_neighbour->neighbour_ip) {
-						debug_print("Reflooding PWOSPF LINK from %s ", quick_ip_to_string(excluded_neighbour->neighbour_ip));
-						debug_println("to IP %s (%d entries)", quick_ip_to_string(entry->neighbour_ip), ntohl(packet->advert));
+					if (entry->neighbour_ip
+							!= excluded_neighbour->neighbour_ip) {
+						debug_print("Reflooding PWOSPF LINK from %s ",
+								quick_ip_to_string(
+										excluded_neighbour->neighbour_ip));
+						debug_println("to IP %s (%d entries)",
+								quick_ip_to_string(entry->neighbour_ip),
+								ntohl(packet->advert));
 						pwospf_reflood_to(pi, packet, entry->neighbour_ip);
 					}
 
@@ -144,35 +159,49 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 	//printf("Received LINK from %s on interface %s\n", quick_ip_to_string(packet->pwospf_header.router_id), pi->interface->name);
 
 	dataqueue_t * neighbours = &pi->interface->neighbours;
-	packet_ip4_t * ip = PACKET_MARSHALL(packet_ip4_t, pi->packet, sizeof(packet_ethernet_t));
-	pwospf_lsa_t * payload = (pwospf_lsa_t *) &pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t)];
+	packet_ip4_t * ip = PACKET_MARSHALL(packet_ip4_t, pi->packet,
+			sizeof(packet_ethernet_t));
+	pwospf_lsa_t * payload =
+			(pwospf_lsa_t *) &pi->packet[sizeof(packet_ethernet_t)
+					+ sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t)];
 	const int payload_count = ntohl(packet->advert);
 
-	if (pi->len < sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t)+payload_count*sizeof(pwospf_lsa_t)) {
+	if (pi->len
+			< sizeof(packet_ethernet_t) + sizeof(packet_ip4_t)
+					+ sizeof(pwospf_packet_link_t)
+					+ payload_count * sizeof(pwospf_lsa_t)) {
 		fprintf(stderr, "PWOSPF LINK packet received partially. Dropping...\n");
 		return;
 	}
 
-	if (generatechecksum((unsigned short*) packet, sizeof(pwospf_packet_link_t)+payload_count*sizeof(pwospf_lsa_t)) != (0)) {
+	if (generatechecksum((unsigned short*) packet,
+			sizeof(pwospf_packet_link_t) + payload_count * sizeof(pwospf_lsa_t))
+			!= (0)) {
 		fprintf(stderr, "PWOSPF LINK Header Checksum Error. Dropping...\n");
 		return;
 	}
 
 	if (packet->pwospf_header.router_id == pi->router->pw_router.router_id) {
-		fprintf(stderr, "PWOSPF LINK packet received from myself on %s from %s. Dropping...\n", pi->interface->name, quick_ip_to_string(ip->src_ip));
+		fprintf(stderr,
+				"PWOSPF LINK packet received from myself on %s from %s. Dropping...\n",
+				pi->interface->name, quick_ip_to_string(ip->src_ip));
 		return;
 	}
 
 	queue_lockall(neighbours);
 
-	pwospf_list_entry_t * neighbour = getneighbourfromidunsafe(neighbours, packet->pwospf_header.router_id);
+	pwospf_list_entry_t * neighbour = getneighbourfromidunsafe(neighbours,
+			packet->pwospf_header.router_id);
 	if (neighbour != NULL) {
 
 		// if we have some information about this neighbour
-		if (neighbour->lsu_lastcontents != NULL && neighbour->lsu_lastseq == packet->seq) {
+		if (neighbour->lsu_lastcontents != NULL
+				&& neighbour->lsu_lastseq == packet->seq) {
 			// if we have previously received LSUs from this neighbour and the sequence number of the packet matches
 			queue_unlockall(neighbours);
-			fprintf(stderr, "PWOSPF duplicate LINK packet received for %d. Dropping...\n", packet->pwospf_header.router_id);
+			fprintf(stderr,
+					"PWOSPF duplicate LINK packet received for %d. Dropping...\n",
+					packet->pwospf_header.router_id);
 			return;
 		}
 
@@ -180,16 +209,19 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 		pwospf_reflood_packetpartiallyunsafe(pi, packet, neighbour, neighbours);
 
 		// if a new packet is received for neighbour that we know about
-		if (neighbour->lsu_lastcontents != NULL && neighbour->lsu_lastcontents_count == payload_count) {
+		if (neighbour->lsu_lastcontents != NULL
+				&& neighbour->lsu_lastcontents_count == payload_count) {
 			printf("YEY! Neighbour sent the same size data! Yey!\n");
 			// if we have previously received packets from this guy
-			if (compare_lsus(neighbour->lsu_lastcontents, payload, neighbour->lsu_lastcontents_count)) {
+			if (compare_lsus(neighbour->lsu_lastcontents, payload,
+					neighbour->lsu_lastcontents_count)) {
 
 				neighbour->lsu_lastseq = packet->seq; // this is the lastseq
 				gettimeofday(&neighbour->lsu_timestamp, NULL); // update timestamp
 
 				queue_unlockall(neighbours);
-				fprintf(stderr, "PWOSPF The neighbour is sending the same LINK data as last time. Ignoring...\n");
+				fprintf(stderr,
+						"PWOSPF The neighbour is sending the same LINK data as last time. Ignoring...\n");
 				return;
 			}
 		}
@@ -197,22 +229,32 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 		// if the state of the neighbour has changed, update database
 		if (neighbour->lsu_lastcontents == NULL) {
 			neighbour->lsu_lastcontents_count = payload_count;
-			neighbour->lsu_lastcontents = (pwospf_lsa_t *) malloc(neighbour->lsu_lastcontents_count * sizeof(pwospf_lsa_t));
+			neighbour->lsu_lastcontents = (pwospf_lsa_t *) malloc(
+					neighbour->lsu_lastcontents_count * sizeof(pwospf_lsa_t));
 		} else if (neighbour->lsu_lastcontents_count != payload_count) {
 			neighbour->lsu_lastcontents_count = payload_count;
-			neighbour->lsu_lastcontents = (pwospf_lsa_t *) realloc(neighbour->lsu_lastcontents, neighbour->lsu_lastcontents_count * sizeof(pwospf_lsa_t));
+			neighbour->lsu_lastcontents = (pwospf_lsa_t *) realloc(
+					neighbour->lsu_lastcontents,
+					neighbour->lsu_lastcontents_count * sizeof(pwospf_lsa_t));
 		}
 
 		// copy the topology data in each neighbour's lastcontents
-		memcpy(neighbour->lsu_lastcontents, payload, payload_count * sizeof(pwospf_lsa_t));
-		int g; for (g = 0; g < payload_count; g++) if (neighbour->lsu_lastcontents[g].router_id == 0) neighbour->lsu_lastcontents[g].router_id=packet->pwospf_header.router_id;
+		memcpy(neighbour->lsu_lastcontents, payload,
+				payload_count * sizeof(pwospf_lsa_t));
+		int g;
+		for (g = 0; g < payload_count; g++)
+			if (neighbour->lsu_lastcontents[g].router_id == 0)
+				neighbour->lsu_lastcontents[g].router_id =
+						packet->pwospf_header.router_id;
 
 		neighbour->lsu_lastseq = packet->seq; // this is the lastseq
 		gettimeofday(&neighbour->lsu_timestamp, NULL); // update timestamp
 
 		queue_unlockall(neighbours);
 
-		debug_println("An already existing neighbour sent a new PWOSPF LINK update (%d entries)!", payload_count);
+		debug_println(
+				"An already existing neighbour sent a new PWOSPF LINK update (%d entries)!",
+				payload_count);
 
 		djikstra_recompute(pi->router);
 		send_pwospf_lsa_packet(pi->router);
@@ -228,12 +270,15 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 	newneighbour.neighbour_ip = ip->src_ip;
 
 	newneighbour.lsu_lastcontents_count = payload_count;
-	newneighbour.lsu_lastcontents = (pwospf_lsa_t *) malloc(newneighbour.lsu_lastcontents_count * sizeof(pwospf_lsa_t));
-	memcpy(newneighbour.lsu_lastcontents, payload, payload_count * sizeof(pwospf_lsa_t));
+	newneighbour.lsu_lastcontents = (pwospf_lsa_t *) malloc(
+			newneighbour.lsu_lastcontents_count * sizeof(pwospf_lsa_t));
+	memcpy(newneighbour.lsu_lastcontents, payload,
+			payload_count * sizeof(pwospf_lsa_t));
 	int g;
 	for (g = 0; g < payload_count; g++)
 		if (newneighbour.lsu_lastcontents[g].router_id == 0)
-			newneighbour.lsu_lastcontents[g].router_id = packet->pwospf_header.router_id;
+			newneighbour.lsu_lastcontents[g].router_id =
+					packet->pwospf_header.router_id;
 
 	newneighbour.lsu_lastseq = packet->seq; // this is the lastseq
 	gettimeofday(&newneighbour.lsu_timestamp, NULL); // update timestamp
@@ -242,12 +287,15 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 
 	queue_add(neighbours, &newneighbour, sizeof(pwospf_list_entry_t));
 
-	debug_println("An new neighbour sent a PWOSPF LINK update (%d entries)!", payload_count);
+	debug_println("An new neighbour sent a PWOSPF LINK update (%d entries)!",
+			payload_count);
 
 	// flood the packet
 	queue_lockall(neighbours);
-	neighbour = getneighbourfromidunsafe(neighbours, packet->pwospf_header.router_id);
-	if (neighbour != NULL) pwospf_reflood_packetpartiallyunsafe(pi, packet, neighbour, neighbours);
+	neighbour = getneighbourfromidunsafe(neighbours,
+			packet->pwospf_header.router_id);
+	if (neighbour != NULL)
+		pwospf_reflood_packetpartiallyunsafe(pi, packet, neighbour, neighbours);
 	queue_unlockall(neighbours);
 
 	// recompute and tell everybody our table has changed
@@ -258,23 +306,28 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 void pwospf_onreceive_hello(packet_info_t * pi, pwospf_packet_hello_t * packet) {
 	interface_t * interface = pi->interface;
 	dataqueue_t * neighbours = &interface->neighbours;
-	packet_ip4_t * ip = PACKET_MARSHALL(packet_ip4_t, pi->packet, sizeof(packet_ethernet_t));
+	packet_ip4_t * ip = PACKET_MARSHALL(packet_ip4_t, pi->packet,
+			sizeof(packet_ethernet_t));
 
-	if (generatechecksum((unsigned short*) packet, sizeof(pwospf_packet_hello_t)) != (0)) {
+	if (generatechecksum((unsigned short*) packet,
+			sizeof(pwospf_packet_hello_t)) != (0)) {
 		fprintf(stderr, "PWOSPF HELLO Header Checksum Error. Dropping...\n");
 		return;
 	}
 
-	if (packet->netmask  != interface->subnet_mask) {
+	if (packet->netmask != interface->subnet_mask) {
 		fprintf(stderr, "PWOSPF HELLO netmask does not match! Dropping...\n");
 		return;
 	}
 
 	if (ntohs(packet->helloint) != interface->helloint) {
-		fprintf(stderr, "PWOSPF HELLO helloint does not match (received %d, expected %d)! Dropping...\n", ntohs(packet->helloint), interface->helloint);
+		fprintf(stderr,
+				"PWOSPF HELLO helloint does not match (received %d, expected %d)! Dropping...\n",
+				ntohs(packet->helloint), interface->helloint);
 		return;
 	}
 
+	int was_immediate_neighbour = 0;
 	int i;
 	for (i = 0; i < neighbours->size; i++) {
 		pwospf_list_entry_t * entry;
@@ -288,18 +341,32 @@ void pwospf_onreceive_hello(packet_info_t * pi, pwospf_packet_hello_t * packet) 
 				discovered = 1;
 
 				if (entry->neighbour_id != packet->pwospf_header.router_id) {
-					debug_println("OSPF: Router for %s has changed its id from %d to %d!", quick_ip_to_string(ip->src_ip), entry->neighbour_id, packet->pwospf_header.router_id);
+					debug_println(
+							"OSPF: Router for %s has changed its id from %d to %d!",
+							quick_ip_to_string(ip->src_ip), entry->neighbour_id,
+							packet->pwospf_header.router_id);
 					entry->neighbour_id = packet->pwospf_header.router_id;
 				}
 
 				entry->helloint = ntohs(packet->helloint);
+				if (!entry->immediate_neighbour) {
+					was_immediate_neighbour = 1;
+				}
 				entry->immediate_neighbour = 1;
 
 				gettimeofday(&entry->timestamp, NULL);
+
 			}
 
 			queue_unlockid(neighbours, i);
+
 		}
+
+		if (was_immediate_neighbour) {
+			djikstra_recompute(pi->router);
+			send_pwospf_lsa_packet(pi->router);
+		}
+
 		if (discovered) {
 			//debug_println("OSPF: Router id %d said HELLO :)", packet->pwospf_header.router_id);
 			return;
@@ -317,23 +384,33 @@ void pwospf_onreceive_hello(packet_info_t * pi, pwospf_packet_hello_t * packet) 
 	gettimeofday(&newneighbour.timestamp, NULL);
 
 	queue_add(neighbours, &newneighbour, sizeof(pwospf_list_entry_t));
-	debug_println("OSPF: A new neighbour was discovered on interface %s; Router id %d with ip %s.", pi->interface->name, newneighbour.neighbour_id, quick_ip_to_string(newneighbour.neighbour_ip));
+	debug_println(
+			"OSPF: A new neighbour was discovered on interface %s; Router id %d with ip %s.",
+			pi->interface->name, newneighbour.neighbour_id,
+			quick_ip_to_string(newneighbour.neighbour_ip));
+
+	djikstra_recompute(pi->router);
+	send_pwospf_lsa_packet(pi->router);
 }
 
 void pwospf_onreceive(packet_info_t* pi, pwospf_packet_t * packet) {
 
 	if (packet->version != 2) {
-		fprintf(stderr, "Unsupported OSPF version %d received. Dropping...\n", packet->version);
+		fprintf(stderr, "Unsupported OSPF version %d received. Dropping...\n",
+				packet->version);
 		return;
 	}
 
 	if (ntohl(packet->area_id) != pi->router->pw_router.area_id) {
-		fprintf(stderr, "An OSPF packet was received from an unexpected area %d. Current router area is %d. Dropping...\n", ntohl(packet->area_id), pi->router->pw_router.area_id);
+		fprintf(stderr,
+				"An OSPF packet was received from an unexpected area %d. Current router area is %d. Dropping...\n",
+				ntohl(packet->area_id), pi->router->pw_router.area_id);
 		return;
 	}
 
 	if (packet->auth_type != 0) {
-		fprintf(stderr, "The received OSPF packet requires authentication which is currently unsupported. Dropping...\n");
+		fprintf(stderr,
+				"The received OSPF packet requires authentication which is currently unsupported. Dropping...\n");
 		return;
 	}
 
@@ -364,8 +441,8 @@ void pwospf_onreceive(packet_info_t* pi, pwospf_packet_t * packet) {
 	}
 }
 
-void generate_pwospf_hello_header(addr_ip_t rid,
-		addr_ip_t aid, uint32_t netmask,pwospf_packet_hello_t* pw_hello) {
+void generate_pwospf_hello_header(addr_ip_t rid, addr_ip_t aid,
+		uint32_t netmask, pwospf_packet_hello_t* pw_hello) {
 
 	pw_hello->pwospf_header.version = OSPF_VERSION;
 	pw_hello->pwospf_header.type = OSPF_TYPE_HELLO;
@@ -385,8 +462,8 @@ void generate_pwospf_hello_header(addr_ip_t rid,
 
 }
 
-void generate_pwospf_link_header(addr_ip_t rid, addr_ip_t aid,
-		uint32_t netmask, uint32_t advert, pwospf_packet_link_t* pw_link, int len) {
+void generate_pwospf_link_header(addr_ip_t rid, addr_ip_t aid, uint32_t netmask,
+		uint32_t advert, pwospf_packet_link_t* pw_link, int len) {
 
 	pw_link->pwospf_header.version = OSPF_VERSION;
 	pw_link->pwospf_header.type = OSPF_TYPE_LINK;
@@ -403,7 +480,8 @@ void generate_pwospf_link_header(addr_ip_t rid, addr_ip_t aid,
 
 	pw_link->pwospf_header.checksum = 0;
 	pw_link->pwospf_header.checksum = generatechecksum(
-			(unsigned short*) pw_link, sizeof(pwospf_packet_link_t) +  advert*sizeof(pwospf_lsa_t));
+			(unsigned short*) pw_link,
+			sizeof(pwospf_packet_link_t) + advert * sizeof(pwospf_lsa_t));
 
 }
 
@@ -417,7 +495,8 @@ int get_topology(router_t * router, dataqueue_t * topology) {
 		// add info about interface
 		pwospf_lsa_t intfentry;
 		intfentry.netmask = router->interface[i].subnet_mask;
-		intfentry.subnet = router->interface[i].subnet_mask & router->interface[i].ip;
+		intfentry.subnet = router->interface[i].subnet_mask
+				& router->interface[i].ip;
 		intfentry.router_id = router->pw_router.router_id;
 		if (queue_existsunsafe(topology, &intfentry) == -1) {
 			count++;
@@ -429,7 +508,8 @@ int get_topology(router_t * router, dataqueue_t * topology) {
 		for (n = 0; n < neighbours->size; n++) {
 			pwospf_list_entry_t * entry;
 			int entry_size;
-			if (queue_getidandlock(neighbours, n, (void **) &entry, &entry_size)) {
+			if (queue_getidandlock(neighbours, n, (void **) &entry,
+					&entry_size)) {
 
 				assert(entry_size == sizeof(pwospf_list_entry_t));
 
@@ -451,13 +531,63 @@ int get_topology(router_t * router, dataqueue_t * topology) {
 	return count;
 }
 
+int get_neighbour_topology(router_t * router, dataqueue_t * topology) {
+	int count = 0;
+
+	int i;
+	for (i = 0; i < router->num_interfaces; i++) {
+
+		// add info about interface
+		pwospf_lsa_t intfentry;
+		intfentry.netmask = router->interface[i].subnet_mask;
+		intfentry.subnet = router->interface[i].subnet_mask
+				& router->interface[i].ip;
+		intfentry.router_id = router->pw_router.router_id;
+		if (queue_existsunsafe(topology, &intfentry) == -1) {
+			count++;
+			queue_add(topology, &intfentry, sizeof(pwospf_lsa_t));
+		}
+
+		dataqueue_t * neighbours = &router->interface[i].neighbours;
+		int n;
+		for (n = 0; n < neighbours->size; n++) {
+			pwospf_list_entry_t * entry;
+			int entry_size;
+			if (queue_getidandlock(neighbours, n, (void **) &entry,
+					&entry_size)) {
+
+				assert(entry_size == sizeof(pwospf_list_entry_t));
+
+				if (entry->immediate_neighbour == 1) {
+
+					int j;
+					for (j = 0; j < entry->lsu_lastcontents_count; j++) {
+						pwospf_lsa_t * lsa_entry = &entry->lsu_lastcontents[j];
+
+						if (queue_existsunsafe(topology, lsa_entry) == -1) {
+							count++;
+							queue_add(topology, lsa_entry,
+									sizeof(pwospf_lsa_t));
+						}
+
+					}
+				}
+
+				queue_unlockid(neighbours, n);
+			}
+		}
+	}
+
+	return count;
+}
+
 void send_pwospf_lsa_packet(router_t* router) {
 
 	// since topology will be used by only one thread there is no need for locking/unlocking
 	dataqueue_t topology;
 
 	queue_init(&topology);
-	const int topologysize = get_topology(router, &topology);
+	const int topologysize = get_neighbour_topology(router, &topology);
 
 	if (topologysize == 0) {
 		printf("LSU will not be sent this time! Topology is empty!\n");
@@ -466,40 +596,49 @@ void send_pwospf_lsa_packet(router_t* router) {
 	}
 
 	packet_info_t* pi = (packet_info_t *) malloc(sizeof(packet_info_t));
-	const int lsa_packet_length = sizeof(pwospf_packet_link_t) + topologysize * sizeof(pwospf_lsa_t);
-	pi->len = sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + lsa_packet_length;
+	const int lsa_packet_length = sizeof(pwospf_packet_link_t)
+			+ topologysize * sizeof(pwospf_lsa_t);
+	pi->len = sizeof(packet_ethernet_t) + sizeof(packet_ip4_t)
+			+ lsa_packet_length;
 	pi->packet = (byte *) malloc(pi->len);
 	pi->router = router;
 
-	//		addr_ip_t aid = router->interface[i].ip
-	//				& router->interface[i].subnet_mask;
 	addr_ip_t aid = (addr_ip_t) 0; // Backbone
-
 	addr_mac_t broadcast = MAC_BROADCAST;
 
 	int i;
-
 	for (i = 0; i < queue_getcurrentsize(&topology); i++) {
 		int entry_size;
 		pwospf_lsa_t * entry;
-		assert(queue_getidunsafe(&topology, i, (void **) &entry, &entry_size));
+		assert(queue_getidunsafe(&topology, i, (void ** ) &entry, &entry_size));
 		assert(entry_size == sizeof(pwospf_lsa_t));
 
 		// we have entry i
-		memcpy(&pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t) + i * sizeof(pwospf_lsa_t)], (void *) entry, sizeof(pwospf_lsa_t));
+		memcpy(
+				&pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t)
+						+ sizeof(pwospf_packet_link_t)
+						+ i * sizeof(pwospf_lsa_t)], (void *) entry,
+				sizeof(pwospf_lsa_t));
 	}
 
 	packet_ip4_t* ipv4 = (packet_ip4_t *) &pi->packet[sizeof(packet_ethernet_t)];
-	pwospf_packet_link_t* pw_link = (pwospf_packet_link_t *) &pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t)];
+	pwospf_packet_link_t* pw_link =
+			(pwospf_packet_link_t *) &pi->packet[sizeof(packet_ethernet_t)
+					+ sizeof(packet_ip4_t)];
 
 	for (i = 0; i < router->num_interfaces; i++) {
 		pi->interface = &router->interface[i];
 
-		generate_ipv4_header(router->interface[i].ip, sizeof(pwospf_packet_link_t), ipv4);
-		generate_pwospf_link_header(router->pw_router.router_id, aid, router->interface[i].subnet_mask, topologysize, pw_link, lsa_packet_length);
+		generate_ipv4_header(router->interface[i].ip,
+				sizeof(pwospf_packet_link_t), ipv4);
+		generate_pwospf_link_header(router->pw_router.router_id, aid,
+				router->interface[i].subnet_mask, topologysize, pw_link,
+				lsa_packet_length);
 
-		if (ethernet_packet_send(get_sr(), &router->interface[i], broadcast, router->interface[i].mac, htons(ETH_IP_TYPE), pi) == -1)
-			fprintf(stderr, "Cannot send PWOSPF LUS packet on interface %s\n", router->interface[i].name);
+		if (ethernet_packet_send(get_sr(), &router->interface[i], broadcast,
+				router->interface[i].mac, htons(ETH_IP_TYPE), pi) == -1)
+			fprintf(stderr, "Cannot send PWOSPF LUS packet on interface %s\n",
+					router->interface[i].name);
 	}
 
 	free(pi->packet);
@@ -515,7 +654,8 @@ void send_pwospf_lsa_packet(router_t* router) {
 void send_pwospf_hello_packet(router_t* router) {
 
 	packet_info_t* pi = (packet_info_t *) malloc(sizeof(packet_info_t));
-	pi->len = sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(pwospf_packet_hello_t);
+	pi->len = sizeof(packet_ethernet_t) + sizeof(packet_ip4_t)
+			+ sizeof(pwospf_packet_hello_t);
 	pi->packet = (byte *) malloc(pi->len);
 	pi->router = router;
 
@@ -526,20 +666,25 @@ void send_pwospf_hello_packet(router_t* router) {
 	addr_mac_t broadcast = MAC_BROADCAST;
 
 	packet_ip4_t* ipv4 = (packet_ip4_t *) &pi->packet[sizeof(packet_ethernet_t)];
-	pwospf_packet_hello_t* pw_hello = (pwospf_packet_hello_t *) &pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t)];
+	pwospf_packet_hello_t* pw_hello =
+			(pwospf_packet_hello_t *) &pi->packet[sizeof(packet_ethernet_t)
+					+ sizeof(packet_ip4_t)];
 
 	int i;
 	for (i = 0; i < router->num_interfaces; i++) {
 
-
 		pi->interface = &router->interface[i];
 
+		generate_ipv4_header(router->interface[i].ip,
+				sizeof(pwospf_packet_hello_t), ipv4);
+		generate_pwospf_hello_header(router->pw_router.router_id, aid,
+				router->interface[i].subnet_mask, pw_hello);
 
-		generate_ipv4_header(router->interface[i].ip, sizeof(pwospf_packet_hello_t), ipv4);
-		generate_pwospf_hello_header(router->pw_router.router_id, aid, router->interface[i].subnet_mask, pw_hello);
-
-		int stat = ethernet_packet_send(get_sr(), &router->interface[i], broadcast, router->interface[i].mac, htons(ETH_IP_TYPE), pi);
-		if (stat == -1) printf("Exception sending HELLO packet on interface %s\n", router->interface[i].name);
+		int stat = ethernet_packet_send(get_sr(), &router->interface[i],
+				broadcast, router->interface[i].mac, htons(ETH_IP_TYPE), pi);
+		if (stat == -1)
+			printf("Exception sending HELLO packet on interface %s\n",
+					router->interface[i].name);
 
 	}
 
@@ -550,12 +695,12 @@ void send_pwospf_hello_packet(router_t* router) {
 
 void pwospf_thread(void *arg) {
 	router_t * router = (router_t *) arg;
-	pthread_detach( pthread_self() );
+	pthread_detach(pthread_self());
 
 	// starting up time
 	sleep(HELLOINT);
 
-	while(router->is_router_running) {
+	while (router->is_router_running) {
 		send_pwospf_hello_packet(router);
 
 		printf("Said HELLO to everyone\n");
@@ -572,20 +717,33 @@ void pwospf_thread(void *arg) {
 			for (i = 0; i < neighbours->size; i++) {
 				pwospf_list_entry_t * entry;
 				int entry_size;
-				if (queue_getidandlock(neighbours, i, (void **) &entry, &entry_size)) {
+				if (queue_getidandlock(neighbours, i, (void **) &entry,
+						&entry_size)) {
 
 					assert(entry_size == sizeof(pwospf_list_entry_t));
 
-					if ((entry->immediate_neighbour && difftime(now.tv_sec, entry->timestamp.tv_sec) > 3*entry->helloint) ||
-							(entry->lsu_lastcontents != NULL && difftime(now.tv_sec, entry->lsu_timestamp.tv_sec) > LSUINT_TIMEOUT)) {
+					if ((entry->immediate_neighbour
+							&& difftime(now.tv_sec, entry->timestamp.tv_sec)
+									> 3 * entry->helloint)
+							|| (entry->lsu_lastcontents != NULL
+									&& difftime(now.tv_sec,
+											entry->lsu_timestamp.tv_sec)
+											> LSUINT_TIMEOUT)) {
 
-						if (difftime(now.tv_sec, entry->timestamp.tv_sec) > 3*entry->helloint)
-							debug_println("OSPF: Neighbour %d (%s) is dead (due to HELLO TIMEOUT) ;(\n", entry->neighbour_id, quick_ip_to_string(entry->neighbour_ip));
+						if (difftime(now.tv_sec, entry->timestamp.tv_sec)
+								> 3 * entry->helloint)
+							debug_println(
+									"OSPF: Neighbour %d (%s) is dead (due to HELLO TIMEOUT) ;(\n",
+									entry->neighbour_id,
+									quick_ip_to_string(entry->neighbour_ip));
 						else
-							debug_println("OSPF: Neighbour %d (%s) is dead (due to LINK TIMEOUT) ;(\n", entry->neighbour_id, quick_ip_to_string(entry->neighbour_ip));
+							debug_println(
+									"OSPF: Neighbour %d (%s) is dead (due to LINK TIMEOUT) ;(\n",
+									entry->neighbour_id,
+									quick_ip_to_string(entry->neighbour_ip));
 
 						// release database
-						free (entry->lsu_lastcontents);
+						free(entry->lsu_lastcontents);
 
 						changed = 1;
 
@@ -593,7 +751,6 @@ void pwospf_thread(void *arg) {
 					} else
 						queue_unlockid(neighbours, i);
 				}
-
 
 			}
 		}
@@ -605,7 +762,6 @@ void pwospf_thread(void *arg) {
 
 		if (difftime(now.tv_sec, router->last_lsu.tv_sec) > LSUINT)
 			send_pwospf_lsa_packet(router);
-
 
 		sleep(HELLOINT);
 	}
