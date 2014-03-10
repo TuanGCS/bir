@@ -14,6 +14,12 @@
 #include "packets.h"
 #include "ip.h"
 
+#ifdef _CPUMODE_
+#include "common/nf10util.h"
+#include "reg_defines.h"
+#endif
+
+
 void arp_print_cache(dataqueue_t * cache) {
 	int i;
 	printf("\nTHE ARP TABLE\n-------------\n\n");
@@ -177,7 +183,7 @@ void hardware_arp_putincache(router_t * router, addr_ip_t ip, addr_mac_t mac, in
 	uint32_t read_ip, read_mac_low, read_mac_high;
 	readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_IP, &read_ip);
 	readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_MAC_HIGH, &read_mac_high);
-	readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_MAC_LOW, &read_mac_low)
+	readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_MAC_LOW, &read_mac_low);
 
 	assert (read_ip == ip);
 	assert (mac_low == read_mac_low);
