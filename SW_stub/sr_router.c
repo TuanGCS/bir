@@ -20,7 +20,27 @@
 
 #ifdef _CPUMODE_
 #include "reg_defines.h"
+
+void register_ownip(router_t* router, addr_ip_t  ip) {
+	static int owniptableid = 0;
+
+	assert (owniptableid < 32);
+
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_IP, ip);
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_WR_ADDR, owniptableid);
+
+	uint32_t read_ip;
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_IP, 0);
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_RD_ADDR, owniptableid);
+	readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_IP, &read_ip);
+
+	assert (read_ip == ip);
+
+	owniptableid++;
+}
+
 void register_interface(router_t* router, interface_t * iface, int interface_index) {
+
 	printf("NETFPGA: Assigning register values for interface %d; MAC: %s", interface_index, quick_mac_to_string(&iface->mac));
 	printf("; IP: %s\n", quick_ip_to_string(iface->ip));
 
@@ -61,15 +81,7 @@ void register_interface(router_t* router, interface_t * iface, int interface_ind
 	assert(mac_low == read_mac_low);
 	assert(mac_high == read_mac_high);
 
-	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_IP, iface->ip);
-	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_WR_ADDR, interface_index);
-
-	uint32_t read_ip;
-	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_IP, 0);
-	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_RD_ADDR, interface_index);
-	readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_IP, &read_ip);
-
-	assert (read_ip == iface->ip);
+	register_ownip(router, iface->ip);
 }
 #endif
 
@@ -87,6 +99,9 @@ void router_init(router_t* router) {
 		pause.tv_nsec = 5000 * 1000; /* 5ms */
 		nanosleep( &pause, NULL );
 	}
+
+	// define all IP packet destinations that will be routed to software here
+	register_ownip(router, IP_CONVERT(244,0,0,5));
 #endif
 
 	router->is_router_running = 1;

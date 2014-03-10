@@ -212,6 +212,7 @@ void arp_putincache(router_t* router, dataqueue_t * cache, addr_ip_t ip, addr_ma
 		result.tv.tv_sec = timeout;
 
 		queue_replace(cache, &result, sizeof(arp_cache_entry_t), id);
+		hardware_arp_putincache(router, ip, mac, id);
 		return;
 	}
 
@@ -227,7 +228,7 @@ void arp_putincache(router_t* router, dataqueue_t * cache, addr_ip_t ip, addr_ma
 		result.tv.tv_sec = timeout;
 
 		queue_replace(cache, &result, sizeof(arp_cache_entry_t), id);
-
+		hardware_arp_putincache(router, ip, mac, id);
 		return;
 	}
 
@@ -241,8 +242,7 @@ void arp_putincache(router_t* router, dataqueue_t * cache, addr_ip_t ip, addr_ma
 	result.tv.tv_sec = timeout;
 
 	queue_add(cache, &result, sizeof(arp_cache_entry_t));
-
-	//arp_print_cache(cache);
+	hardware_arp_putincache(router, ip, mac, queue_getcurrentsize(cache));
 }
 
 /* NOTE! After using arp_send, the original packet will be destroyed! Don't try to access fields in arp after the call of this function! */
