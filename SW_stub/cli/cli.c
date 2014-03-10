@@ -221,6 +221,9 @@ void cli_send_no_hw_str() {
     cli_send_str( "HW information is not available when not in CPU mode\n" );
 }
 #else
+#include "../common/nf10util.h"
+#include "../reg_defines.h"
+
 void cli_show_hw() {
     cli_send_str( "HW State:\n" );
     cli_show_hw_about();
@@ -230,22 +233,110 @@ void cli_show_hw() {
 }
 
 void cli_show_hw_about() {
-    char buf[STR_ARP_CACHE_MAX_LEN];
-   // router_hw_info_to_string( ROUTER, buf, STR_HW_INFO_MAX_LEN );
-    //cli_send_str( buf );
+	router_t * router = ROUTER;
+	cli_send_str( "MAC addresses:\nNo:\tMAC_LOW\tMAC_HIGH\tHW_ID\tHW_OQ\n" );
+
+	int i;
+	for (i = 0; i < router->num_interfaces; i++) {
+		interface_t * intf = &router->interface[i];
+
+		uint32_t mac_addr_low;
+		uint32_t mac_addr_high;
+
+		switch(intf->hw_id) {
+		case INTF0:
+			mac_addr_low = XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_0_LOW;
+			mac_addr_high = XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_0_HIGH;
+			break;
+		case INTF1:
+			mac_addr_low = XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_1_LOW;
+			mac_addr_high = XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_1_HIGH;
+			break;
+		case INTF2:
+			mac_addr_low = XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_2_LOW;
+			mac_addr_high = XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_2_HIGH;
+			break;
+		case INTF3:
+			mac_addr_low = XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_3_LOW;
+			mac_addr_high = XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_3_HIGH;
+			break;
+		default:
+			cli_send_strf( "%d: Unknown hardware id 0x%x\n", i, intf->hw_id);
+			continue;
+		}
+
+		uint32_t read_mac_low;
+		uint32_t read_mac_high;
+
+		readReg(router->nf.fd, mac_addr_low, &read_mac_low);
+		readReg(router->nf.fd, mac_addr_high, &read_mac_high);
+
+		cli_send_strf( "%d:\t%0x%x\t0x%x\t0x%x\t0x%x\n", i, read_mac_low, read_mac_high, intf->hw_id, intf->hw_oq);
+	}
 }
 
 void cli_show_hw_arp() {
+	router_t * router = ROUTER;
+	cli_send_str( "HW ARP registers:\nNo:\tIP\tMAC_LOW\tMAC_HIGH\n" );
 
+	int i;
+	for (i = 0; i < 32; i++) {
+		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_RD_ADDR, i);
+
+		uint32_t read_ip, read_mac_low, read_mac_high;
+		readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_IP, &read_ip);
+		readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_MAC_HIGH, &read_mac_high);
+		readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_MAC_LOW, &read_mac_low);
+
+		if (read_mac_low != 0 || read_mac_high != 0 || read_ip != 0)
+			cli_send_strf( "%d:\t%s\t0x%x\t0x%x\n", i, quick_ip_to_string(read_ip), read_mac_low, read_mac_high);
+	}
+
+	cli_send_str( "\n" );
 }
 
 void cli_show_hw_intf() {
-    char buf[STR_INTFS_HW_MAX_LEN];
-    //router_intf_hw_to_string( ROUTER, buf, STR_INTFS_HW_MAX_LEN );
-   // cli_send_str( buf );
+	router_t * router = ROUTER;
+	cli_send_str( "HW own interfaces:\nNo:\tIP\n" );
+
+	int i;
+	for (i = 0; i < 32; i++) {
+		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_RD_ADDR, i);
+
+		uint32_t read_ip;
+		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_RD_ADDR, i);
+		readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_IP, &read_ip);
+
+		if (read_ip != 0)
+			cli_send_strf( "%d:\t%s\n", i, quick_ip_to_string(read_ip));
+	}
+
+	cli_send_str( "\n" );
 }
 
 void cli_show_hw_route() {
+	router_t * router = ROUTER;
+	cli_send_str( "HW Longest Prefix Match table:\nNo:\tIP\tMASK\tNEXTIP\tOQ\n" );
+
+	int i;
+	for (i = 0; i < 32; i++) {
+		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_RD_ADDR, i);
+
+		uint32_t read_ip, read_ip_mask, read_next_hop_ip, read_lpm_oq;
+		readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP, &read_ip);
+		readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP_MASK, &read_ip_mask);
+		readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_NEXT_HOP_IP, &read_next_hop_ip);
+		readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_OQ, &read_lpm_oq);
+
+
+		if (read_ip != 0 || read_ip_mask != 0 || read_next_hop_ip != 0 || read_lpm_oq != 0) {
+			cli_send_strf( "%d:\t%s", i, quick_ip_to_string(read_ip));
+			cli_send_strf( "\t%s", quick_ip_to_string(read_ip_mask));
+			cli_send_strf( "\t%s\t0x%x\n", quick_ip_to_string(read_next_hop_ip), read_lpm_oq);
+		}
+	}
+
+	cli_send_str( "\n" );
 }
 #endif
 
