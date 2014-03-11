@@ -305,7 +305,7 @@ void arp_putincache(router_t* router, dataqueue_t * cache, addr_ip_t ip, addr_ma
 
 		queue_replace(cache, &result, sizeof(arp_cache_entry_t), id);
 #ifdef _CPUMODE_
-		hardware_arp_putincache(router, ip, mac, id);
+		hardware_arp_synccache(router);
 #endif
 		return;
 	}
@@ -323,7 +323,7 @@ void arp_putincache(router_t* router, dataqueue_t * cache, addr_ip_t ip, addr_ma
 
 		queue_replace(cache, &result, sizeof(arp_cache_entry_t), id);
 #ifdef _CPUMODE_
-		hardware_arp_putincache(router, ip, mac, id);
+		hardware_arp_synccache(router);
 #endif
 		return;
 	}
@@ -339,7 +339,7 @@ void arp_putincache(router_t* router, dataqueue_t * cache, addr_ip_t ip, addr_ma
 
 	queue_add(cache, &result, sizeof(arp_cache_entry_t));
 #ifdef _CPUMODE_
-	hardware_arp_putincache(router, ip, mac, queue_getcurrentsize(cache));
+	hardware_arp_synccache(router);
 #endif
 }
 
