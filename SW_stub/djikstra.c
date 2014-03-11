@@ -18,8 +18,43 @@ dataqueue_t rtable;
 #include "common/nf10util.h"
 #include "reg_defines.h"
 
+void update_hardwarearponeentry(router_t * router, int id, addr_ip_t ip, addr_ip_t netmask, addr_ip_t router_ip, int hw_oq) {
+	if (id < 32) {
+
+		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP, ntohs(ip));
+		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP_MASK, ntohs(netmask));
+		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_NEXT_HOP_IP, ntohs(router_ip));
+		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_OQ, hw_oq);
+
+		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_WR_ADDR, id);
+
+		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP, 0);
+		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP_MASK, 0);
+		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_NEXT_HOP_IP, 0);
+		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_OQ, 0);
+
+		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_RD_ADDR, id);
+
+		uint32_t read_ip, read_ip_mask, read_next_hop_ip, read_lpm_oq;
+		readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP, &read_ip);
+		readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP_MASK, &read_ip_mask);
+		readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_NEXT_HOP_IP, &read_next_hop_ip);
+		readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_OQ, &read_lpm_oq);
+
+		assert (read_ip == ntohs(ip));
+		assert (read_ip_mask == ntohs(netmask));
+		assert (read_next_hop_ip == ntohs(router_ip));
+		assert (read_lpm_oq == hw_oq);
+	} else
+		fprintf(stderr, "Longest Prefix Match table is overflowing and some values will not be written to hardware!\n");
+}
+
 void update_hardwarearp(router_t * router, dataqueue_t * table) {
 	int i;
+
+	for (i = 0; i < router->num_interfaces; i++)
+		update_hardwarearponeentry(router, i, router->interface[i].ip, IP_CONVERT(255,255,255,255), 0, router->interface[i].hw_id);
+
 	for (i = 0; i < table->size; i++) {
 		rtable_entry_t * entry;
 		int entry_size;
@@ -27,34 +62,8 @@ void update_hardwarearp(router_t * router, dataqueue_t * table) {
 
 			assert(entry_size == sizeof(rtable_entry_t));
 
-			if (i < 32) {
+			update_hardwarearponeentry(router, i+router->num_interfaces, entry->subnet, entry->netmask, entry->router_ip, entry->interface->hw_oq);
 
-				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP, ntohs(entry->subnet));
-				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP_MASK, ntohs(entry->netmask));
-				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_NEXT_HOP_IP, ntohs(entry->router_ip));
-				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_OQ, entry->interface->hw_oq);
-
-				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_WR_ADDR, i);
-
-				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP, 0);
-				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP_MASK, 0);
-				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_NEXT_HOP_IP, 0);
-				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_OQ, 0);
-
-				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_RD_ADDR, i);
-
-				uint32_t read_ip, read_ip_mask, read_next_hop_ip, read_lpm_oq;
-				readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP, &read_ip);
-				readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP_MASK, &read_ip_mask);
-				readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_NEXT_HOP_IP, &read_next_hop_ip);
-				readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_OQ, &read_lpm_oq);
-
-				assert (read_ip == ntohs(entry->subnet));
-				assert (read_ip_mask == ntohs(entry->netmask));
-				assert (read_next_hop_ip == ntohs(entry->router_ip));
-				assert (read_lpm_oq == entry->interface->hw_oq);
-			} else
-				fprintf(stderr, "Longest Prefix Match table is overflowing and some values will not be written to hardware!\n");
 			queue_unlockid(table, i);
 		}
 	}
