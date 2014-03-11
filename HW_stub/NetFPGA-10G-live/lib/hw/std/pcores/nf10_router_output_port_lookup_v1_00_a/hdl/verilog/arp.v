@@ -142,10 +142,14 @@ module arp
      M_AXIS_TDATA   = M_AXIS_TDATA0;
 	  state_next = state;
 	  arp_miss_next = arp_miss_count;
-       if( state == 2'd0 & M_AXIS_TVALID) 
+       if( state == 2'd0 & M_AXIS_TVALID & !M_AXIS_TLAST) 
        begin	
-	state_next = 1;	 
-	if(arp_lookup)
+	    state_next = 1;
+//!( M_AXIS_TUSER0[SRC_PORT_POS] || M_AXIS_TUSER0[SRC_PORT_POS+2] || M_AXIS_TUSER0[SRC_PORT_POS+6] || M_AXIS_TUSER0[SRC_PORT_POS+8]) && (
+	if( M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] == 8'd0)
+	begin
+
+        if(arp_lookup)
 	begin
 	 dest_mac = 0;
 	 queue = 0;
@@ -179,11 +183,11 @@ module arp
 	  M_AXIS_TDATA[79:72] = M_AXIS_TDATA0[79:72] - 1;
 //`	  M_AXIS_TDATA[63:48] = M_AXIS_TDATA0[63:48] + 1;
 	  M_AXIS_TDATA[63:56] = M_AXIS_TDATA0[63:56] + 1;
-          tdata = M_AXIS_TDATA;
+
 	end
 	else 
 	begin
-	  arp_miss_next <= arp_miss_next + 1;
+	  arp_miss_next = arp_miss_next + 1;
           if(M_AXIS_TUSER0[SRC_PORT_POS])   M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000010;
           if(M_AXIS_TUSER0[SRC_PORT_POS+2]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00001000;
           if(M_AXIS_TUSER0[SRC_PORT_POS+4]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00100000;
@@ -191,6 +195,8 @@ module arp
 
 	end
 	end
+	end
+//	          tdata = M_AXIS_TDATA;
        end
        else if( state == 1 & M_AXIS_TVALID & M_AXIS_TREADY)
        begin
@@ -199,7 +205,7 @@ module arp
 	state_next = 2;
 
        end
-       else if( state == 2 & M_AXIS_TLAST & M_AXIS_TVALID)
+       else if( state == 2 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
        begin
 	state_next = 0;
        end
@@ -208,6 +214,7 @@ module arp
 
   always@(posedge AXI_ACLK)
   begin
+	tdata <= M_AXIS_TDATA;
       if(~AXI_RESETN)
       begin
         state <= 0;

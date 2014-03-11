@@ -504,6 +504,8 @@ module nf10_router_output_port_lookup
       .S_AXIS_TVALID ( M_AXIS_TVALID_0 ),
       .S_AXIS_TREADY ( M_AXIS_TREADY_0 ),
       .S_AXIS_TLAST ( M_AXIS_TLAST_0 ),
+      .reset(reset),
+      .cpu_count(cpu_count),
 	.low_ip_addr(low_ip_addr)
    );
 
