@@ -34,7 +34,7 @@ void register_ownip(router_t* router, addr_ip_t  ip) {
 	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_RD_ADDR, owniptableid);
 	readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_IP, &read_ip);
 
-	assert (read_ip == ntohs(ip));
+	assert (read_ip == ntohl(ip));
 
 	owniptableid++;
 }
