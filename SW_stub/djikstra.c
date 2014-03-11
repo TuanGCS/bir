@@ -29,9 +29,9 @@ void update_hardwarearp(router_t * router, dataqueue_t * table) {
 
 			if (i < 32) {
 
-				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP, entry->subnet);
-				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP_MASK, entry->netmask);
-				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_NEXT_HOP_IP, entry->router_ip);
+				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP, ntohs(entry->subnet));
+				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP_MASK, ntohs(entry->netmask));
+				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_NEXT_HOP_IP, ntohs(entry->router_ip));
 				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_OQ, entry->interface->hw_oq);
 
 				writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_WR_ADDR, i);
@@ -49,9 +49,9 @@ void update_hardwarearp(router_t * router, dataqueue_t * table) {
 				readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_NEXT_HOP_IP, &read_next_hop_ip);
 				readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_OQ, &read_lpm_oq);
 
-				assert (read_ip == entry->subnet);
-				assert (read_ip_mask == entry->netmask);
-				assert (read_next_hop_ip == entry->router_ip);
+				assert (read_ip == ntohs(entry->subnet));
+				assert (read_ip_mask == ntohs(entry->netmask));
+				assert (read_next_hop_ip == ntohs(entry->router_ip));
 				assert (read_lpm_oq == entry->interface->hw_oq);
 			} else
 				fprintf(stderr, "Longest Prefix Match table is overflowing and some values will not be written to hardware!\n");

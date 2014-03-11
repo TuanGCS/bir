@@ -165,6 +165,8 @@ void hardware_arp_putincache(router_t * router, addr_ip_t ip, addr_mac_t mac, in
 		return;
 	}
 
+	ip = ntohs(ip);
+
 	const uint32_t mac_low = mac_lo(&mac);
 	const uint32_t mac_high = mac_hi(&mac);
 
