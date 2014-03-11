@@ -320,7 +320,7 @@ void cli_show_hw_route() {
 
 	int i;
 	for (i = 0; i < 32; i++) {
-		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_RD_ADDR, i);
+		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_RD_ADDR, i);
 
 		uint32_t read_ip, read_ip_mask, read_next_hop_ip, read_lpm_oq;
 		readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP, &read_ip);
