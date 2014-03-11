@@ -225,7 +225,7 @@ void cli_send_no_hw_str() {
 #include "../reg_defines.h"
 
 void cli_show_hw() {
-    cli_send_str( "HW State:\n" );
+    cli_send_str( "HW State:\n\n" );
     cli_show_hw_about();
     cli_show_hw_arp();
     cli_show_hw_intf();
@@ -273,11 +273,13 @@ void cli_show_hw_about() {
 
 		cli_send_strf( "%d:\t%04x%08x\t0x%x\t0x%x\n", i, read_mac_high, read_mac_low,  intf->hw_id, intf->hw_oq);
 	}
+
+	cli_send_str( "\n" );
 }
 
 void cli_show_hw_arp() {
 	router_t * router = ROUTER;
-	cli_send_str( "HW ARP registers:\nNo:\tIP\tMAC_HI_LO\n" );
+	cli_send_str( "HW ARP registers:\nNo:\tIP\t\tMAC_HI_LO\n" );
 
 	int i;
 	for (i = 0; i < 32; i++) {
@@ -316,7 +318,7 @@ void cli_show_hw_intf() {
 
 void cli_show_hw_route() {
 	router_t * router = ROUTER;
-	cli_send_str( "HW Longest Prefix Match table:\nNo:\tIP\tMASK\tNEXTIP\tOQ\n" );
+	cli_send_str( "HW Longest Prefix Match table:\nNo:\tIP\t\tMASK\t\tNEXTIP\tOQ\n" );
 
 	int i;
 	for (i = 0; i < 32; i++) {
@@ -382,6 +384,7 @@ void cli_show_ip_arp() {
 }
 
 void cli_show_ip_intf() {
+	 char str_subnet[STRLEN_SUBNET];
 	dataqueue_t * table = &ROUTER->ip_table;
 
 	int i;
@@ -393,8 +396,11 @@ void cli_show_ip_intf() {
 			assert(entry_size == sizeof(rtable_entry_t));
 
 			char entrystr[100];
-			sprintf(entrystr, "%d. IP: %s/%d %d @ iface %s \n", i,
-					quick_ip_to_string(entry->subnet), entry->netmask,entry->metric,
+
+		    subnet_to_string( str_subnet, entry->subnet, entry->netmask );
+
+			sprintf(entrystr, "%d. IP: %s %d @ iface %s \n", i,
+					str_subnet,entry->metric,
 					entry->interface->name);
 
 			queue_unlockid(table, i);
