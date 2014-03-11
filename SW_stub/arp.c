@@ -170,11 +170,13 @@ void process_arpipqueue(dataqueue_t * queue, addr_ip_t ip, addr_mac_t mac, route
 						// undo the ttl substraction orignally done by ip_headercheck
 						ip_packet_copy->ttl++;
 
+
 						// we have a match deal with the packet as if it was just received
 						ip_onreceive(entry_copy, ip_packet_copy);
 
 					} else
 						queue_unlockid(queue, i);
+
 
 				} else
 					queue_unlockid(queue, i);

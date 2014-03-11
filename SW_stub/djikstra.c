@@ -198,11 +198,11 @@ void djikstra_recompute(router_t * router) {
 		if (queue_getidunsafe(topology, k, (void **) &entry, &entry_size)) {
 
 			// Print all entries in the topology
-			printf("Entry: ");
-			printf("%s \t", quick_ip_to_string(entry->lsa.netmask));
-			printf("%s \t", quick_ip_to_string(entry->lsa.subnet));
-			printf("%s \t", quick_ip_to_string(entry->lsa.router_id));
-			printf("%s \t \n", quick_ip_to_string(entry->router_ip));
+//			printf("Entry: ");
+//			printf("%s \t", quick_ip_to_string(entry->lsa.netmask));
+//			printf("%s \t", quick_ip_to_string(entry->lsa.subnet));
+//			printf("%s \t", quick_ip_to_string(entry->lsa.router_id));
+//			printf("%s \t \n", quick_ip_to_string(entry->router_ip));
 
 			int p;
 			for (p = k + 1; p < topology->size; p++) {
@@ -365,12 +365,6 @@ void djikstra_recompute(router_t * router) {
 	}
 
 	qsort(entries, entries_size, sizeof(rtable_entry_t), cmpfunc);
-
-	for (q = 0; q < entries_size; q++) {
-		printf("%s -- ", quick_ip_to_string(entries[q].router_ip));
-		printf("%s -- ", quick_ip_to_string(entries[q].subnet));
-		printf("%s\n", quick_ip_to_string(entries[q].netmask));
-	}
 
 	for (q = 0; q < entries_size; q++) {
 		ip_putintable(&rtable, entries[q].subnet, entries[q].interface,

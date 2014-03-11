@@ -312,7 +312,6 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 
 	// Check the validity of the IP header
 	if (!ip_header_check(pi, ipv4)) {
-		fprintf(stderr, "Invalid IP received\n");
 		ip_print(ipv4);
 		return;
 	}

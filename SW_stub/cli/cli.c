@@ -344,7 +344,6 @@ void cli_show_hw_route() {
 
 void cli_show_ip() {
     cli_send_str( "IP State:\n" );
-    cli_show_ip_arp();
     cli_show_ip_intf();
     cli_show_ip_route();
 }
@@ -384,9 +383,10 @@ void cli_show_ip_arp() {
 }
 
 void cli_show_ip_intf() {
-	 char str_subnet[STRLEN_SUBNET];
+	char str_subnet[STRLEN_SUBNET];
 	dataqueue_t * table = &ROUTER->ip_table;
 
+	cli_send_strf("Destination \t Gateway \t Mask \t \t Interface \t Metric \n");
 	int i;
 	for (i = 0; i < table->size; i++) {
 		rtable_entry_t * entry;
@@ -399,9 +399,14 @@ void cli_show_ip_intf() {
 
 		    subnet_to_string( str_subnet, entry->subnet, entry->netmask );
 
-			sprintf(entrystr, "%d. IP: %s %d @ iface %s \n", i,
-					str_subnet,entry->metric,
-					entry->interface->name);
+		    char subnet[16];
+		    ip_to_string(subnet, entry->subnet);
+		    char router_ip[16];
+		    ip_to_string(router_ip, entry->router_ip);
+		    char netmask[16];
+		    ip_to_string(netmask, entry->netmask);
+
+		    sprintf(entrystr, "%s \t %s \t %s \t %s \t %d \n", subnet, router_ip, netmask, entry->interface->name, entry->metric);
 
 			queue_unlockid(table, i);
 			// cli_send_strf will require locking of the queue

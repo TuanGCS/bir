@@ -605,11 +605,6 @@ void send_pwospf_lsa_packet(router_t* router) {
 		int entry_size;
 		if (queue_getidunsafe(&topology, q, (void **) &entry, &entry_size)
 				!= -1) {
-			printf("Neighbour: %s/", quick_ip_to_string(entry->subnet));
-			printf("%s -- ", quick_ip_to_string(entry->netmask));
-			printf("%s \n", quick_ip_to_string(entry->router_id));
-		} else {
-			printf("No!");
 		}
 	}
 

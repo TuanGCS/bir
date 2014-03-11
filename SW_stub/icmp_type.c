@@ -27,7 +27,7 @@ void icmp_type_dst_unreach(packet_info_t* pi, packet_ip4_t* ipv4, int code) {
 			(packet_icmp_t *) &pi->packet[sizeof(packet_ethernet_t)
 					+ sizeof(packet_ip4_t)];
 
-	ipv4->ttl++;
+	ipv4->ttl = 64;
 	byte data[28];
 	memcpy(data, (void *) ipv4, 20);
 	memcpy(&data[20], (void *) icmp, 8);
