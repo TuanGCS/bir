@@ -144,7 +144,7 @@ void process_arpipqueue(dataqueue_t * queue, addr_ip_t ip, addr_mac_t mac, route
 
 						free(entry->packet_info);
 
-						printf("A packet for %s has timed out due to ARP response not received after %d attempts!\n",  quick_ip_to_string(ip_packet->dst_ip), entry->sent_arps_count);
+						printf("A packet for %s has timed out due to ARP response not received!\n",  quick_ip_to_string(ip_packet->dst_ip));
 					}
 				} else if (ip_longestprefixmatch(&router->ip_table, ip_packet->dst_ip,
 						&dest_ip_entry) >= 0) {
