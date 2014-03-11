@@ -234,7 +234,7 @@ void cli_show_hw() {
 
 void cli_show_hw_about() {
 	router_t * router = ROUTER;
-	cli_send_str( "MAC addresses:\nNo:\tMAC_HI\tMAC_LO\tHW_ID\tHW_OQ\n" );
+	cli_send_str( "MAC addresses:\nNo:\tMAC_HI_LO\tHW_ID\tHW_OQ\n" );
 
 	int i;
 	for (i = 0; i < router->num_interfaces; i++) {
@@ -271,13 +271,13 @@ void cli_show_hw_about() {
 		readReg(router->nf.fd, mac_addr_low, &read_mac_low);
 		readReg(router->nf.fd, mac_addr_high, &read_mac_high);
 
-		cli_send_strf( "%d:\t%04x\t%08x\t0x%x\t0x%x\n", i, read_mac_high, read_mac_low,  intf->hw_id, intf->hw_oq);
+		cli_send_strf( "%d:\t%04x%08x\t0x%x\t0x%x\n", i, read_mac_high, read_mac_low,  intf->hw_id, intf->hw_oq);
 	}
 }
 
 void cli_show_hw_arp() {
 	router_t * router = ROUTER;
-	cli_send_str( "HW ARP registers:\nNo:\tIP\tMAC_HI\tMAC_LO\n" );
+	cli_send_str( "HW ARP registers:\nNo:\tIP\tMAC_HI_LO\n" );
 
 	int i;
 	for (i = 0; i < 32; i++) {
@@ -289,7 +289,7 @@ void cli_show_hw_arp() {
 		readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_MAC_LOW, &read_mac_low);
 
 		if (read_mac_low != 0 || read_mac_high != 0 || read_ip != 0)
-			cli_send_strf( "%d:\t%s\t%04x\t%08x\n", i, quick_ip_to_string(htonl(read_ip)), read_mac_high, read_mac_low);
+			cli_send_strf( "%d:\t%s\t%04x%08x\n", i, quick_ip_to_string(htonl(read_ip)), read_mac_high, read_mac_low);
 	}
 
 	cli_send_str( "\n" );
