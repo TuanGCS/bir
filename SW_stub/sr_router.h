@@ -138,7 +138,7 @@ void router_add_interface( router_t* router,
                            addr_ip_t ip, addr_ip_t mask, addr_mac_t mac );
 
 int packetinfo_ip_allocate(router_t* router, packet_info_t ** pinfo, int size,
-		addr_ip_t dest, int protocol, int total_length);
+		addr_ip_t dest, addr_ip_t src, int protocol, int total_length);
 
 void packetinfo_free(packet_info_t ** pinfo);
 

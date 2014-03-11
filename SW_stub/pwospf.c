@@ -663,7 +663,7 @@ void send_pwospf_lsa_packet(router_t* router) {
 		pi->interface = &router->interface[i];
 
 		generate_ipv4_header(router->interface[i].ip,
-				sizeof(pwospf_packet_link_t), ipv4);
+				lsa_packet_length, ipv4);
 		generate_pwospf_link_header(router->pw_router.router_id, aid,
 				router->interface[i].subnet_mask, topologysize, pw_link,
 				lsa_packet_length);
