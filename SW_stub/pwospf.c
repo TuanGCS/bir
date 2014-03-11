@@ -12,6 +12,7 @@
 #include "ip.h"
 #include "unistd.h"
 #include "djikstra.h"
+#include "arp.h"
 
 #include "sr_thread.h"
 
@@ -71,9 +72,47 @@ pwospf_list_entry_t * getneighbourfromidunsafe(dataqueue_t * neighbours,
 	return NULL;
 }
 
-void pwospf_reflood_to(packet_info_t * pi, pwospf_packet_link_t * packet,
-		addr_ip_t dest) {
-	// TODO write reflooding
+void pwospf_reflood_to(packet_info_t * pi, interface_t * intf, addr_ip_t dest) {
+
+	packet_ip4_t * ip = PACKET_MARSHALL(packet_ip4_t, pi->packet,
+			sizeof(packet_ethernet_t));
+	ip->dst_ip = dest;
+	ip->src_ip = intf->ip;
+
+	arp_cache_entry_t arp_dest; // memory allocation ;(
+	if (arp_getcachebyip(&pi->router->arp_cache, dest, &arp_dest) >= 0) {
+
+		printf("%s\n", quick_mac_to_string(&arp_dest.mac));
+
+		ip->header_checksum = 0;
+		ip->header_checksum = generatechecksum((unsigned short*) ip,
+				sizeof(packet_ip4_t));
+
+		if (ip->ttl < 1)
+			return;
+
+		if (ethernet_packet_send(get_sr(), intf, arp_dest.mac, intf->mac,
+				htons(ETH_IP_TYPE), pi) == -1)
+			fprintf(stderr, "Cannot send PWOSPF LUS packet on interface %s\n",
+					intf->name);
+
+	} else {
+		fprintf(stderr,
+				"PWOSPF ReFlood: IP packet will be queued upon ARP request response.\n");
+
+		// add to queue
+		byte data[sizeof(packet_info_t) + pi->len];
+		memcpy(data, (void *) pi, sizeof(packet_info_t)); // first add packet info
+		memcpy(&data[sizeof(packet_info_t)], (void *) pi->packet, pi->len); // then add the data intself
+
+		// TODO! what if we start pinging an unknown address until memory runs out? how do we flush iparp_buffer?
+		queue_add(&pi->router->iparp_buffer, (void *) &data,
+				sizeof(packet_info_t) + pi->len); // add current packet to queue
+
+		arp_send_request(pi->router, intf, dest);
+
+	}
+
 }
 
 int compare_lsus(pwospf_lsa_t * a, pwospf_lsa_t * b, int size) {
@@ -126,7 +165,8 @@ void pwospf_reflood_packetpartiallyunsafe(packet_info_t * pi,
 					debug_println("to IP %s (%d entries)",
 							quick_ip_to_string(entry->neighbour_ip),
 							ntohl(packet->advert));
-					pwospf_reflood_to(pi, packet, entry->neighbour_ip);
+					pwospf_reflood_to(pi, &router->interface[i],
+							entry->neighbour_ip);
 
 					queue_unlockid(neighbours, n);
 					// entry is invalid from here on, whatever you do, do it inside
@@ -145,7 +185,9 @@ void pwospf_reflood_packetpartiallyunsafe(packet_info_t * pi,
 						debug_println("to IP %s (%d entries)",
 								quick_ip_to_string(entry->neighbour_ip),
 								ntohl(packet->advert));
-						pwospf_reflood_to(pi, packet, entry->neighbour_ip);
+
+						pwospf_reflood_to(pi, &router->interface[i],
+								entry->neighbour_ip);
 					}
 
 				}
@@ -548,34 +590,11 @@ int get_neighbour_topology(router_t * router, dataqueue_t * topology) {
 			queue_add(topology, &intfentry, sizeof(pwospf_lsa_t));
 		}
 
-		dataqueue_t * neighbours = &router->interface[i].neighbours;
-		int n;
-		for (n = 0; n < neighbours->size; n++) {
-			pwospf_list_entry_t * entry;
-			int entry_size;
-			if (queue_getidandlock(neighbours, n, (void **) &entry,
-					&entry_size)) {
-
-				assert(entry_size == sizeof(pwospf_list_entry_t));
-
-				if (entry->immediate_neighbour == 1) {
-
-					int j;
-					for (j = 0; j < entry->lsu_lastcontents_count; j++) {
-						pwospf_lsa_t * lsa_entry = &entry->lsu_lastcontents[j];
-
-						if (queue_existsunsafe(topology, lsa_entry) == -1) {
-							count++;
-							queue_add(topology, lsa_entry,
-									sizeof(pwospf_lsa_t));
-						}
-
-					}
-				}
-
-				queue_unlockid(neighbours, n);
-			}
+		if (queue_existsunsafe(topology, &intfentry) == -1) {
+			count++;
+			queue_add(topology, &intfentry, sizeof(pwospf_lsa_t));
 		}
+
 	}
 
 	return count;
@@ -583,11 +602,25 @@ int get_neighbour_topology(router_t * router, dataqueue_t * topology) {
 
 void send_pwospf_lsa_packet(router_t* router) {
 
-	// since topology will be used by only one thread there is no need for locking/unlocking
+// since topology will be used by only one thread there is no need for locking/unlocking
 	dataqueue_t topology;
 
 	queue_init(&topology);
 	const int topologysize = get_neighbour_topology(router, &topology);
+
+	int q;
+	for (q = 0; q < topology.size; q++) {
+		pwospf_lsa_t * entry;
+		int entry_size;
+		if (queue_getidunsafe(&topology, q, (void **) &entry, &entry_size)
+				!= -1) {
+			printf("Neighbour: %s/", quick_ip_to_string(entry->subnet));
+			printf("%s -- ", quick_ip_to_string(entry->netmask));
+			printf("%s \n", quick_ip_to_string(entry->router_id));
+		} else {
+			printf("No!");
+		}
+	}
 
 	if (topologysize == 0) {
 		printf("LSU will not be sent this time! Topology is empty!\n");
@@ -659,8 +692,8 @@ void send_pwospf_hello_packet(router_t* router) {
 	pi->packet = (byte *) malloc(pi->len);
 	pi->router = router;
 
-	//		addr_ip_t aid = router->interface[i].ip
-	//				& router->interface[i].subnet_mask;
+//		addr_ip_t aid = router->interface[i].ip
+//				& router->interface[i].subnet_mask;
 	addr_ip_t aid = (addr_ip_t) 0; // Backbone
 
 	addr_mac_t broadcast = MAC_BROADCAST;
@@ -697,7 +730,7 @@ void pwospf_thread(void *arg) {
 	router_t * router = (router_t *) arg;
 	pthread_detach(pthread_self());
 
-	// starting up time
+// starting up time
 	sleep(HELLOINT);
 
 	while (router->is_router_running) {

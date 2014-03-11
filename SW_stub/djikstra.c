@@ -98,7 +98,6 @@ void djikstra_recompute(router_t * router) {
 						lsa_entry_dj.router_ip = entry->neighbour_ip;
 						if (entry->immediate_neighbour == 1) {
 							routers[i] = entry->neighbour_ip;
-							printf("OFF: %s \n", quick_ip_to_string(routers[i]));
 						}
 						if (queue_existsunsafe(topology, &lsa_entry_dj) == -1) {
 							queue_add(topology, &lsa_entry_dj,
@@ -249,16 +248,16 @@ void djikstra_recompute(router_t * router) {
 	}
 
 	int q;
-	for (q = 0; q < subnets->size; q++) {
-		d_link_t * subnet;
-		int entry_size;
-		if (queue_getidunsafe(subnets, q, (void **) &subnet, &entry_size)
-				!= -1) {
-			printf("%s : %d\n", quick_ip_to_string(subnet->subnet), final[q]);
-		} else {
-			printf("No!");
-		}
-	}
+//	for (q = 0; q < subnets->size; q++) {
+//		d_link_t * subnet;
+//		int entry_size;
+//		if (queue_getidunsafe(subnets, q, (void **) &subnet, &entry_size)
+//				!= -1) {
+//			printf("%s : %d\n", quick_ip_to_string(subnet->subnet), final[q]);
+//		} else {
+//			printf("No!");
+//		}
+//	}
 
 	dataqueue_t rtable;
 	queue_init(&rtable);
@@ -280,8 +279,6 @@ void djikstra_recompute(router_t * router) {
 			entry->netmask = subnet->netmask;
 			entry->router_ip = rips[q];
 			entry->subnet = subnet->subnet;
-			printf("TEST: %s -- ", quick_ip_to_string(entry->subnet));
-			printf("TEST: %s \n", quick_ip_to_string(rips[q]));
 
 		}
 	}
@@ -296,8 +293,6 @@ void djikstra_recompute(router_t * router) {
 			assert(entry_size_old == sizeof(rtable_entry_t));
 
 			if (!entry_old->dynamic) {
-
-				printf("STATIC: %s\n", quick_ip_to_string(entry_old->subnet));
 
 				entries_size++;
 				entries = (rtable_entry_t *) realloc(entries,
