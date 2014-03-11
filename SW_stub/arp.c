@@ -148,9 +148,10 @@ void thread_arpipqueue_maintain(void * arg) {
 
 							icmp_type_dst_unreach(pi, ip_packet, ICMP_CODE_HOST_UNREACH);
 
+							printf("A packet for %s has timed out due to ARP response not received!\n",  quick_ip_to_string(ip_packet->dst_ip));
+
 							free(packet_info);
 
-							printf("A packet for %s has timed out due to ARP response not received!\n",  quick_ip_to_string(ip_packet->dst_ip));
 						}
 					} else
 						queue_unlockid(queue, i);
