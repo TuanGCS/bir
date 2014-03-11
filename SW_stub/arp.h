@@ -17,7 +17,7 @@
 #define ARP_CACHE_TIMEOUT_BROADCAST (60)
 #define ARP_CACHE_TIMEOUT_STATIC (-1)
 
-#define ARP_THRESHOLD (50)
+#define ARP_THRESHOLD (32)
 
 /* The function handles receiving arp packets.
  *  - pi is the packet info that contains the arpt able and incoming interface information
@@ -30,6 +30,7 @@ void arp_send_request(router_t* router, interface_t* interface, addr_ip_t target
 void arp_clear_all(router_t * router, dataqueue_t * cache);
 void arp_clear_static(router_t * router, dataqueue_t * cache);
 void arp_clear_dynamic(router_t * router, dataqueue_t * cache);
+void arp_maintain_cache(void *arg);
 
 // returns position in dataqueue
 int arp_getcachebymac(dataqueue_t * cache, addr_mac_t mac, arp_cache_entry_t * result);

@@ -24,6 +24,7 @@
 #include "sr_dumper.h"
 
 #include "ip.h"
+#include "arp.h"
 #include "packets.h"
 #include "dataqueue.h"
 #include "globals.h"
@@ -58,16 +59,13 @@ void sr_integ_hw_setup( struct sr_instance* sr ) {
 
     debug_println( "Performing post-hw setup initialization" );
 
-	// TODO! STATIC IP TABLE REMOVE THIS
     int i;
-    for(i = 0; i< router->num_interfaces; i++) {
+    for(i = 0; i< router->num_interfaces; i++)
     	ip_putintable(&router->ip_table, router->interface[i].ip & router->interface[i].subnet_mask, &router->interface[i], router->interface[i].subnet_mask, FALSE, 0, 0);
-    }
-
-    // TODO! REGISTER THOSE WITH NETFPGA
 
     // create router threads
     make_thread(&pwospf_thread, router);
+    make_thread(&arp_maintain_cache, router);
 }
 
 /**
