@@ -53,10 +53,15 @@ module lpm
 
     reg	[C_S_AXI_DATA_WIDTH*4-1:0] lpm_table [31:0];      // Value in table
 
+   integer i,j;
 
   always@(posedge AXI_ACLK)
   begin
-    if(tbl_wr_req)
+    if(~AXI_RESETN)
+    begin
+	for(i=0; i < 32; i=i+1) lpm_table[i] <= 128'd0;
+    end
+    else if(tbl_wr_req)
     begin
       tbl_wr_ack <= 1;
       lpm_table[tbl_wr_addr] <= tbl_wr_data;
@@ -108,11 +113,16 @@ module lpm
    reg [31:0] ip_check,ip_temp,mask_temp,queue,lpm_miss_next;
 	reg [47:0] dest_mac;
    reg [31:0] ip_mask, net_mask, next_hop, oq;
-   integer i;
 
    reg header, header_next;
    reg [31:0] a , b;
-   always@*
+
+
+   always@(lpm_table[0],lpm_table[1],lpm_table[2],lpm_table[3],lpm_table[4],lpm_table[5],
+lpm_table[6],lpm_table[7],lpm_table[8],lpm_table[9],lpm_table[10],lpm_table[11],lpm_table[12],
+lpm_table[13],lpm_table[14],lpm_table[15],lpm_table[16],lpm_table[17],lpm_table[18],lpm_table[19],
+lpm_table[20],lpm_table[21],lpm_table[22],lpm_table[23],lpm_table[24],lpm_table[25],lpm_table[26],
+lpm_table[27],lpm_table[28],lpm_table[29],lpm_table[30],lpm_table[31],ip_addr,M_AXIS_TVALID,lpm_miss_count,header,M_AXIS_TUSER0,M_AXIS_TLAST )
    begin
      header_next = header;
      M_AXIS_TUSER   = M_AXIS_TUSER0;
@@ -128,10 +138,10 @@ module lpm
 	 lpm_hit = 0;
 	 arp_lookup = 0;
     nh_reg = 0;
-	 for(i=0;i<32;i=i+1)
+	 for(j=0;j<32;j=j+1)
 	 begin
-	   ip_temp = lpm_table[i][31:0];
-	   mask_temp = lpm_table[i][63:32];
+	   ip_temp = lpm_table[j][31:0];
+	   mask_temp = lpm_table[j][63:32];
 	   a = (ip_temp);
 	   b = (ip_mask & mask_temp);
 	   if( ip_temp == (ip_mask & mask_temp) ) 
@@ -141,8 +151,8 @@ module lpm
 	     ip_mask = ip_temp; 
 	     net_mask = mask_temp;
 	     lpm_hit = 1;
-	     oq = lpm_table[i][127:96];
-	     next_hop = lpm_table[i][95:64];
+	     oq = lpm_table[j][127:96];
+	     next_hop = lpm_table[j][95:64];
 	     end
 	   end
 	 end

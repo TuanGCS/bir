@@ -66,10 +66,18 @@ module arp
 
     reg	[C_S_AXI_DATA_WIDTH*3-1:0] arp_table [31:0];      // Value in table
 
+   integer i,j;
 
   always@(posedge AXI_ACLK)
   begin
-    if(tbl_wr_req)
+    if(~AXI_RESETN)
+    begin
+	for(i=0; i < 32; i=i+1)
+	begin
+	  arp_table[i] <= 96'd0;
+	end
+    end
+    else if(tbl_wr_req)
     begin
       tbl_wr_ack <= 1;
       arp_table[tbl_wr_addr] <= tbl_wr_data;
@@ -133,10 +141,14 @@ module arp
    reg [31:0] arp_miss_next, ip_check,ip_temp,mask_temp,queue;
 	reg [47:0] dest_mac;
    reg [31:0] ip_mask, net_mask, next_hop, oq;
-   integer i;
 
 
-   always@*
+   always@(arp_table[0],arp_table[1],arp_table[2],arp_table[3],arp_table[4],arp_table[5],
+arp_table[6],arp_table[7],arp_table[8],arp_table[9],arp_table[10],arp_table[11],arp_table[12],
+arp_table[13],arp_table[14],arp_table[15],arp_table[16],arp_table[17],arp_table[18],arp_table[19],
+arp_table[20],arp_table[21],arp_table[22],arp_table[23],arp_table[24],arp_table[26],arp_table[27],
+arp_table[28],arp_table[29],arp_table[30],arp_table[31],M_AXIS_TDATA0,M_AXIS_TUSER0,
+tdata,state,arp_miss_count,M_AXIS_TLAST,M_AXIS_TVALID,M_AXIS_TREADY,arp_lookup,nh_reg,oq_reg )
    begin
      M_AXIS_TUSER   = M_AXIS_TUSER0;
      M_AXIS_TDATA   = M_AXIS_TDATA0;
@@ -154,16 +166,17 @@ module arp
 	 dest_mac = 0;
 	 queue = 0;
 	 arp_hit = 0; 
-	 for(i=0;i<32;i=i+1)
+	 for(j=0;j<32;j=j+1)
 	 begin
-	     if( !arp_hit & nh_reg == arp_table[i][31:0])
+	     if( !arp_hit & nh_reg == arp_table[j][31:0])
 	     begin
-		dest_mac = arp_table[i][79:32];
+		dest_mac = arp_table[j][79:32];
 		arp_hit = 1;
 	     end
 	 end
 	if(arp_hit)
 	begin
+/*
 	  case(oq_reg)	
           0: M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000001;
           1: M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00000100;
@@ -171,13 +184,15 @@ module arp
           3: M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b01000000;
           4: M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00000010;	 
 	  endcase
+*/
+	  M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = oq_reg[7:0];
 	  M_AXIS_TDATA[255:208] = dest_mac;
-	  case(oq_reg)	
-          0: M_AXIS_TDATA[207:160] = {mac0_high[15:0],mac0_low};
-          1: M_AXIS_TDATA[207:160] = {mac1_high[15:0],mac1_low};
-          2: M_AXIS_TDATA[207:160] = {mac2_high[15:0],mac2_low};
-          3: M_AXIS_TDATA[207:160] = {mac3_high[15:0],mac3_low};
-          4: M_AXIS_TDATA[207:160] = {mac0_high[15:0],mac0_low};
+	  case(oq_reg[7:0])	
+          1: M_AXIS_TDATA[207:160] = {mac0_high[15:0],mac0_low};
+          4: M_AXIS_TDATA[207:160] = {mac1_high[15:0],mac1_low};
+          16: M_AXIS_TDATA[207:160] = {mac2_high[15:0],mac2_low};
+          64: M_AXIS_TDATA[207:160] = {mac3_high[15:0],mac3_low};
+//          4: M_AXIS_TDATA[207:160] = {mac0_high[15:0],mac0_low};
 //          4: M_AXIS_TUSER[207:158] = 8'b00000010;	 
 	  endcase
 	  M_AXIS_TDATA[79:72] = M_AXIS_TDATA0[79:72] - 1;

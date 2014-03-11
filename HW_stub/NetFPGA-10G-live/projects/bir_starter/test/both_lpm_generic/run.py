@@ -34,7 +34,7 @@ for port in range(4):
     nftest_set_router_MAC ('nf%d'%port, routerMAC[port])
 
 subnetIP = ["192.168.1.1", "192.168.1.0"]
-subnetMask = ["255.255.255.224", "255.255.255.0"]
+subnetMask = ["255.255.255.225", "255.255.255.0"]
 nextHopIP = ["192.168.3.12", "192.168.1.54"]
 outPort = [0x4, 0x1]
 nextHopMAC = "dd:55:dd:66:dd:77"

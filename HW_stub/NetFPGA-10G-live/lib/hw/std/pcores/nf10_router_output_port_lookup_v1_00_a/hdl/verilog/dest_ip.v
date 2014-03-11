@@ -13,7 +13,8 @@ module dest_ip
     parameter C_M_AXIS_TUSER_WIDTH=128,
     parameter C_S_AXIS_TUSER_WIDTH=128,
     parameter SRC_PORT_POS=16,
-    parameter DST_PORT_POS=24
+    parameter DST_PORT_POS=24,
+    parameter LOOP = 32
 )
 (
     // Global Ports
@@ -55,6 +56,7 @@ module dest_ip
 );
 
 
+  integer i,j,k,l,m;
     reg	[C_S_AXI_DATA_WIDTH-1:0] dest_ip_table [31:0];      // Value in table
     wire [C_M_AXIS_TUSER_WIDTH-1:0]M_AXIS_TUSER0;
 	wire pkt_is_from_cpu;
@@ -63,10 +65,14 @@ module dest_ip
 			    M_AXIS_TUSER[SRC_PORT_POS+3] ||
 			    M_AXIS_TUSER[SRC_PORT_POS+5] ||
 			    M_AXIS_TUSER[SRC_PORT_POS+7];
-/*
+
   always@(posedge AXI_ACLK)
   begin
-    if(tbl_wr_req)
+    if(~AXI_RESETN)
+    begin
+      for(i = 0; i < 32; i=i+1) dest_ip_table[i] <= 32'd0;
+    end
+    else if(tbl_wr_req)
     begin
       tbl_wr_ack <= 1;
       dest_ip_table[tbl_wr_addr] <= tbl_wr_data;
@@ -83,7 +89,7 @@ module dest_ip
     end
     else tbl_rd_ack <= 0; 
   end
-*/
+
 
    fallthrough_small_fifo
         #( .WIDTH(C_M_AXIS_DATA_WIDTH+C_M_AXIS_TUSER_WIDTH+C_M_AXIS_DATA_WIDTH/8+1),
@@ -112,38 +118,20 @@ module dest_ip
 
   reg [31:0] dest_hit_next, bad_ttl_next, ver_next,non_ip_next, ip_data_check;
   reg header, header_next, cpu_hit;
-  integer i,j,k,l,m;
 
 
+//	dest_ip_table_next[i] = dest_ip_table[i];
+  always@(dest_ip_table[0],dest_ip_table[1],dest_ip_table[2],dest_ip_table[3],dest_ip_table[4],
+dest_ip_table[5],dest_ip_table[6],dest_ip_table[7],dest_ip_table[8],dest_ip_table[9],
+dest_ip_table[10],dest_ip_table[11],dest_ip_table[12],dest_ip_table[13],dest_ip_table[14],
+dest_ip_table[15],dest_ip_table[16],dest_ip_table[17],dest_ip_table[18],dest_ip_table[19],
+dest_ip_table[20],dest_ip_table[21],dest_ip_table[22],dest_ip_table[23],dest_ip_table[24],
+dest_ip_table[25],dest_ip_table[26],dest_ip_table[27],dest_ip_table[28],dest_ip_table[29],
+dest_ip_table[30],dest_ip_table[31],
+destip_addr,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_count,M_AXIS_TUSER0,M_AXIS_TDATA,M_AXIS_TLAST,M_AXIS_TVALID
 
-
-  always@*
+)
   begin
-
-	for(i = 0; i < 32; i=i+1)
-	begin
-	dest_ip_table_next[i] = dest_ip_table[i];
-	end
-	tbl_wr_ack_next = tbl_wr_ack;
-	tbl_rd_ack_next = tbl_rd_ack;
-	tbl_rd_data_next = tbl_rd_data;
-
-    	if(tbl_wr_req)
-    	begin
-      	tbl_wr_ack_next = 1;
-      	dest_ip_table_next[tbl_wr_addr] = tbl_wr_data;
-   	end
-    	else tbl_wr_ack_next = 0; 
-
-    	if(tbl_rd_req)
-    	begin
-    	tbl_rd_ack_next = 1;
-      	tbl_rd_data_next = dest_ip_table_next[tbl_rd_addr];
-    	end
-    	else tbl_rd_ack_next = 0; 
-
-
-
 	  ip_addr = destip_addr;
           header_next = header;
 	  ver_next = ver_count;
@@ -154,8 +142,7 @@ module dest_ip
 	  ip_data_check = destip_addr;
 	       cpu_hit = 0;
      if(header == 0 & M_AXIS_TVALID ) 
-     begin
-
+     begin//{
 	header_next = 1;
 	if(M_AXIS_TDATA[79:72] < 1) // Check TTL
 	begin
@@ -174,19 +161,19 @@ module dest_ip
 	end
 //	else
 //	begin
-
+//	cpu_hit = 0;
+//	  ip_data_check = destip_addr;
 	for(j=0; j<32; j=j+1)
-	begin
+	begin//{
 	  if(!cpu_hit)
-	  begin
-	    if(ip_data_check == dest_ip_table_next[j]) 
-	    begin
+	  begin//{
+	    if(ip_data_check == dest_ip_table[j]) 
+	    begin//{
 	      cpu_hit = 1;
 	      dest_hit_next = dest_hit_next + 1;
-	  end
-	end
-//	end
-
+	  end//}
+	end//}
+	end//}
 	if(cpu_hit && !pkt_is_from_cpu)
 	begin
           if(M_AXIS_TUSER[SRC_PORT_POS])   M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000010;
@@ -195,30 +182,26 @@ module dest_ip
           if(M_AXIS_TUSER[SRC_PORT_POS+6]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000000;
 	end
 //	cpu_hit = 0;
-
-   end
-  end
+   end//}
    else if(header == 1 & M_AXIS_TLAST & M_AXIS_TVALID )
    begin
       header_next = 0;
       cpu_hit = 0;
-   end 
+   end
  end
 
- parameter LOOP = 32;
- integer ka = 32; 
 
+// parameter LOOP = 32;
+ integer ka = 32; 
+ integer a;
   always@(posedge AXI_ACLK)
   begin
      if(~AXI_RESETN) begin
-	for(k = 0; k < ka; k=k+1)
-	begin
-	dest_ip_table[k] <= 32'd0;
-	end
+//	for(a = 0; a < LOOP; a=a+1)   begin  dest_ip_table[a] <= 32'd0; end
 
-	tbl_wr_ack <= 0;
-	tbl_rd_ack <= 0;
- 	tbl_rd_data <= 0;
+//	tbl_wr_ack <= 0;
+//	tbl_rd_ack <= 0;
+// 	tbl_rd_data <= 0;
 	bad_ttl_count <= 0;
 	ver_count <= 0;
 	header <= 0;
@@ -228,23 +211,23 @@ module dest_ip
      else if(reset == 1)
      begin
 	bad_ttl_count <= 0;
-	for(l = 0; l < 32; l=l+1)
-	begin
-	dest_ip_table[l] <= 32'd0;
-	end
+//	for(l = 0; l < 32; l=l+1)
+//	begin
+//	dest_ip_table[l] <= 32'd0;
+//	end
 	ver_count <= 0;
 	dest_hit_count <= 0;
 	non_ip_count <= 0;
      end
      else 
      begin
-	for(m = 0; m < 32; m=m+1)
-	begin
-	dest_ip_table[m] <= dest_ip_table_next[m];
-	end
-	tbl_wr_ack <= tbl_wr_ack_next;
-	tbl_rd_ack <= tbl_rd_ack_next;
- 	tbl_rd_data <= tbl_rd_data_next;
+//	for(m = 0; m < 32; m=m+1)
+//	begin
+//	dest_ip_table[m] <= dest_ip_table_next[m];
+//	end
+//	tbl_wr_ack <= tbl_wr_ack_next;
+//	tbl_rd_ack <= tbl_rd_ack_next;
+// 	tbl_rd_data <= tbl_rd_data_next;
 	bad_ttl_count <= bad_ttl_next;
 	ver_count <= ver_next;
 	non_ip_count <= non_ip_next;
@@ -256,3 +239,27 @@ module dest_ip
 
 endmodule
 
+/*
+	for(i = 0; i < 32; i=i+1)
+	begin
+	dest_ip_table_next[i] = dest_ip_table[i];
+	end
+
+ tbl_wr_ack_next = tbl_wr_ack;
+	tbl_rd_ack_next = tbl_rd_ack;
+	tbl_rd_data_next = tbl_rd_data;
+    	if(tbl_wr_req)
+    	begin
+      	tbl_wr_ack_next = 1;
+//      	dest_ip_table[tbl_wr_addr] = tbl_wr_data;
+   	end
+    	else tbl_wr_ack_next = 0; 
+
+    	if(tbl_rd_req)
+    	begin
+    	tbl_rd_ack_next = 1;
+      	tbl_rd_data_next = dest_ip_table[0][tbl_rd_addr];
+    	end
+    	else tbl_rd_ack_next = 0; 
+
+*/
