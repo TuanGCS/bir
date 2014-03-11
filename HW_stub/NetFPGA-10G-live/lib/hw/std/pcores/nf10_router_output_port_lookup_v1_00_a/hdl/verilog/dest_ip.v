@@ -144,6 +144,8 @@ destip_addr,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_count,M_AXIS_TU
      if(header == 0 & M_AXIS_TVALID ) 
      begin//{
 	header_next = 1;
+	if(!pkt_is_from_cpu)
+	begin
 	if(M_AXIS_TDATA[79:72] < 1) // Check TTL
 	begin
 	  cpu_hit = 1;
@@ -174,12 +176,20 @@ destip_addr,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_count,M_AXIS_TU
 	  end//}
 	end//}
 	end//}
-	if(cpu_hit && !pkt_is_from_cpu)
+	if(cpu_hit)
 	begin
           if(M_AXIS_TUSER[SRC_PORT_POS])   M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000010;
           if(M_AXIS_TUSER[SRC_PORT_POS+2]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00001000;
           if(M_AXIS_TUSER[SRC_PORT_POS+4]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00100000;
           if(M_AXIS_TUSER[SRC_PORT_POS+6]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000000;
+	end
+        end
+	else
+	begin
+          if(M_AXIS_TUSER[SRC_PORT_POS+1])   M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000001;
+          if(M_AXIS_TUSER[SRC_PORT_POS+3]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00000100;
+          if(M_AXIS_TUSER[SRC_PORT_POS+5]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00010000;
+          if(M_AXIS_TUSER[SRC_PORT_POS+7]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b01000000;
 	end
 //	cpu_hit = 0;
    end//}
