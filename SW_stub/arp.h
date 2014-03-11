@@ -35,6 +35,7 @@ void arp_clear_static(router_t * router, dataqueue_t * cache);
 void arp_clear_dynamic(router_t * router, dataqueue_t * cache);
 void arp_queue_ippacket_for_send_on_arp_request_response(packet_info_t * pi, interface_t * intf, addr_ip_t dest);
 void arp_maintain_cache(void *arg);
+void thread_arpipqueue_maintain(void *arg);
 
 // returns position in dataqueue
 int arp_getcachebymac(dataqueue_t * cache, addr_mac_t mac, arp_cache_entry_t * result);

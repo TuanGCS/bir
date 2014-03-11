@@ -66,6 +66,7 @@ void sr_integ_hw_setup( struct sr_instance* sr ) {
     // create router threads
     make_thread(&pwospf_thread, router);
     make_thread(&arp_maintain_cache, router);
+    make_thread(&thread_arpipqueue_maintain, router);
 }
 
 /**
