@@ -138,11 +138,12 @@ void process_arpipqueue(dataqueue_t * queue, addr_ip_t ip, addr_mac_t mac, route
 					} else {
 
 						// remove packet
+						byte * packet_info = entry->packet_info;
 						queue_unlockidandremove(queue, i); // release queue
 
 						icmp_type_dst_unreach(pi, ip_packet, ICMP_CODE_HOST_UNREACH);
 
-						free(entry->packet_info);
+						free(packet_info);
 
 						printf("A packet for %s has timed out due to ARP response not received!\n",  quick_ip_to_string(ip_packet->dst_ip));
 					}
