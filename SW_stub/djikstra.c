@@ -45,8 +45,7 @@ void update_hardwarearponeentry(router_t * router, int id, addr_ip_t ip, addr_ip
 		assert (read_ip_mask == ntohl(netmask));
 		assert (read_next_hop_ip == ntohl(router_ip));
 		assert (read_lpm_oq == hw_oq);
-	} else
-		fprintf(stderr, "Longest Prefix Match table is overflowing and some values will not be written to hardware!\n");
+	}
 }
 
 void update_hardwarearp(router_t * router, dataqueue_t * table) {
@@ -55,7 +54,7 @@ void update_hardwarearp(router_t * router, dataqueue_t * table) {
 	for (i = 0; i < router->num_interfaces; i++)
 		update_hardwarearponeentry(router, i, router->interface[i].ip, IP_CONVERT(255,255,255,255), 0, router->interface[i].hw_id);
 
-	for (i = 0; i < table->size; i++) {
+	for (i = 0; i < 32-router->num_interfaces; i++) {
 		rtable_entry_t * entry;
 		int entry_size;
 		if (queue_getidandlock(table, i, (void **) &entry, &entry_size)) {
@@ -65,6 +64,8 @@ void update_hardwarearp(router_t * router, dataqueue_t * table) {
 			update_hardwarearponeentry(router, i+router->num_interfaces, entry->subnet, entry->netmask, entry->router_ip, entry->interface->hw_oq);
 
 			queue_unlockid(table, i);
+		} else {
+			update_hardwarearponeentry(router, i+router->num_interfaces, 0, 0, 0, 0);
 		}
 	}
 
