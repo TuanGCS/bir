@@ -45,7 +45,7 @@ void icmp_type_dst_unreach(packet_info_t* pi, packet_ip4_t* ipv4, int code) {
 	icmp->header_checksum = generatechecksum((unsigned short*) icmp,
 			sizeof(packet_icmp_t));
 
-	update_ip_packet_response(pi, ipv4->src_ip, ipv4->dst_ip, ipv4->ttl);
+	update_ip_packet_response(pi, ipv4->src_ip, pi->interface->ip, ipv4->ttl);
 
 }
 

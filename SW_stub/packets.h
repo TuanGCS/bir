@@ -155,6 +155,15 @@ typedef struct pwospf_list_entry {
 	struct timeval lsu_timestamp;
 } pwospf_list_entry_t;
 
+typedef struct iparp_buffer_entry {
+	byte * packet_info;
+	struct timeval reception_time;
+	int sent_arps_count;
+	int len;
+	interface_t * intf;
+	addr_ip_t dest;
+} iparp_buffer_entry_t;
+
 typedef struct PACKED d_link {
 	uint32_t subnet;
 	uint32_t netmask;

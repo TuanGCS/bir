@@ -432,20 +432,7 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 			fprintf(stderr,
 					"IP packet will be queued upon ARP request response.\n");
 
-			// add to queue
-			byte data[sizeof(packet_info_t) + pi->len];
-			memcpy(data, (void *) pi, sizeof(packet_info_t)); // first add packet info
-			memcpy(&data[sizeof(packet_info_t)], (void *) pi->packet, pi->len); // then add the data intself
-
-			// TODO! what if we start pinging an unknown address until memory runs out? how do we flush iparp_buffer?
-			queue_add(&pi->router->iparp_buffer, (void *) &data,
-					sizeof(packet_info_t) + pi->len); // add current packet to queue
-
-			printf("%s -- %s \n", dest_ip_entry.interface->name,
-					quick_ip_to_string(dest_ip_entry.router_ip));
-
-			arp_send_request(pi->router, dest_ip_entry.interface,
-					dest_ip_entry.router_ip);
+			arp_queue_ippacket_for_send_on_arp_request_response(pi, dest_ip_entry.interface, dest_ip_entry.router_ip);
 
 		}
 

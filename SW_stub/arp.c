@@ -16,6 +16,8 @@
 #include "ip.h"
 #include <unistd.h>
 
+#include "icmp_type.h"
+
 #ifdef _CPUMODE_
 #include "common/nf10util.h"
 #include "reg_defines.h"
@@ -97,55 +99,81 @@ int arp_getcachebyip(dataqueue_t * cache, addr_ip_t ip,
 
 // looks for queued ip packets that are there due to unknown mac match to the ip and forward them
 void process_arpipqueue(dataqueue_t * queue, addr_ip_t ip, addr_mac_t mac, router_t * router) {
+	struct timeval now;
+	gettimeofday(&now, NULL);
+
 	int i;
 	for (i = 0; i < queue->size; i++) {
-		byte * data;
-		int data_size;
-		if (queue_getidandlock(queue, i, (void **) &data, &data_size)) {
+		iparp_buffer_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(queue, i, (void **) &entry, &entry_size)) {
 
-			assert(data_size > sizeof(packet_info_t));
+			assert(entry_size == sizeof(iparp_buffer_entry_t));
 
 			// construct a packet info from memory
-			packet_info_t * entry = (packet_info_t *) data;
-			entry->packet = &data[sizeof(packet_info_t)];
+			packet_info_t * pi = (packet_info_t *) entry->packet_info;
+			pi->packet = &entry->packet_info[sizeof(packet_info_t)];
 
-			assert(data_size == (entry->len + sizeof(packet_info_t)));
+			assert(entry->len == (pi->len + sizeof(packet_info_t)));
 
 			if (PACKET_CAN_MARSHALL(packet_ip4_t, sizeof(packet_ethernet_t),
-					entry->len)) {
+					pi->len)) {
 				packet_ip4_t * ip_packet = PACKET_MARSHALL(packet_ip4_t,
-						entry->packet, sizeof(packet_ethernet_t));
+						pi->packet, sizeof(packet_ethernet_t));
 
 				rtable_entry_t dest_ip_entry; // memory allocation ;(
 
-				if (ip_longestprefixmatch(&router->ip_table, ip_packet->dst_ip,
+				// Check for timeout
+				if (difftime(now.tv_sec, entry->reception_time.tv_sec > ARPIP_QUEUE_TIMEOUT)) {
+					if (entry->sent_arps_count < ARPIP_QUEUE_MAXARPREQUESTS) {
+
+						entry->sent_arps_count++;
+						gettimeofday(&entry->reception_time, NULL);
+
+						arp_send_request(pi->router, entry->intf, entry->dest);
+
+						queue_unlockid(queue, i);
+
+						printf("A packet for %s is about to timeout (don't know their MAC address). Sending ARP request %d attempts so far\n",  quick_ip_to_string(ip_packet->dst_ip), entry->sent_arps_count);
+					} else {
+
+						// remove packet
+						queue_unlockidandremove(queue, i); // release queue
+
+						icmp_type_dst_unreach(pi, ip_packet, ICMP_CODE_HOST_UNREACH);
+
+						free(entry->packet_info);
+
+						printf("A packet for %s has timed out due to ARP response not received after %d attempts!\n",  quick_ip_to_string(ip_packet->dst_ip), entry->sent_arps_count);
+					}
+				} else if (ip_longestprefixmatch(&router->ip_table, ip_packet->dst_ip,
 						&dest_ip_entry) >= 0) {
 
 					if (dest_ip_entry.router_ip == 0) {
 						dest_ip_entry.router_ip = ip_packet->dst_ip;
 					}
 
-				} else {
-					printf("TODO");
-				}
+					if (ip == dest_ip_entry.router_ip) {
+						// make a copy of the packet
+						byte data_copy[entry->len];
+						memcpy(data_copy, entry->packet_info, entry->len);
+						packet_info_t * entry_copy = (packet_info_t *) data_copy;
+						entry_copy->packet = &data_copy[sizeof(packet_info_t)];
+						packet_ip4_t * ip_packet_copy = PACKET_MARSHALL(
+								packet_ip4_t, entry_copy->packet,
+								sizeof(packet_ethernet_t));
 
-				if (ip == dest_ip_entry.router_ip) {
-					// make a copy of the packet
-					byte data_copy[data_size];
-					memcpy(data_copy, data, data_size);
-					packet_info_t * entry_copy = (packet_info_t *) data_copy;
-					entry_copy->packet = &data_copy[sizeof(packet_info_t)];
-					packet_ip4_t * ip_packet_copy = PACKET_MARSHALL(
-							packet_ip4_t, entry_copy->packet,
-							sizeof(packet_ethernet_t));
+						free(entry->packet_info);
+						queue_unlockidandremove(queue, i); // release queue
 
-					queue_unlockidandremove(queue, i); // release queue
+						// undo the ttl substraction orignally done by ip_headercheck
+						ip_packet_copy->ttl++;
 
-					// undo the ttl substraction orignally done by ip_headercheck
-					ip_packet_copy->ttl++;
+						// we have a match deal with the packet as if it was just received
+						ip_onreceive(entry_copy, ip_packet_copy);
 
-					// we have a match deal with the packet as if it was just received
-					ip_onreceive(entry_copy, ip_packet_copy);
+					} else
+						queue_unlockid(queue, i);
 
 				} else
 					queue_unlockid(queue, i);
@@ -535,4 +563,23 @@ void arp_send_request(router_t* router, interface_t* interface,
 
 	free(pi.packet);
 
+}
+
+void arp_queue_ippacket_for_send_on_arp_request_response(packet_info_t * pi, interface_t * intf, addr_ip_t dest) {
+	// add to queue
+	byte * data = malloc(sizeof(packet_info_t) + pi->len);
+	memcpy(data, (void *) pi, sizeof(packet_info_t)); // first add packet info
+	memcpy(&data[sizeof(packet_info_t)], (void *) pi->packet, pi->len); // then add the data intself
+
+	iparp_buffer_entry_t iparp_entry;
+	iparp_entry.packet_info = data;
+	iparp_entry.sent_arps_count = 1;
+	iparp_entry.len = sizeof(packet_info_t) + pi->len;
+	iparp_entry.intf = intf;
+	iparp_entry.dest = dest;
+	gettimeofday(&iparp_entry.reception_time, NULL);
+
+	queue_add(&pi->router->iparp_buffer, (void *) &iparp_entry, sizeof(iparp_buffer_entry_t)); // add current packet to queue
+
+	arp_send_request(pi->router, intf, dest);
 }

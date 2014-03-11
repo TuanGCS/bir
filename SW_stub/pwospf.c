@@ -100,16 +100,7 @@ void pwospf_reflood_to(packet_info_t * pi, interface_t * intf, addr_ip_t dest) {
 		fprintf(stderr,
 				"PWOSPF ReFlood: IP packet will be queued upon ARP request response.\n");
 
-		// add to queue
-		byte data[sizeof(packet_info_t) + pi->len];
-		memcpy(data, (void *) pi, sizeof(packet_info_t)); // first add packet info
-		memcpy(&data[sizeof(packet_info_t)], (void *) pi->packet, pi->len); // then add the data intself
-
-		// TODO! what if we start pinging an unknown address until memory runs out? how do we flush iparp_buffer?
-		queue_add(&pi->router->iparp_buffer, (void *) &data,
-				sizeof(packet_info_t) + pi->len); // add current packet to queue
-
-		arp_send_request(pi->router, intf, dest);
+		arp_queue_ippacket_for_send_on_arp_request_response(pi, intf, dest);
 
 	}
 
