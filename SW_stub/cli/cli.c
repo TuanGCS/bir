@@ -271,7 +271,7 @@ void cli_show_hw_about() {
 		readReg(router->nf.fd, mac_addr_low, &read_mac_low);
 		readReg(router->nf.fd, mac_addr_high, &read_mac_high);
 
-		cli_send_strf( "%d:\t%0x%x\t0x%x\t0x%x\t0x%x\n", i, read_mac_low, read_mac_high, intf->hw_id, intf->hw_oq);
+		cli_send_strf( "%d:\t0x%08x\t0x%08x\t0x%x\t0x%x\n", i, read_mac_low, read_mac_high, intf->hw_id, intf->hw_oq);
 	}
 }
 
@@ -289,7 +289,7 @@ void cli_show_hw_arp() {
 		readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_MAC_LOW, &read_mac_low);
 
 		if (read_mac_low != 0 || read_mac_high != 0 || read_ip != 0)
-			cli_send_strf( "%d:\t%s\t0x%x\t0x%x\n", i, quick_ip_to_string(htonl(read_ip)), read_mac_low, read_mac_high);
+			cli_send_strf( "%d:\t%s\t0x%08x\t0x%08x\n", i, quick_ip_to_string(htonl(read_ip)), read_mac_low, read_mac_high);
 	}
 
 	cli_send_str( "\n" );
