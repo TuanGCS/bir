@@ -168,8 +168,6 @@ void hardware_arp_putincache(router_t * router, addr_ip_t ip, addr_mac_t mac, in
 	const uint32_t mac_low = mac_lo(&mac);
 	const uint32_t mac_high = mac_hi(&mac);
 
-	printf("DEBUG: MAC \n");
-
 	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_IP, ip);
 	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_MAC_HIGH, mac_high);
 	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_ARP_MAC_LOW, mac_low);

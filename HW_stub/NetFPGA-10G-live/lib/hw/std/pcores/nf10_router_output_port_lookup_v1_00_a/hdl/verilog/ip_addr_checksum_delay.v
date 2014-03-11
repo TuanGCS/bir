@@ -35,6 +35,8 @@ module ip_addr_checksum_delay
     input  				S_AXIS_TVALID,
     output 				S_AXIS_TREADY,
     input  				S_AXIS_TLAST,
+    input [31:0] reset,
+    output reg [31:0] cpu_count,
     output reg	[15:0] low_ip_addr
 /*
     output reg [C_S_AXI_DATA_WIDTH-1:0] ipv4_count,
@@ -71,12 +73,18 @@ module ip_addr_checksum_delay
    assign S_AXIS_TREADY = !in_fifo_nearly_full;
 
   reg [1:0] header , header_next;
+  reg [31:0] cpu_count_next;
   
   always@* //(posedge AXI_ACLK)
   begin
+     cpu_count_next = cpu_count;
      header_next = header;
      if(header == 2'd0 & M_AXIS_TVALID & M_AXIS_TREADY) begin
 	header_next = 1;
+	if(M_AXIS_TUSER[SRC_PORT_POS+1] || M_AXIS_TUSER[SRC_PORT_POS+3] || M_AXIS_TUSER[SRC_PORT_POS+5] || M_AXIS_TUSER[SRC_PORT_POS+7] )
+	begin
+	  cpu_count_next = cpu_count_next + 1;
+	end 
      end
      else if(header == 2'd1 & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY)
      begin
@@ -100,10 +108,16 @@ module ip_addr_checksum_delay
   begin
      if(~AXI_RESETN) begin
 	header <= 0;
+	cpu_count <= 0;
+     end
+     else if(reset == 32'd1)
+     begin
+	cpu_count <= 0;	
      end
      else
      begin
 	header <= header_next;
+	cpu_count <= cpu_count_next;
      end
   end
 

@@ -111,41 +111,38 @@ module lpm
    integer i;
 
    reg header, header_next;
-
+   reg [31:0] a , b;
    always@*
    begin
      header_next = header;
      M_AXIS_TUSER   = M_AXIS_TUSER0;
-     if(header == 0 & M_AXIS_TVALID)
+	  lpm_miss_next = lpm_miss_count;
+     if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST)
      begin
        header_next = 1; 
        if( !(M_AXIS_TUSER0[DST_PORT_POS+1] || M_AXIS_TUSER0[DST_PORT_POS+3] || M_AXIS_TUSER0[DST_PORT_POS+5] || M_AXIS_TUSER0[DST_PORT_POS+7]) )
        begin
-	 ip_check = ip_addr;
-	 ip_mask = 0;
+	 // ip_check = ip_addr;
+	 ip_mask = ip_addr;
 	 net_mask = 0;
 	 lpm_hit = 0;
+	 arp_lookup = 0;
+    nh_reg = 0;
 	 for(i=0;i<32;i=i+1)
 	 begin
 	   ip_temp = lpm_table[i][31:0];
 	   mask_temp = lpm_table[i][63:32];
-	   if(ip_temp||mask_temp > ip_mask) 
+	   a = (ip_temp);
+	   b = (ip_mask & mask_temp);
+	   if( ip_temp == (ip_mask & mask_temp) ) 
 	   begin
+	     if( mask_temp > net_mask )
+	     begin 
 	     ip_mask = ip_temp; 
 	     net_mask = mask_temp;
 	     lpm_hit = 1;
 	     oq = lpm_table[i][127:96];
 	     next_hop = lpm_table[i][95:64];
-	   end
-	   else if(ip_temp||mask_temp == ip_mask)
-	   begin
-	     if(mask_temp > net_mask )
-	     begin
-		ip_mask = ip_temp;
-		net_mask = mask_temp;
-		lpm_hit = 1;
-	   	oq = lpm_table[i][127:96];
-	   	next_hop = lpm_table[i][95:64];
 	     end
 	   end
 	 end
@@ -166,11 +163,11 @@ module lpm
 	end
        end
        end
-       else if( header == 1 & M_AXIS_TLAST & M_AXIS_TREADY & M_AXIS_TVALID)
+       else if( header == 1 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
        begin
 	header_next = 0;
-	arp_lookup = 0;
-	nh_reg = 0;
+//	arp_lookup = 0;
+//	nh_reg = 0;
        end
 
    end
