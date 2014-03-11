@@ -14,6 +14,7 @@
 #include <string.h>
 #include "packets.h"
 #include "ip.h"
+#include <unistd.h>
 
 #ifdef _CPUMODE_
 #include "common/nf10util.h"
@@ -193,6 +194,28 @@ void hardware_arp_putincache(router_t * router, addr_ip_t ip, addr_mac_t mac, in
 	assert (mac_high == read_mac_high);
 }
 #endif
+void hardware_arp_synccache(router_t * router) {
+#ifdef _CPUMODE_
+	dataqueue_t * cache = &router->arp_cache;
+	int i;
+	for (i = 0; i < 32; i++) {
+		arp_cache_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(cache, i, (void **) &entry, &entry_size)) {
+
+			assert(entry_size == sizeof(arp_cache_entry_t));
+
+			hardware_arp_putincache(router, entry->ip, entry->mac, i);
+
+			queue_unlockid(cache, i);
+		} else {
+			addr_mac_t maczero = MAC_ZERO;
+			hardware_arp_putincache(router, 0, maczero, i);
+		}
+	}
+#endif
+}
+
 
 
 
@@ -332,17 +355,19 @@ void arp_onreceive(packet_info_t* pi, packet_arp_t * arp) {
 }
 
 // probably would require to change the argument to a router instance because of threading
-void arp_maintain_cache(router_t * router, dataqueue_t * cache) {
+void arp_maintain_cache(void *arg) {
+	router_t * router = (router_t *) arg;
+	pthread_detach(pthread_self());
+	dataqueue_t * cache = &router->arp_cache;
 
 	int i;
-	struct timespec timeout, ts;
 	struct timeval tv_diff;
-	timeout.tv_sec = 0;
-	timeout.tv_nsec = 5000000; // 0.5s
 
 	while (1) {
 
-		nanosleep(&timeout, &ts);
+		sleep(5);
+
+		int changed = 0;
 
 		for (i = 0; i < cache->size; i++) {
 			arp_cache_entry_t * entry;
@@ -356,7 +381,9 @@ void arp_maintain_cache(router_t * router, dataqueue_t * cache) {
 				// Check if dynamic entry and if expired
 				if (entry->tv.tv_sec != -1
 						&& difftime(entry->tv.tv_sec, tv_diff.tv_sec) <= 0) {
-					// REMOVE
+					printf("Removing ARP entry %s ", quick_ip_to_string(entry->ip));
+					printf("%s due to timeout\n", quick_mac_to_string(&entry->mac));
+					changed = 1;
 					queue_unlockidandremove(cache, i);
 				} else
 					queue_unlockid(cache, i);
@@ -364,8 +391,26 @@ void arp_maintain_cache(router_t * router, dataqueue_t * cache) {
 		}
 
 		if (cache->size > ARP_THRESHOLD) {
-			// CLEAN
+			for (i = 0; i < ARP_THRESHOLD - cache->size; i++) {
+				arp_cache_entry_t * entry;
+				int entry_size;
+				if (queue_getidandlock(cache, i, (void **) &entry, &entry_size)) {
+
+					assert(entry_size == sizeof(arp_cache_entry_t));
+
+					gettimeofday(&tv_diff, NULL);
+
+					printf("Removing ARP entry %s ", quick_ip_to_string(entry->ip));
+					printf("%s due to having too many entries in the ARP cache\n", quick_mac_to_string(&entry->mac));
+					changed = 1;
+					queue_unlockidandremove(cache, i);
+				}
+			}
+
 		}
+
+		if (changed)
+			hardware_arp_synccache(router);
 
 	}
 
@@ -396,6 +441,8 @@ void arp_remove_ip_mac(router_t * router, dataqueue_t * cache, addr_ip_t ip, add
 				queue_unlockid(cache, i);
 		}
 	}
+
+	hardware_arp_synccache(router);
 }
 
 // Remove static entries based on IP address
@@ -418,29 +465,7 @@ void arp_remove_static_ip(router_t * router, packet_info_t* pi, addr_ip_t ip) {
 		}
 	}
 
-}
-
-// Remove static entries based on MAC address
-void arp_remove_static_mac(packet_info_t* pi, addr_mac_t mac) {
-
-	dataqueue_t * cache = &pi->router->arp_cache;
-
-	int i;
-	for (i = 0; i < cache->size; i++) {
-		arp_cache_entry_t * entry;
-		int entry_size;
-		if (queue_getidandlock(cache, i, (void **) &entry, &entry_size)) {
-
-			assert(entry_size == sizeof(arp_cache_entry_t));
-
-			if (match_mac(entry->mac, mac) && entry->tv.tv_sec == -1) {
-				// REMOVE
-				queue_unlockidandremove(cache, i);
-			} else
-				queue_unlockid(cache, i);
-		}
-	}
-
+	hardware_arp_synccache(router);
 }
 
 // Delete all static entries in the ARP cache
@@ -460,6 +485,8 @@ void arp_clear_static(router_t * router, dataqueue_t * cache) {
 				queue_unlockid(cache, i);
 		}
 	}
+
+	hardware_arp_synccache(router);
 }
 
 void arp_clear_dynamic(router_t * router, dataqueue_t * cache) {
@@ -478,10 +505,14 @@ void arp_clear_dynamic(router_t * router, dataqueue_t * cache) {
 				queue_unlockid(cache, i);
 		}
 	}
+
+	hardware_arp_synccache(router);
 }
 
 void arp_clear_all(router_t * router, dataqueue_t * cache) {
 	queue_purge(cache);
+
+	hardware_arp_synccache(router);
 }
 
 void arp_send_request(router_t* router, interface_t* interface,

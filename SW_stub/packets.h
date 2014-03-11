@@ -18,6 +18,7 @@
 #define PROTOCOL_TCP (6)
 
 #define MAC_BROADCAST {.octet = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF}}
+#define MAC_ZERO {.octet = {0,0,0,0,0,0}}
 
 typedef struct PACKED packet_ethernet {
 	addr_mac_t dest_mac;
