@@ -304,15 +304,6 @@ bool ip_header_check(packet_info_t* pi, packet_ip4_t * ipv4) {
 		return FALSE;
 	}
 
-	ipv4->ttl--;
-	if (ipv4->ttl < 1) {
-		fprintf(stderr, "Packet Time-To-Live is 0 or less\n");
-
-		icmp_type_time_exceeded(pi, ipv4);
-
-		return FALSE;
-	}
-
 	return TRUE;
 
 }
@@ -327,6 +318,7 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 	}
 
 	if (ipv4->dst_ip == ALLSPFRouters && ipv4->protocol == IP_TYPE_OSPF) {
+
 		if (PACKET_CAN_MARSHALL(pwospf_packet_t,
 				sizeof(packet_ethernet_t)+sizeof(packet_ip4_t), pi->len)) {
 			pwospf_packet_t * pwospf = PACKET_MARSHALL(pwospf_packet_t,
@@ -342,6 +334,16 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 	for (i = 0; i < pi->router->num_interfaces; i++) {
 
 		if (ipv4->dst_ip == pi->router->interface[i].ip) {
+
+			if (ipv4->ttl == 1) {
+				fprintf(stderr, "Packet Time-To-Live is 0 or less for %s\n",
+						pi->router->interface[i].name);
+				icmp_type_time_exceeded(pi, ipv4, pi->router->interface[i].ip);
+
+				return;
+			} else {
+				ipv4->ttl--;
+			}
 
 			if (ipv4->protocol == IP_TYPE_ICMP) {
 
@@ -361,6 +363,8 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 				} else if (icmp->type == ICMP_TYPE_DST_UNREACH) {
 					cli_traceroute_handle_reply(ipv4->src_ip, icmp);
 					return;
+				} else if (icmp->type == ICMP_TYPE_TIME_EXCEEDED) {
+
 				} else {
 					fprintf(stderr,
 							"Unknown type of ICMP %d (0x%x) was targeted at router interface %s\n",
@@ -397,6 +401,16 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 		}
 	}
 
+	if (ipv4->ttl == 1) {
+		fprintf(stderr, "Packet Time-To-Live is 0 or less for %s\n",
+				quick_ip_to_string(ipv4->dst_ip));
+		icmp_type_time_exceeded(pi, ipv4, -1);
+
+		return;
+	} else {
+		ipv4->ttl--;
+	}
+
 	rtable_entry_t dest_ip_entry; // memory allocation ;(
 
 	if (ip_longestprefixmatch(&pi->router->ip_table, ipv4->dst_ip,
@@ -421,9 +435,6 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 			ipv4->header_checksum = generatechecksum((unsigned short*) ipv4,
 					sizeof(packet_ip4_t));
 
-			if (ipv4->ttl < 1)
-				return;
-
 			ethernet_packet_send(get_sr(), dest_ip_entry.interface,
 					arp_dest.mac, dest_ip_entry.interface->mac,
 
@@ -431,6 +442,7 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 		} else {
 			fprintf(stderr,
 					"IP packet will be queued upon ARP request response.\n");
+			ipv4->ttl++;
 
 			arp_queue_ippacket_for_send_on_arp_request_response(pi, dest_ip_entry.interface, dest_ip_entry.router_ip);
 
