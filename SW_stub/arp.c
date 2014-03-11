@@ -97,10 +97,74 @@ int arp_getcachebyip(dataqueue_t * cache, addr_ip_t ip,
 	return -1;
 }
 
-// looks for queued ip packets that are there due to unknown mac match to the ip and forward them
-void process_arpipqueue(dataqueue_t * queue, addr_ip_t ip, addr_mac_t mac, router_t * router) {
+void thread_arpipqueue_maintain(void * arg) {
+	router_t * router = (router_t *) arg;
+	dataqueue_t * queue = &router->iparp_buffer;
+
+	pthread_detach(pthread_self());
+
 	struct timeval now;
 	gettimeofday(&now, NULL);
+
+	int i;
+	while (1) {
+		sleep(ARPIP_QUEUE_TIMEOUT);
+
+		for (i = 0; i < queue->size; i++) {
+			iparp_buffer_entry_t * entry;
+			int entry_size;
+			if (queue_getidandlock(queue, i, (void **) &entry, &entry_size)) {
+
+				assert(entry_size == sizeof(iparp_buffer_entry_t));
+
+				// construct a packet info from memory
+				packet_info_t * pi = (packet_info_t *) entry->packet_info;
+				pi->packet = &entry->packet_info[sizeof(packet_info_t)];
+
+				assert(entry->len == (pi->len + sizeof(packet_info_t)));
+
+				if (PACKET_CAN_MARSHALL(packet_ip4_t, sizeof(packet_ethernet_t),
+						pi->len)) {
+					packet_ip4_t * ip_packet = PACKET_MARSHALL(packet_ip4_t,
+							pi->packet, sizeof(packet_ethernet_t));
+
+					// Check for timeout
+					if (difftime(now.tv_sec, entry->reception_time.tv_sec > ARPIP_QUEUE_TIMEOUT)) {
+						if (entry->sent_arps_count < ARPIP_QUEUE_MAXARPREQUESTS) {
+
+							entry->sent_arps_count++;
+							gettimeofday(&entry->reception_time, NULL);
+
+							arp_send_request(pi->router, entry->intf, entry->dest);
+
+							queue_unlockid(queue, i);
+
+							printf("A packet for %s is about to timeout (don't know their MAC address). Sending ARP request %d attempts so far\n",  quick_ip_to_string(ip_packet->dst_ip), entry->sent_arps_count);
+						} else {
+
+							// remove packet
+							byte * packet_info = entry->packet_info;
+							queue_unlockidandremove(queue, i); // release queue
+
+							icmp_type_dst_unreach(pi, ip_packet, ICMP_CODE_HOST_UNREACH);
+
+							printf("A packet for %s has timed out due to ARP response not received!\n",  quick_ip_to_string(ip_packet->dst_ip));
+
+							free(packet_info);
+
+						}
+					} else
+						queue_unlockid(queue, i);
+				} else
+					queue_unlockid(queue, i);
+			}
+		}
+	}
+}
+
+// looks for queued ip packets that are there due to unknown mac match to the ip and forward them
+void process_arpipqueue(dataqueue_t * queue, addr_ip_t ip, addr_mac_t mac, router_t * router) {
+
 
 	int i;
 	for (i = 0; i < queue->size; i++) {
@@ -123,31 +187,7 @@ void process_arpipqueue(dataqueue_t * queue, addr_ip_t ip, addr_mac_t mac, route
 
 				rtable_entry_t dest_ip_entry; // memory allocation ;(
 
-				// Check for timeout
-				if (difftime(now.tv_sec, entry->reception_time.tv_sec > ARPIP_QUEUE_TIMEOUT)) {
-					if (entry->sent_arps_count < ARPIP_QUEUE_MAXARPREQUESTS) {
-
-						entry->sent_arps_count++;
-						gettimeofday(&entry->reception_time, NULL);
-
-						arp_send_request(pi->router, entry->intf, entry->dest);
-
-						queue_unlockid(queue, i);
-
-						printf("A packet for %s is about to timeout (don't know their MAC address). Sending ARP request %d attempts so far\n",  quick_ip_to_string(ip_packet->dst_ip), entry->sent_arps_count);
-					} else {
-
-						// remove packet
-						byte * packet_info = entry->packet_info;
-						queue_unlockidandremove(queue, i); // release queue
-
-						icmp_type_dst_unreach(pi, ip_packet, ICMP_CODE_HOST_UNREACH);
-
-						free(packet_info);
-
-						printf("A packet for %s has timed out due to ARP response not received!\n",  quick_ip_to_string(ip_packet->dst_ip));
-					}
-				} else if (ip_longestprefixmatch(&router->ip_table, ip_packet->dst_ip,
+				if (ip_longestprefixmatch(&router->ip_table, ip_packet->dst_ip,
 						&dest_ip_entry) >= 0) {
 
 					if (dest_ip_entry.router_ip == 0) {
@@ -267,7 +307,7 @@ void arp_putincache(router_t* router, dataqueue_t * cache, addr_ip_t ip, addr_ma
 
 		queue_replace(cache, &result, sizeof(arp_cache_entry_t), id);
 #ifdef _CPUMODE_
-		hardware_arp_putincache(router, ip, mac, id);
+		hardware_arp_synccache(router);
 #endif
 		return;
 	}
@@ -285,7 +325,7 @@ void arp_putincache(router_t* router, dataqueue_t * cache, addr_ip_t ip, addr_ma
 
 		queue_replace(cache, &result, sizeof(arp_cache_entry_t), id);
 #ifdef _CPUMODE_
-		hardware_arp_putincache(router, ip, mac, id);
+		hardware_arp_synccache(router);
 #endif
 		return;
 	}
@@ -301,7 +341,7 @@ void arp_putincache(router_t* router, dataqueue_t * cache, addr_ip_t ip, addr_ma
 
 	queue_add(cache, &result, sizeof(arp_cache_entry_t));
 #ifdef _CPUMODE_
-	hardware_arp_putincache(router, ip, mac, queue_getcurrentsize(cache));
+	hardware_arp_synccache(router);
 #endif
 }
 
@@ -385,7 +425,6 @@ void arp_onreceive(packet_info_t* pi, packet_arp_t * arp) {
 	}
 }
 
-// probably would require to change the argument to a router instance because of threading
 void arp_maintain_cache(void *arg) {
 	router_t * router = (router_t *) arg;
 	pthread_detach(pthread_self());

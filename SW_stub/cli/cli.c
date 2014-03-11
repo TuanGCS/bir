@@ -113,7 +113,6 @@ static void cli_send_strf( const char* format , ... ) {
     	}
 
     	pthread_mutex_unlock(&cli_sprintf_lock);
-    	usleep(50);
     }
 }
 
