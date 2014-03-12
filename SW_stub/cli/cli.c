@@ -189,7 +189,7 @@ void cli_send_parse_error( int num_args, ... ) {
 }
 
 void cli_send_welcome() {
-    cli_send_str( "Welcome to the bir router!\n" );
+    cli_send_str( "WELCOME TO\n  ____ _____ _____  \n |  _ \\_   _|  __ \\  \n | |_) || | | |__) | \n |  _ < | | |  _  / \n | |_) || |_| | \\ \\  \n |____/_____|_|  \\_\\\nSoftware: Georgi Zlatkov & Martin Marinov\nHardware: Nadesh Ramanathan\n" );
 }
 
 void cli_send_prompt() {
@@ -508,7 +508,8 @@ void cli_show_ospf_topo() {
 
 					}
 
-				}
+				} else
+					cli_send_strf("\n  * %d An update was received about %d (0x%x) %s on this interface but we are not immediately connected to it\n", n, entry->neighbour_id, entry->neighbour_id, quick_ip_to_string(entry->neighbour_ip));
 
 				queue_unlockid(neighbours, n);
 			}
