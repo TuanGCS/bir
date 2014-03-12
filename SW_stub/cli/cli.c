@@ -509,7 +509,7 @@ void cli_show_ospf_topo() {
 					}
 
 				} else
-					cli_send_strf("\n  * An update was received about %d (0x%x) %s on this interface but the we are not immediately connected to it\n", n, entry->neighbour_id, entry->neighbour_id, quick_ip_to_string(entry->neighbour_ip));
+					cli_send_strf("\n  * %d An update was received about %d (0x%x) %s on this interface but the we are not immediately connected to it\n", n, entry->neighbour_id, entry->neighbour_id, quick_ip_to_string(entry->neighbour_ip));
 
 				queue_unlockid(neighbours, n);
 			}
