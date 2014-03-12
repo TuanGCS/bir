@@ -398,7 +398,7 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 		}
 	}
 
-	if (ipv4->ttl == 1) {
+	if (ipv4->ttl <= 0) {
 		fprintf(stderr, "Packet Time-To-Live is 0 or less for %s\n",
 				quick_ip_to_string(ipv4->dst_ip));
 		icmp_type_time_exceeded(pi, ipv4, -1);
