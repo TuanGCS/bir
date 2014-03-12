@@ -199,6 +199,11 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 					+ sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t)];
 	const int payload_count = ntohl(packet->advert);
 
+	int g;
+	for (g = 0; g < payload_count; g++)
+		if (payload[g].router_id == 0)
+			payload[g].router_id = packet->pwospf_header.router_id;
+
 	if (pi->len
 			< sizeof(packet_ethernet_t) + sizeof(packet_ip4_t)
 					+ sizeof(pwospf_packet_link_t)
@@ -226,12 +231,6 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 	pwospf_list_entry_t * neighbour = getneighbourfromidunsafe(neighbours,
 			packet->pwospf_header.router_id);
 	if (neighbour != NULL) {
-
-		int g;
-		for (g = 0; g < payload_count; g++)
-			if (neighbour->lsu_lastcontents[g].router_id == 0)
-				neighbour->lsu_lastcontents[g].router_id =
-						packet->pwospf_header.router_id;
 
 		// if we have some information about this neighbour
 		if (neighbour->lsu_lastcontents != NULL
@@ -307,11 +306,6 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 			newneighbour.lsu_lastcontents_count * sizeof(pwospf_lsa_t));
 	memcpy(newneighbour.lsu_lastcontents, payload,
 			payload_count * sizeof(pwospf_lsa_t));
-	int g;
-	for (g = 0; g < payload_count; g++)
-		if (newneighbour.lsu_lastcontents[g].router_id == 0)
-			newneighbour.lsu_lastcontents[g].router_id =
-					packet->pwospf_header.router_id;
 
 	newneighbour.lsu_lastseq = packet->seq; // this is the lastseq
 	gettimeofday(&newneighbour.lsu_timestamp, NULL); // update timestamp
