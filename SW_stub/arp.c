@@ -201,9 +201,12 @@ void process_arpipqueue(dataqueue_t * queue, addr_ip_t ip, addr_mac_t mac, route
 						packet_info_t * entry_copy = (packet_info_t *) data_copy;
 						entry_copy->packet = &data_copy[sizeof(packet_info_t)];
 
+						packet_ip4_t * ip_packet_copy = PACKET_MARSHALL(packet_ip4_t, entry_copy->packet, sizeof(packet_ethernet_t));
+
 						free(entry->packet_info);
 						queue_unlockidandremove(queue, i); // release queue
 
+						ip_onreceive(entry_copy, ip_packet_copy);
 					} else
 						queue_unlockid(queue, i);
 
