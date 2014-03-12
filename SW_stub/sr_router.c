@@ -270,7 +270,7 @@ void router_add_interface(router_t* router, const char* name, addr_ip_t ip,
 	intf->helloint = HELLOINT;
 	queue_init(&intf->neighbours);
 
-	arp_putincache(router, &router->arp_cache, ip, mac, ARP_CACHE_TIMEOUT_STATIC);
+	//arp_putincache(router, &router->arp_cache, ip, mac, ARP_CACHE_TIMEOUT_STATIC);
 
 #ifdef MININET_MODE
 	// open a socket to talk to the hw on this interface
@@ -303,22 +303,22 @@ void router_add_interface(router_t* router, const char* name, addr_ip_t ip,
 		ifaceid = 0;
 		intf->hw_id = INTF0;
 		intf->hw_oq = OUT_INTF0;
-		strcpy(intf->name, "nf0");
+		//strcpy(intf->name, "nf0");
 	} else if (strcmp(name + PREFIX_LENGTH, "eth1") == 0) {
 		ifaceid = 1;
 		intf->hw_id = INTF1;
 		intf->hw_oq = OUT_INTF1;
-		strcpy(intf->name, "nf1");
+		//strcpy(intf->name, "nf1");
 	} else if (strcmp(name + PREFIX_LENGTH, "eth2") == 0) {
 		ifaceid = 2;
 		intf->hw_id = INTF2;
 		intf->hw_oq = OUT_INTF2;
-		strcpy(intf->name, "nf2");
+		//strcpy(intf->name, "nf2");
 	} else if (strcmp(name + PREFIX_LENGTH, "eth3") == 0) {
 		ifaceid = 3;
 		intf->hw_id = INTF3;
 		intf->hw_oq = OUT_INTF3;
-		strcpy(intf->name, "nf3");
+		//strcpy(intf->name, "nf3");
 	} else {
 		debug_println(
 				"Unknown interface name: %s. Setting hw_id to interface number.\n",
