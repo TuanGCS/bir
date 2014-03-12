@@ -364,10 +364,6 @@ void arp_onreceive(packet_info_t* pi, packet_arp_t * arp) {
 			&& arp->hardwareaddresslength == 6
 			&& arp->protocoladdresslength == 4) {
 
-		// check for pending ip packets and process them
-		process_arpipqueue(&pi->router->iparp_buffer, arp->sender_ip,
-				arp->sender_mac, pi->router);
-
 		dataqueue_t * cache = &pi->router->arp_cache;
 
 		const int opcode = ntohs(arp->opcode);
@@ -408,6 +404,10 @@ void arp_onreceive(packet_info_t* pi, packet_arp_t * arp) {
 			fprintf(stderr, "Unsupported ARP opcode %x!\n", opcode);
 			break;
 		}
+
+		// check for pending ip packets and process them
+		process_arpipqueue(&pi->router->iparp_buffer, arp->sender_ip,
+				arp->sender_mac, pi->router);
 
 	} else {
 		fprintf(stderr, "Unsupported ARP packet!\n");
