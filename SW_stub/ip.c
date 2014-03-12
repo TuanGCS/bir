@@ -334,7 +334,7 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 
 		if (ipv4->dst_ip == pi->router->interface[i].ip) {
 
-			if (ipv4->ttl == 1) {
+			if (ipv4->ttl <= 0) {
 				fprintf(stderr, "Packet Time-To-Live is 0 or less for %s\n",
 						pi->router->interface[i].name);
 				icmp_type_time_exceeded(pi, ipv4, pi->router->interface[i].ip);
