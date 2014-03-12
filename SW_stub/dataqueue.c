@@ -3,7 +3,7 @@
 #include "stdlib.h"
 #include "string.h"
 
-#define LOCKING_ENABLED (1)
+#define LOCKING_ENABLED (0)
 
 void queue_init(dataqueue_t * queue) {
 	queue->size = 0;
