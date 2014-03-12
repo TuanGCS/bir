@@ -18,7 +18,7 @@ void icmp_type_echo_replay(packet_info_t* pi, packet_icmp_t* icmp) {
 			sizeof(packet_icmp_t));
 
 	packet_ip4_t* ipv4 = (packet_ip4_t *) &pi->packet[sizeof(packet_ethernet_t)];
-	update_ip_packet_response(pi, ipv4->src_ip, ipv4->dst_ip, ipv4->ttl);
+	update_ip_packet_response(pi, ipv4->src_ip, ipv4->dst_ip, 64);
 }
 
 void icmp_type_dst_unreach(packet_info_t* pi, packet_ip4_t* ipv4, int code) {

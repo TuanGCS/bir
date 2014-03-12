@@ -236,7 +236,7 @@ void update_ip_packet_response(packet_info_t* pi, addr_ip_t dst_ip,
 	ipv4->dst_ip = dst_ip;
 	ipv4->src_ip = src_ip;
 
-	ipv4->ttl = 64;
+	ipv4->ttl = ttl;
 	ipv4->flags_fragmentoffset = 0;
 	ipv4->id = htons(ip_id); // Fix
 	ip_id++;
