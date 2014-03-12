@@ -548,14 +548,14 @@ int get_topology(router_t * router, dataqueue_t * topology) {
 
 				if (entry->immediate_neighbour) {
 
-					int j;
-					for (j = 0; j < entry->lsu_lastcontents_count; j++) {
-						pwospf_lsa_t * lsa_entry = &entry->lsu_lastcontents[j];
-
-						if (queue_existsunsafe(topology, lsa_entry) == -1) {
-							count++;
-							queue_add(topology, lsa_entry, sizeof(pwospf_lsa_t));
-						}
+					pwospf_lsa_t intfentry;
+					intfentry.netmask = router->interface[i].subnet_mask;
+					intfentry.subnet = router->interface[i].subnet_mask
+							& router->interface[i].ip;
+					intfentry.router_id = entry->neighbour_id;
+					if (queue_existsunsafe(topology, &intfentry) == -1) {
+						count++;
+						queue_add(topology, &intfentry, sizeof(pwospf_lsa_t));
 					}
 
 				}
