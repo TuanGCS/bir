@@ -530,7 +530,7 @@ int get_topology(router_t * router, dataqueue_t * topology) {
 		intfentry.netmask = router->interface[i].subnet_mask;
 		intfentry.subnet = router->interface[i].subnet_mask
 				& router->interface[i].ip;
-		intfentry.router_id = router->pw_router.router_id;
+		intfentry.router_id = 0;
 		if (queue_existsunsafe(topology, &intfentry) == -1) {
 			count++;
 			queue_add(topology, &intfentry, sizeof(pwospf_lsa_t));
@@ -546,46 +546,23 @@ int get_topology(router_t * router, dataqueue_t * topology) {
 
 				assert(entry_size == sizeof(pwospf_list_entry_t));
 
-				int j;
-				for (j = 0; j < entry->lsu_lastcontents_count; j++) {
-					pwospf_lsa_t * lsa_entry = &entry->lsu_lastcontents[j];
+				if (entry->immediate_neighbour) {
 
-					if (queue_existsunsafe(topology, lsa_entry) == -1) {
-						count++;
-						queue_add(topology, lsa_entry, sizeof(pwospf_lsa_t));
+					int j;
+					for (j = 0; j < entry->lsu_lastcontents_count; j++) {
+						pwospf_lsa_t * lsa_entry = &entry->lsu_lastcontents[j];
+
+						if (queue_existsunsafe(topology, lsa_entry) == -1) {
+							count++;
+							queue_add(topology, lsa_entry, sizeof(pwospf_lsa_t));
+						}
 					}
+
 				}
 
 				queue_unlockid(neighbours, n);
 			}
 		}
-	}
-
-	return count;
-}
-
-int get_neighbour_topology(router_t * router, dataqueue_t * topology) {
-	int count = 0;
-
-	int i;
-	for (i = 0; i < router->num_interfaces; i++) {
-
-		// add info about interface
-		pwospf_lsa_t intfentry;
-		intfentry.netmask = router->interface[i].subnet_mask;
-		intfentry.subnet = router->interface[i].subnet_mask
-				& router->interface[i].ip;
-		intfentry.router_id = router->pw_router.router_id;
-		if (queue_existsunsafe(topology, &intfentry) == -1) {
-			count++;
-			queue_add(topology, &intfentry, sizeof(pwospf_lsa_t));
-		}
-
-		if (queue_existsunsafe(topology, &intfentry) == -1) {
-			count++;
-			queue_add(topology, &intfentry, sizeof(pwospf_lsa_t));
-		}
-
 	}
 
 	return count;
@@ -597,7 +574,7 @@ void send_pwospf_lsa_packet(router_t* router) {
 	dataqueue_t topology;
 
 	queue_init(&topology);
-	const int topologysize = get_neighbour_topology(router, &topology);
+	const int topologysize = get_topology(router, &topology);
 
 	int q;
 	for (q = 0; q < topology.size; q++) {
