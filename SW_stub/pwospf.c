@@ -221,11 +221,6 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 		return;
 	}
 
-	int g;
-	for (g = 0; g < payload_count; g++)
-		if (payload[g].router_id == 0)
-			payload[g].router_id = packet->pwospf_header.router_id;
-
 	queue_lockall(neighbours);
 
 	pwospf_list_entry_t * neighbour = getneighbourfromidunsafe(neighbours,
@@ -245,6 +240,11 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 
 		// reflood packet to all neighbours, except neighbour itself
 		pwospf_reflood_packetpartiallyunsafe(pi, packet, neighbour, neighbours);
+
+		int g;
+		for (g = 0; g < payload_count; g++)
+			if (payload[g].router_id == 0)
+				payload[g].router_id = packet->pwospf_header.router_id;
 
 		// if a new packet is received for neighbour that we know about
 		if (neighbour->lsu_lastcontents != NULL
@@ -296,6 +296,11 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 
 	queue_unlockall(neighbours);
 
+	int g;
+	for (g = 0; g < payload_count; g++)
+		if (payload[g].router_id == 0)
+			payload[g].router_id = packet->pwospf_header.router_id;
+
 	// if the neighbour is not in our database yet add it
 	pwospf_list_entry_t newneighbour;
 	newneighbour.neighbour_id = packet->pwospf_header.router_id;
@@ -321,8 +326,12 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 	queue_lockall(neighbours);
 	neighbour = getneighbourfromidunsafe(neighbours,
 			packet->pwospf_header.router_id);
-	if (neighbour != NULL)
+	if (neighbour != NULL) {
+		for (g = 0; g < payload_count; g++)
+			if (payload[g].router_id == packet->pwospf_header.router_id)
+				payload[g].router_id = 0;
 		pwospf_reflood_packetpartiallyunsafe(pi, packet, neighbour, neighbours);
+	}
 	queue_unlockall(neighbours);
 
 	// recompute and tell everybody our table has changed
