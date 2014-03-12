@@ -59,7 +59,7 @@ void icmp_type_time_exceeded(packet_info_t* pi, packet_ip4_t* ipv4, addr_ip_t sr
 	memcpy(data, (void *) ipv4, 20);
 	memcpy(&data[20], (void *) icmp, 8);
 
-	icmp_allocate_and_send(get_router(), ipv4->src_ip, ICMP_TYPE_TIME_EXCEEDED, 0, 0, 0, data, 56, src);
+	icmp_allocate_and_send(get_router(), ipv4->src_ip, 0, ICMP_TYPE_TIME_EXCEEDED, 0, 0, data, 56, src);
 
 }
 
