@@ -376,6 +376,7 @@ int packetinfo_ip_allocate(router_t* router, packet_info_t ** pinfo, int size,
 		} else {
 			ipv4->src_ip = src;
 		}
+		printf("TTL Problem msg: %s \n", ipv4->src_ip);
 		ipv4->dst_ip = dest;
 
 		ipv4->header_checksum = generatechecksum((unsigned short*) ipv4,
