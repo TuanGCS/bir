@@ -718,8 +718,7 @@ void pwospf_thread(void *arg) {
 
 					assert(entry_size == sizeof(pwospf_list_entry_t));
 
-					if ((entry->immediate_neighbour
-							&& difftime(now.tv_sec, entry->timestamp.tv_sec)
+					if ((difftime(now.tv_sec, entry->timestamp.tv_sec)
 									> 3 * entry->helloint)
 							|| (entry->lsu_lastcontents != NULL
 									&& difftime(now.tv_sec,
