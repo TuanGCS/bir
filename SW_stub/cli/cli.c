@@ -189,7 +189,7 @@ void cli_send_parse_error( int num_args, ... ) {
 }
 
 void cli_send_welcome() {
-    cli_send_str( "WELCOME TO\n ____ _____ _____  \n |  _ \\_   _|  __ \\  \n | |_) || | | |__) | \n |  _ < | | |  _  / \n | |_) || |_| | \\ \\  \n |____/_____|_|  \\_\\\nSoftware: Georgi Zlatkov & Martin Marinov\nHardware: Nadesh Ramanathan\n" );
+    cli_send_str( "WELCOME TO\n  ____ _____ _____  \n |  _ \\_   _|  __ \\  \n | |_) || | | |__) | \n |  _ < | | |  _  / \n | |_) || |_| | \\ \\  \n |____/_____|_|  \\_\\\nSoftware: Georgi Zlatkov & Martin Marinov\nHardware: Nadesh Ramanathan\n" );
 }
 
 void cli_send_prompt() {
