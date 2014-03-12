@@ -227,6 +227,12 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 			packet->pwospf_header.router_id);
 	if (neighbour != NULL) {
 
+		int g;
+		for (g = 0; g < payload_count; g++)
+			if (neighbour->lsu_lastcontents[g].router_id == 0)
+				neighbour->lsu_lastcontents[g].router_id =
+						packet->pwospf_header.router_id;
+
 		// if we have some information about this neighbour
 		if (neighbour->lsu_lastcontents != NULL
 				&& neighbour->lsu_lastseq == packet->seq) {
@@ -273,11 +279,6 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 		// copy the topology data in each neighbour's lastcontents
 		memcpy(neighbour->lsu_lastcontents, payload,
 				payload_count * sizeof(pwospf_lsa_t));
-		int g;
-		for (g = 0; g < payload_count; g++)
-			if (neighbour->lsu_lastcontents[g].router_id == 0)
-				neighbour->lsu_lastcontents[g].router_id =
-						packet->pwospf_header.router_id;
 
 		neighbour->lsu_lastseq = packet->seq; // this is the lastseq
 		gettimeofday(&neighbour->lsu_timestamp, NULL); // update timestamp
