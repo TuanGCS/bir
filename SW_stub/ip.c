@@ -236,7 +236,7 @@ void update_ip_packet_response(packet_info_t* pi, addr_ip_t dst_ip,
 	ipv4->dst_ip = dst_ip;
 	ipv4->src_ip = src_ip;
 
-	ipv4->ttl = ttl;
+	ipv4->ttl = 64;
 	ipv4->flags_fragmentoffset = 0;
 	ipv4->id = htons(ip_id); // Fix
 	ip_id++;
@@ -258,7 +258,7 @@ void generate_ipv4_header(addr_ip_t src_ip, int datagram_size,
 	ipv4->total_length = htons(sizeof(packet_ip4_t) + datagram_size);
 	ipv4->id = 0;
 	ipv4->flags_fragmentoffset = 0;
-	ipv4->ttl = 64;
+	ipv4->ttl = 65;
 	ipv4->protocol = IP_TYPE_OSPF;
 	ipv4->header_checksum = 0;
 	ipv4->src_ip = src_ip;
@@ -340,8 +340,6 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 				icmp_type_time_exceeded(pi, ipv4, pi->router->interface[i].ip);
 
 				return;
-			} else {
-				ipv4->ttl--;
 			}
 
 			if (ipv4->protocol == IP_TYPE_ICMP) {
@@ -406,8 +404,6 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 		icmp_type_time_exceeded(pi, ipv4, -1);
 
 		return;
-	} else {
-		ipv4->ttl--;
 	}
 
 	rtable_entry_t dest_ip_entry; // memory allocation ;(
@@ -419,10 +415,6 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 			dest_ip_entry.router_ip = ipv4->dst_ip;
 		}
 
-		printf("%s --- ", quick_ip_to_string(ipv4->dst_ip));
-		printf("%s -- %s \n", dest_ip_entry.interface->name,
-				quick_ip_to_string(dest_ip_entry.router_ip));
-
 		arp_cache_entry_t arp_dest; // memory allocation ;(
 
 		if (arp_getcachebyip(&pi->router->arp_cache, dest_ip_entry.router_ip,
@@ -430,20 +422,20 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 
 			printf("%s\n", quick_mac_to_string(&arp_dest.mac));
 
+			ipv4->ttl--;
 			ipv4->header_checksum = 0;
 			ipv4->header_checksum = generatechecksum((unsigned short*) ipv4,
 					sizeof(packet_ip4_t));
 
 			ethernet_packet_send(get_sr(), dest_ip_entry.interface,
 					arp_dest.mac, dest_ip_entry.interface->mac,
-
 					htons(ETH_IP_TYPE), pi);
 		} else {
 			fprintf(stderr,
 					"IP packet will be queued upon ARP request response.\n");
-			ipv4->ttl++;
 
-			arp_queue_ippacket_for_send_on_arp_request_response(pi, dest_ip_entry.interface, dest_ip_entry.router_ip);
+			arp_queue_ippacket_for_send_on_arp_request_response(pi,
+					dest_ip_entry.interface, dest_ip_entry.router_ip);
 
 		}
 

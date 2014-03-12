@@ -368,7 +368,7 @@ int packetinfo_ip_allocate(router_t* router, packet_info_t ** pinfo, int size,
 		ipv4->total_length = htons(total_length);
 		ipv4->id = 0;
 		ipv4->flags_fragmentoffset = 0;
-		ipv4->ttl = 64;
+		ipv4->ttl = 65;
 		ipv4->protocol = protocol;
 		ipv4->header_checksum = 0;
 		if (src == -1) {
