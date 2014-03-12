@@ -270,7 +270,7 @@ void router_add_interface(router_t* router, const char* name, addr_ip_t ip,
 	intf->helloint = HELLOINT;
 	queue_init(&intf->neighbours);
 
-	arp_putincache(router, &router->arp_cache, ip, mac, ARP_CACHE_TIMEOUT_STATIC);
+	//arp_putincache(router, &router->arp_cache, ip, mac, ARP_CACHE_TIMEOUT_STATIC);
 
 #ifdef MININET_MODE
 	// open a socket to talk to the hw on this interface
@@ -303,22 +303,22 @@ void router_add_interface(router_t* router, const char* name, addr_ip_t ip,
 		ifaceid = 0;
 		intf->hw_id = INTF0;
 		intf->hw_oq = OUT_INTF0;
-		strcpy(intf->name, "nf0");
+		//strcpy(intf->name, "nf0");
 	} else if (strcmp(name + PREFIX_LENGTH, "eth1") == 0) {
 		ifaceid = 1;
 		intf->hw_id = INTF1;
 		intf->hw_oq = OUT_INTF1;
-		strcpy(intf->name, "nf1");
+		//strcpy(intf->name, "nf1");
 	} else if (strcmp(name + PREFIX_LENGTH, "eth2") == 0) {
 		ifaceid = 2;
 		intf->hw_id = INTF2;
 		intf->hw_oq = OUT_INTF2;
-		strcpy(intf->name, "nf2");
+		//strcpy(intf->name, "nf2");
 	} else if (strcmp(name + PREFIX_LENGTH, "eth3") == 0) {
 		ifaceid = 3;
 		intf->hw_id = INTF3;
 		intf->hw_oq = OUT_INTF3;
-		strcpy(intf->name, "nf3");
+		//strcpy(intf->name, "nf3");
 	} else {
 		debug_println(
 				"Unknown interface name: %s. Setting hw_id to interface number.\n",
@@ -368,7 +368,7 @@ int packetinfo_ip_allocate(router_t* router, packet_info_t ** pinfo, int size,
 		ipv4->total_length = htons(total_length);
 		ipv4->id = 0;
 		ipv4->flags_fragmentoffset = 0;
-		ipv4->ttl = 64;
+		ipv4->ttl = 65;
 		ipv4->protocol = protocol;
 		ipv4->header_checksum = 0;
 		if (src == -1) {
@@ -376,9 +376,7 @@ int packetinfo_ip_allocate(router_t* router, packet_info_t ** pinfo, int size,
 		} else {
 			ipv4->src_ip = src;
 		}
-		printf("TTL Problem msg: %s \n", quick_ip_to_string(ipv4->src_ip));
 		ipv4->dst_ip = dest;
-
 		ipv4->header_checksum = generatechecksum((unsigned short*) ipv4,
 				sizeof(packet_ip4_t));
 
