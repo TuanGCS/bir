@@ -37,7 +37,8 @@ module ip_addr_checksum_delay
     input  				S_AXIS_TLAST,
     input [31:0] reset,
     output reg [31:0] cpu_count,
-    output reg	[15:0] low_ip_addr
+    output reg	[15:0] low_ip_addr,
+    output reg [31:0] partial_checksum
 /*
     output reg [C_S_AXI_DATA_WIDTH-1:0] ipv4_count,
     output reg [C_S_AXI_DATA_WIDTH-1:0] arp_count,
@@ -74,13 +75,16 @@ module ip_addr_checksum_delay
 
   reg [1:0] header , header_next;
   reg [31:0] cpu_count_next;
+  reg [31:0] checksum_next;
   
   always@* //(posedge AXI_ACLK)
   begin
      cpu_count_next = cpu_count;
      header_next = header;
+     checksum_next = partial_checksum;
      if(header == 2'd0 & M_AXIS_TVALID & M_AXIS_TREADY) begin
-	header_next = 1;
+	    header_next = 1;
+	    checksum_next = M_AXIS_TDATA[143:128] + M_AXIS_TDATA[127:112] + M_AXIS_TDATA[111:96] + M_AXIS_TDATA[95:80] + M_AXIS_TDATA[79:64] + M_AXIS_TDATA[47:32] +  M_AXIS_TDATA[31:16]; //+ M_AXIS_TDATA[15:0];
 	if(M_AXIS_TUSER[SRC_PORT_POS+1] || M_AXIS_TUSER[SRC_PORT_POS+3] || M_AXIS_TUSER[SRC_PORT_POS+5] || M_AXIS_TUSER[SRC_PORT_POS+7] )
 	begin
 	  cpu_count_next = cpu_count_next + 1;
@@ -88,17 +92,19 @@ module ip_addr_checksum_delay
      end
      else if(header == 2'd1 & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY)
      begin
-	header_next = 2;
+	     header_next = 2;
         low_ip_addr = M_AXIS_TDATA[255:240];
      end
      else if(header == 2'd1 & M_AXIS_TVALID & M_AXIS_TLAST & M_AXIS_TREADY)
      begin
+	checksum_next = 0;
 	header_next = 0;
         low_ip_addr = M_AXIS_TDATA[255:240];
      end
      else if(header == 2'd2 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
      begin
         header_next = 0;
+	checksum_next = 0;
  //       low_ip_addr = 16'd0;
      end 
   end
@@ -109,6 +115,7 @@ module ip_addr_checksum_delay
      if(~AXI_RESETN) begin
 	header <= 0;
 	cpu_count <= 0;
+	partial_checksum <= 0;
      end
      else if(reset == 32'd1)
      begin
@@ -118,6 +125,7 @@ module ip_addr_checksum_delay
      begin
 	header <= header_next;
 	cpu_count <= cpu_count_next;
+	partial_checksum <= checksum_next;
      end
   end
 
