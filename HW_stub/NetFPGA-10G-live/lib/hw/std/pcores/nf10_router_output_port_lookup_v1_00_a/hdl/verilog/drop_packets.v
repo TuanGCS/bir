@@ -98,7 +98,7 @@ module drop_packets
      wrong_mac_count_next = wrong_mac_count;
      dropped_count_next = dropped_count;
 //	  M_AXIS_TVALID = M_AXIS_TVALID0;
-     if(header == 0 & M_AXIS_TVALID0 & M_AXIS_TREADY & !M_AXIS_TLAST ) begin
+     if(header == 0 & M_AXIS_TVALID0 &  !M_AXIS_TLAST ) begin
 	header_next = 1; 
 	destip_addr = {M_AXIS_TDATA[15:0],low_ip_addr};
 	checksum = low_ip_addr + M_AXIS_TDATA[143:128] + M_AXIS_TDATA[127:112] + M_AXIS_TDATA[111:96] + M_AXIS_TDATA[95:80] + M_AXIS_TDATA[79:64] + M_AXIS_TDATA[47:32] + M_AXIS_TDATA[31:16] + M_AXIS_TDATA[15:0];
@@ -142,7 +142,7 @@ module drop_packets
 //	drop_next = 1;
 //	M_AXIS_TVALID = drop_next ? 0 : M_AXIS_TVALID0;
      end
-     else if(header == 1 & M_AXIS_TVALID0 & M_AXIS_TLAST )
+     else if(header == 1 & M_AXIS_TVALID0 & M_AXIS_TLAST & M_AXIS_TREADY )
      begin
 //	M_AXIS_TVALID = drop_next ? 0 : M_AXIS_TVALID0;
 	header_next = 0;

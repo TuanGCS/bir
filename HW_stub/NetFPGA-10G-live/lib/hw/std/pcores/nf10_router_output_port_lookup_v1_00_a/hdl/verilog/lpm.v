@@ -129,7 +129,7 @@ lpm_table[27],lpm_table[28],lpm_table[29],lpm_table[30],lpm_table[31],ip_addr,M_
      M_AXIS_TUSER   = M_AXIS_TUSER0;
 	  lpm_miss_next = lpm_miss_count;
 
-     if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST)
+     if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST )
      begin
        header_next = 1; 
        if( !(M_AXIS_TUSER0[DST_PORT_POS+1] || M_AXIS_TUSER0[DST_PORT_POS+3] || M_AXIS_TUSER0[DST_PORT_POS+5] || M_AXIS_TUSER0[DST_PORT_POS+7]) )

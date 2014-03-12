@@ -42,9 +42,9 @@ sent_pkts = []
 nftest_barrier()
 
 # loop for 30 packets
-for i in range(30): 
+for i in range(5): 
     if isHW():
-        for port in range(2):
+        for port in range(1):
             DA = routerMAC[port]
             sent_pkt = make_IP_pkt(dst_MAC=DA, src_MAC=SA,
                                dst_IP=DST_IP, src_IP=SRC_IP,

@@ -45,7 +45,7 @@ nftest_barrier()
 # loop for 30 packets
 for i in range(30): 
     if isHW():
-        for port in range(2):
+        for port in range(1):
             DA = routerMAC[port]
             sent_pkt = make_IP_pkt(dst_MAC=DA, src_MAC=SA,
                                dst_IP=DST_IP, src_IP=SRC_IP,
@@ -53,6 +53,8 @@ for i in range(30):
             sent_pkt.ttl = TTL
             nftest_send_phy('nf%d'%port, sent_pkt)
             nftest_expect_dma('nf%d'%port, sent_pkt)
+            #nftest_send_phy('nf0', sent_pkt)
+            #nftest_expect_dma('nf0', sent_pkt)
     else:
 	DA = routerMAC[0]
 	sent_pkt = make_IP_pkt(dst_MAC=DA, src_MAC=SA,
