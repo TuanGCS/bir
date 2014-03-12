@@ -199,11 +199,6 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 					+ sizeof(packet_ip4_t) + sizeof(pwospf_packet_link_t)];
 	const int payload_count = ntohl(packet->advert);
 
-	int g;
-	for (g = 0; g < payload_count; g++)
-		if (payload[g].router_id == 0)
-			payload[g].router_id = packet->pwospf_header.router_id;
-
 	if (pi->len
 			< sizeof(packet_ethernet_t) + sizeof(packet_ip4_t)
 					+ sizeof(pwospf_packet_link_t)
@@ -225,6 +220,11 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 				pi->interface->name, quick_ip_to_string(ip->src_ip));
 		return;
 	}
+
+	int g;
+	for (g = 0; g < payload_count; g++)
+		if (payload[g].router_id == 0)
+			payload[g].router_id = packet->pwospf_header.router_id;
 
 	queue_lockall(neighbours);
 
