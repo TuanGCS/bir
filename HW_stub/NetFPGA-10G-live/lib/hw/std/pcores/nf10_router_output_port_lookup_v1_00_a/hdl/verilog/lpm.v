@@ -53,7 +53,7 @@ module lpm
 
     reg	[C_S_AXI_DATA_WIDTH*4-1:0] lpm_table [0:31];      // Value in table
 
-   integer i,j;
+   integer i,j,k;
 
   always@(posedge AXI_ACLK)
   begin
@@ -115,9 +115,9 @@ module lpm
    reg [31:0] ip_mask, net_mask, next_hop, oq;
 
    reg header, header_next;
-   reg [31:0] a , b,wire_queue,wire_nh;
+   reg [31:0] a , b,wire_queue,wire_nh,result;
    reg [127:0] table_line;
-
+   reg [4:0] index; 
 
    always@(lpm_table[0],lpm_table[1],lpm_table[2],lpm_table[3],lpm_table[4],lpm_table[5],
 lpm_table[6],lpm_table[7],lpm_table[8],lpm_table[9],lpm_table[10],lpm_table[11],lpm_table[12],
@@ -140,8 +140,9 @@ lpm_table[27],lpm_table[28],lpm_table[29],lpm_table[30],lpm_table[31],ip_addr,M_
 	 lpm_hit = 0;
 	 arp_lookup = 0;
 	 nh_reg = 0;
+	 result = 0;
 
-   for(j=0;j<32;j=j+1)
+   for(j=31;j>=0;j=j-1)
 	 begin
 	   table_line = lpm_table[j];
 	   ip_temp = table_line[31:0];
@@ -151,20 +152,61 @@ lpm_table[27],lpm_table[28],lpm_table[29],lpm_table[30],lpm_table[31],ip_addr,M_
 	   wire_queue = table_line[127:96];
 	   wire_nh =  table_line[95:64];
 
-	   if( ( a == b ) & !lpm_hit  ) 
+	   if( ( a == b ) ) 
 	   begin
-//	     if( mask_temp > net_mask )
-//	     begin 
-	     ip_mask = ip_temp; 
-	     net_mask = mask_temp;
+//		result[j] = 1;
+
+//	     ip_mask = ip_temp; 
+//	     net_mask = mask_temp;
 	     lpm_hit = 1;
 	     oq = wire_queue;
 	     next_hop = wire_nh;
 //	     end
 	   end
-
-
 	 end
+/*
+	if(result !=0)
+	begin
+	lpm_hit = 1;
+	index = 0;
+	if(result[0]==1) index = 0;
+	else if(result[1]==1) index = 1;
+	else if(result[2]==1) index = 2;
+	else if(result[3]==1) index = 3;
+	else if(result[4]==1) index = 4;
+	else if(result[5]==1) index = 5;
+	else if(result[6]==1) index = 6;
+	else if(result[7]==1) index = 7;
+	else if(result[8]==1) index = 8;
+	else if(result[9]==1) index = 9;
+	else if(result[10]==1) index = 10;
+	else if(result[11]==1) index = 11;
+	else if(result[12]==1) index = 12;
+	else if(result[13]==1) index = 13;
+	else if(result[14]==1) index = 14;
+	else if(result[15]==1) index = 15;
+	else if(result[16]==1) index = 16;
+	else if(result[17]==1) index = 17;
+	else if(result[18]==1) index = 18;
+	else if(result[19]==1) index = 19;
+	else if(result[20]==1) index = 20;
+	else if(result[21]==1) index = 21;
+	else if(result[22]==1) index = 22;
+	else if(result[23]==1) index = 23;
+	else if(result[24]==1) index = 24;
+	else if(result[25]==1) index = 25;
+	else if(result[26]==1) index = 26;
+	else if(result[27]==1) index = 27;
+	else if(result[28]==1) index = 28;
+	else if(result[29]==1) index = 29;
+	else if(result[30]==1) index = 30;
+	else if(result[31]==1) index = 31;
+
+	oq = lpm_table[index][127:96];
+	next_hop =  lpm_table[index][95:64];
+
+	end
+*/
 
 	if(!lpm_hit)
 	begin

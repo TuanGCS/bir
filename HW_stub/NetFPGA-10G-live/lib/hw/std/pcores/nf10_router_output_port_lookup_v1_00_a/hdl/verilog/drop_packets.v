@@ -86,6 +86,7 @@ module drop_packets
   reg [31:0] checksum,temp_checksum1;
   reg [15:0] temp_checksum, checksum_final; 
   reg drop,drop_next;
+  reg [4:0] drop_array;
   reg [31:0] dropped_count_next, wrong_mac_count_next;
 
    assign M_AXIS_TVALID = drop_next ? 0 : M_AXIS_TVALID0;
@@ -100,12 +101,13 @@ module drop_packets
 //	  M_AXIS_TVALID = M_AXIS_TVALID0;
      if(header == 0 & M_AXIS_TVALID0 &  !M_AXIS_TLAST ) begin
 	header_next = 1; 
+	drop_array = 5'd0;
 	destip_addr = {M_AXIS_TDATA[15:0],low_ip_addr};
 	checksum = low_ip_addr + M_AXIS_TDATA[143:128] + M_AXIS_TDATA[127:112] + M_AXIS_TDATA[111:96] + M_AXIS_TDATA[95:80] + M_AXIS_TDATA[79:64] + M_AXIS_TDATA[47:32] + M_AXIS_TDATA[31:16] + M_AXIS_TDATA[15:0];
 	checksum_final = ~(checksum[15:0] + checksum[19:16]);
 	if(checksum_final != M_AXIS_TDATA[63:48]) 
 	begin
-	  drop_next = 1; // Drop if Wrong Checksum
+	  drop_array[0] = 1;
 	  // drop1 <= 1;
 	  dropped_count_next = dropped_count_next + 1;
 	end
@@ -113,28 +115,30 @@ module drop_packets
 	begin
 	 if(M_AXIS_TUSER[SRC_PORT_POS] && !(M_AXIS_TDATA[255:208] == {mac0_high[15:0],mac0_low} || M_AXIS_TDATA == 48'hFFFFFFFFFFFF))
 	 begin 
-	  drop_next = 1;
+	  drop_array[1] = 1;
 	  wrong_mac_count_next = wrong_mac_count_next + 1;  
 	 end
 	
 	 if(M_AXIS_TUSER[SRC_PORT_POS+2] && !(M_AXIS_TDATA[255:208] == {mac1_high[15:0],mac1_low} || M_AXIS_TDATA == 48'hFFFFFFFFFFFF))
 	 begin 
-	  drop_next = 1;
+	  drop_array[2] = 1;
 	  wrong_mac_count_next = wrong_mac_count_next + 1;  
 	 end
 	
 	 if(M_AXIS_TUSER[SRC_PORT_POS+6] && !(M_AXIS_TDATA[255:208] == {mac2_high[15:0],mac2_low} || M_AXIS_TDATA == 48'hFFFFFFFFFFFF))
 	 begin 
-	  drop_next = 1;
+	  drop_array[3] = 1;
 	  wrong_mac_count_next = wrong_mac_count_next + 1;  
 	 end
 	
 	 if(M_AXIS_TUSER[SRC_PORT_POS+8] && !(M_AXIS_TDATA[255:208] == {mac3_high[15:0],mac3_low} || M_AXIS_TDATA == 48'hFFFFFFFFFFFF))
 	 begin 
-	  drop_next = 1;
+	  drop_array[4] = 1;
 	  wrong_mac_count_next = wrong_mac_count_next + 1;  
  	 end
      end
+	
+	if(drop_array != 5'd0) drop_next = 1;
 //	M_AXIS_TVALID = drop_next ? 0 : M_AXIS_TVALID0;
      end
      else if(header == 1 & M_AXIS_TVALID0 & !M_AXIS_TLAST )

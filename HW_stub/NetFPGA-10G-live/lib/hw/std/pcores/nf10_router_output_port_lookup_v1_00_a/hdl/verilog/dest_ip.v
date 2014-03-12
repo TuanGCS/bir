@@ -116,9 +116,9 @@ module dest_ip
   reg tbl_wr_ack_next,tbl_rd_ack_next;
   reg [31:0] tbl_rd_data_next;
 
-  reg [31:0] dest_hit_next, bad_ttl_next, ver_next,non_ip_next, ip_data_check;
-  reg header, header_next, cpu_hit;
-
+  reg [31:0] result,dest_hit_next, bad_ttl_next, ver_next,non_ip_next, ip_data_check;
+  reg header, header_next, cpu_hit, dest_ip_hit;
+  reg [5:0] cpu_hit_array;
 
 //	dest_ip_table_next[i] = dest_ip_table[i];
   always@(dest_ip_table[0],dest_ip_table[1],dest_ip_table[2],dest_ip_table[3],dest_ip_table[4],
@@ -140,7 +140,9 @@ destip_addr,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_count,M_AXIS_TU
 	  dest_hit_next = dest_hit_count;
      M_AXIS_TUSER = M_AXIS_TUSER0;
 	  ip_data_check = destip_addr;
-	       cpu_hit = 0;
+	  cpu_hit = 0;
+	  dest_ip_hit = 0;
+	  cpu_hit_array = 5'd0;
      if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST) 
      begin//{
 	header_next = 1;
@@ -148,34 +150,44 @@ destip_addr,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_count,M_AXIS_TU
 	begin
 	if(M_AXIS_TDATA[79:72] < 1) // Check TTL
 	begin
-	  cpu_hit = 1;
+	  cpu_hit_array[0] = 1;
 	  bad_ttl_next = bad_ttl_next + 1;
 	end
 	if(M_AXIS_TDATA[143:140] != 4'd4 )
 	begin
-	  cpu_hit = 1;
+	  cpu_hit_array[1] = 1;
 	  ver_next = ver_next + 1;
 	end
 	if(M_AXIS_TDATA[159:144] != 16'h0800)	
 	begin
-	  cpu_hit = 1;
+	  cpu_hit_array[2] = 1;
 	  non_ip_next = non_ip_next + 1;
 	end
-//	else
-//	begin
-//	cpu_hit = 0;
-//	  ip_data_check = destip_addr;
-	for(j=0; j<32; j=j+1)
+
+
+  	if(M_AXIS_TDATA[159:144] == 16'h0800)
 	begin//{
-	  if(!cpu_hit)
-	  begin//{
+
+//	  result = 0; 
+	  for(j=0; j<32; j=j+1)
+	  begin
 	    if(ip_data_check == dest_ip_table[j]) 
-	    begin//{
-	      cpu_hit = 1;
-	      dest_hit_next = dest_hit_next + 1;
-	  end//}
+	    begin
+	      dest_ip_hit = 1;
+	    end
+ 	  end
+
+	  if(dest_ip_hit)
+	  begin
+	     cpu_hit_array[3] = 1;
+	    dest_hit_next = dest_hit_next + 1;
+	  end
 	end//}
-	end//}
+
+
+	if(cpu_hit_array != 5'd0) cpu_hit = 1;
+
+
 	if(cpu_hit)
 	begin
           if(M_AXIS_TUSER[SRC_PORT_POS])   M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000010;
