@@ -206,6 +206,7 @@ void process_arpipqueue(dataqueue_t * queue, addr_ip_t ip, addr_mac_t mac, route
 						free(entry->packet_info);
 						queue_unlockidandremove(queue, i); // release queue
 
+						printf("Received an ARP response from %s and there is a pending IP packet for it. Serving...\n", quick_ip_to_string(ip));
 						ip_onreceive(entry_copy, ip_packet_copy);
 					} else
 						queue_unlockid(queue, i);
