@@ -141,7 +141,7 @@ destip_addr,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_count,M_AXIS_TU
      M_AXIS_TUSER = M_AXIS_TUSER0;
 	  ip_data_check = destip_addr;
 	       cpu_hit = 0;
-     if(header == 0 & M_AXIS_TVALID ) 
+     if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST) 
      begin//{
 	header_next = 1;
 	if(!pkt_is_from_cpu)
@@ -193,7 +193,7 @@ destip_addr,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_count,M_AXIS_TU
 	end
 //	cpu_hit = 0;
    end//}
-   else if(header == 1 & M_AXIS_TLAST & M_AXIS_TVALID )
+   else if(header == 1 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY )
    begin
       header_next = 0;
       cpu_hit = 0;

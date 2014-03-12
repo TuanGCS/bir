@@ -155,9 +155,9 @@ state,arp_miss_count,M_AXIS_TLAST,M_AXIS_TVALID,M_AXIS_TREADY,nh_reg,arp_lookup,
      M_AXIS_TDATA   = M_AXIS_TDATA0;
 	  state_next = state;
 	  arp_miss_next = arp_miss_count;
-       if( state == 2'd0 & M_AXIS_TVALID & !M_AXIS_TLAST) 
+       if( (state == 2'd0) & M_AXIS_TVALID & !M_AXIS_TLAST ) 
        begin	
-	    state_next = 1;
+	    state_next = 2'd1;
 	if( M_AXIS_TUSER0[DST_PORT_POS+7:DST_PORT_POS] == 8'd0)
 	begin
 
@@ -210,16 +210,16 @@ state,arp_miss_count,M_AXIS_TLAST,M_AXIS_TVALID,M_AXIS_TREADY,nh_reg,arp_lookup,
 	end
 //	          tdata = M_AXIS_TDATA;
        end
-       else if( state == 1 & M_AXIS_TVALID & M_AXIS_TREADY)
+       else if( (state == 2'd1) & !M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
        begin
 
 	M_AXIS_TDATA = tdata;
-	state_next = 2;
+	state_next = 2'd2;
 
-       end
-       else if( state == 2 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
+       end  
+       else if( (state == 2'd2) & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
        begin
-	state_next = 0;
+	state_next = 2'd0;
        end
    end
 
