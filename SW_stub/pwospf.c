@@ -244,7 +244,6 @@ void pwospf_onreceive_link(packet_info_t * pi, pwospf_packet_link_t * packet) {
 		// if a new packet is received for neighbour that we know about
 		if (neighbour->lsu_lastcontents != NULL
 				&& neighbour->lsu_lastcontents_count == payload_count) {
-			printf("YEY! Neighbour sent the same size data! Yey!\n");
 			// if we have previously received packets from this guy
 			if (compare_lsus(neighbour->lsu_lastcontents, payload,
 					neighbour->lsu_lastcontents_count)) {
@@ -689,6 +688,31 @@ void send_pwospf_hello_packet(router_t* router) {
 
 }
 
+void removeallneighbourswithrouterid(router_t * router, pwospf_list_entry_t * toremove) {
+	int j, i;
+	for (j = 0; j < router->num_interfaces; j++) {
+
+		interface_t * interface = &router->interface[j];
+		dataqueue_t * neighbours = &interface->neighbours;
+
+		for (i = 0; i < neighbours->size; i++) {
+			pwospf_list_entry_t * entry;
+			int entry_size;
+			if (queue_getidandlock(neighbours, i, (void **) &entry,
+					&entry_size)) {
+
+				assert(entry_size == sizeof(pwospf_list_entry_t));
+
+				if (entry->neighbour_id == toremove->neighbour_id)
+					queue_unlockidandremove(neighbours, i);
+				else
+					queue_unlockid(neighbours, i);
+			}
+
+		}
+	}
+}
+
 void pwospf_thread(void *arg) {
 	router_t * router = (router_t *) arg;
 	pthread_detach(pthread_self());
@@ -718,7 +742,7 @@ void pwospf_thread(void *arg) {
 
 					assert(entry_size == sizeof(pwospf_list_entry_t));
 
-					if ((difftime(now.tv_sec, entry->timestamp.tv_sec)
+					if ((entry->immediate_neighbour && difftime(now.tv_sec, entry->timestamp.tv_sec)
 									> 3 * entry->helloint)
 							|| (entry->lsu_lastcontents != NULL
 									&& difftime(now.tv_sec,
@@ -742,7 +766,10 @@ void pwospf_thread(void *arg) {
 
 						changed = 1;
 
-						queue_unlockidandremove(neighbours, i);
+						pwospf_list_entry_t entry_copy = *entry;
+						queue_unlockid(neighbours, i);
+
+						removeallneighbourswithrouterid(router, &entry_copy);
 					} else
 						queue_unlockid(neighbours, i);
 				}
