@@ -490,6 +490,7 @@ module nf10_router_output_port_lookup
 
 
    wire [15:0] low_ip_addr;
+   wire [31:0] partial_checksum;
 
    ip_addr_checksum_delay
     #(
@@ -518,7 +519,8 @@ module nf10_router_output_port_lookup
       .S_AXIS_TLAST ( M_AXIS_TLAST_0 ),
       .reset(reset),
       .cpu_count(cpu_count),
-	.low_ip_addr(low_ip_addr)
+	.low_ip_addr(low_ip_addr),
+	.partial_checksum(partial_checksum)
    );
 
     wire [31:0] destip_addr;
@@ -560,7 +562,8 @@ module nf10_router_output_port_lookup
 	.low_ip_addr(low_ip_addr),
 	.wrong_mac_count(wrong_mac_count),
 	.dropped_count(dropped_count),
-	.destip_addr(destip_addr)
+	.destip_addr(destip_addr),
+	.partial_checksum(partial_checksum)
    );
 
 
