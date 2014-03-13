@@ -119,6 +119,9 @@ module lpm
    reg [127:0] table_line;
    reg [4:0] index; 
 
+   reg arp_lnext;
+   reg [31:0] nh_next,oq_next; 
+
    always@(lpm_table[0],lpm_table[1],lpm_table[2],lpm_table[3],lpm_table[4],lpm_table[5],
 lpm_table[6],lpm_table[7],lpm_table[8],lpm_table[9],lpm_table[10],lpm_table[11],lpm_table[12],
 lpm_table[13],lpm_table[14],lpm_table[15],lpm_table[16],lpm_table[17],lpm_table[18],lpm_table[19],
@@ -128,6 +131,9 @@ lpm_table[27],lpm_table[28],lpm_table[29],lpm_table[30],lpm_table[31],ip_addr,M_
      header_next = header;
      M_AXIS_TUSER   = M_AXIS_TUSER0;
 	  lpm_miss_next = lpm_miss_count;
+	arp_lnext = arp_lookup;
+	nh_next = nh_reg;
+	oq_next = oq_reg;
 
      if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST )
      begin
@@ -138,11 +144,12 @@ lpm_table[27],lpm_table[28],lpm_table[29],lpm_table[30],lpm_table[31],ip_addr,M_
 	 ip_mask = ip_addr;
 	 net_mask = 0;
 	 lpm_hit = 0;
-	 arp_lookup = 0;
-	 nh_reg = 0;
+//	 arp_lookup = 0;
+//	 nh_next = 0;
+//	 oq_next = 0;
 	 result = 0;
 
-   for(j=31;j>=0;j=j-1)
+   for(j=7;j>=0;j=j-1)
 	 begin
 	   table_line = lpm_table[j];
 	   ip_temp = table_line[31:0];
@@ -218,17 +225,18 @@ lpm_table[27],lpm_table[28],lpm_table[29],lpm_table[30],lpm_table[31],ip_addr,M_
 	end
 	else
 	begin
- 	  oq_reg = oq;	
-	  nh_reg = next_hop;
-	  arp_lookup = lpm_hit;
+ 	  oq_next = oq;	
+	  nh_next = next_hop;
+	  arp_lnext = lpm_hit;
 	end
        end
        end
        else if( header == 1 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
        begin
 	header_next = 0;
-//	arp_lookup = 0;
-//	nh_reg = 0;
+	arp_lnext = 0;
+	nh_next = 0;
+	oq_next = 0;
        end
    end
 
@@ -240,6 +248,9 @@ lpm_table[27],lpm_table[28],lpm_table[29],lpm_table[30],lpm_table[31],ip_addr,M_
    begin
      header <= 0;
      lpm_miss_count <= 0;
+     arp_lookup <= 0;
+     nh_reg <= 0;
+     oq_reg <= 0;
    end
    else if(reset == 32'd1)
    begin
@@ -249,6 +260,9 @@ lpm_table[27],lpm_table[28],lpm_table[29],lpm_table[30],lpm_table[31],ip_addr,M_
    begin
      lpm_miss_count <= lpm_miss_next;
      header <= header_next;
+     arp_lookup <= arp_lnext;
+     nh_reg <= nh_next;
+     oq_reg <= oq_next;
    end
 
    end
