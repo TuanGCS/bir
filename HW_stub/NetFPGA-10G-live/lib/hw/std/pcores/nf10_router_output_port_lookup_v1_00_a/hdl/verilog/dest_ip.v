@@ -165,7 +165,7 @@ destip_addr,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_count,M_AXIS_TU
 	end
   	if(M_AXIS_TDATA[159:144] == 16'h0800)
 	begin//{
-	  for(j=0; j<8; j=j+1)
+	  for(j=0; j<31; j=j+1)
 	  begin
 	    if(ip_data_check == dest_ip_table[j]) 
 	    begin
