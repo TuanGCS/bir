@@ -471,7 +471,7 @@ module nf10_router_output_port_lookup
 
    fallthrough_small_fifo
         #( .WIDTH(C_M_AXIS_DATA_WIDTH+C_M_AXIS_TUSER_WIDTH+C_M_AXIS_DATA_WIDTH/8+1),
-           .MAX_DEPTH_BITS(4))
+           .MAX_DEPTH_BITS(2))
       input_fifo
         (// Outputs
          .dout                           ({M_AXIS_TLAST_0, M_AXIS_TUSER_0, M_AXIS_TSTRB_0, M_AXIS_TDATA_0}),

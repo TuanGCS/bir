@@ -171,49 +171,6 @@ lpm_table[27],lpm_table[28],lpm_table[29],lpm_table[30],lpm_table[31],ip_addr,M_
 //	     end
 	   end
 	 end
-/*
-	if(result !=0)
-	begin
-	lpm_hit = 1;
-	index = 0;
-	if(result[0]==1) index = 0;
-	else if(result[1]==1) index = 1;
-	else if(result[2]==1) index = 2;
-	else if(result[3]==1) index = 3;
-	else if(result[4]==1) index = 4;
-	else if(result[5]==1) index = 5;
-	else if(result[6]==1) index = 6;
-	else if(result[7]==1) index = 7;
-	else if(result[8]==1) index = 8;
-	else if(result[9]==1) index = 9;
-	else if(result[10]==1) index = 10;
-	else if(result[11]==1) index = 11;
-	else if(result[12]==1) index = 12;
-	else if(result[13]==1) index = 13;
-	else if(result[14]==1) index = 14;
-	else if(result[15]==1) index = 15;
-	else if(result[16]==1) index = 16;
-	else if(result[17]==1) index = 17;
-	else if(result[18]==1) index = 18;
-	else if(result[19]==1) index = 19;
-	else if(result[20]==1) index = 20;
-	else if(result[21]==1) index = 21;
-	else if(result[22]==1) index = 22;
-	else if(result[23]==1) index = 23;
-	else if(result[24]==1) index = 24;
-	else if(result[25]==1) index = 25;
-	else if(result[26]==1) index = 26;
-	else if(result[27]==1) index = 27;
-	else if(result[28]==1) index = 28;
-	else if(result[29]==1) index = 29;
-	else if(result[30]==1) index = 30;
-	else if(result[31]==1) index = 31;
-
-	oq = lpm_table[index][127:96];
-	next_hop =  lpm_table[index][95:64];
-
-	end
-*/
 
 	if(!lpm_hit)
 	begin
@@ -311,4 +268,47 @@ endmodule
 	end
 	end
        end
+*/
+/*
+	if(result !=0)
+	begin
+	lpm_hit = 1;
+	index = 0;
+	if(result[0]==1) index = 0;
+	else if(result[1]==1) index = 1;
+	else if(result[2]==1) index = 2;
+	else if(result[3]==1) index = 3;
+	else if(result[4]==1) index = 4;
+	else if(result[5]==1) index = 5;
+	else if(result[6]==1) index = 6;
+	else if(result[7]==1) index = 7;
+	else if(result[8]==1) index = 8;
+	else if(result[9]==1) index = 9;
+	else if(result[10]==1) index = 10;
+	else if(result[11]==1) index = 11;
+	else if(result[12]==1) index = 12;
+	else if(result[13]==1) index = 13;
+	else if(result[14]==1) index = 14;
+	else if(result[15]==1) index = 15;
+	else if(result[16]==1) index = 16;
+	else if(result[17]==1) index = 17;
+	else if(result[18]==1) index = 18;
+	else if(result[19]==1) index = 19;
+	else if(result[20]==1) index = 20;
+	else if(result[21]==1) index = 21;
+	else if(result[22]==1) index = 22;
+	else if(result[23]==1) index = 23;
+	else if(result[24]==1) index = 24;
+	else if(result[25]==1) index = 25;
+	else if(result[26]==1) index = 26;
+	else if(result[27]==1) index = 27;
+	else if(result[28]==1) index = 28;
+	else if(result[29]==1) index = 29;
+	else if(result[30]==1) index = 30;
+	else if(result[31]==1) index = 31;
+
+	oq = lpm_table[index][127:96];
+	next_hop =  lpm_table[index][95:64];
+
+	end
 */

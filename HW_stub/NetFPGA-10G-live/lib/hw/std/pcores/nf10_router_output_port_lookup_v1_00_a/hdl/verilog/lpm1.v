@@ -109,25 +109,27 @@ module lpm1
    assign M_AXIS_TVALID = !in_fifo_empty; 
    assign S_AXIS_TREADY = !in_fifo_nearly_full;
 
-   reg lpm_hit_next,arp_hit;
+   reg lpm_hit_next,arp_hit,lpm_p,lpm_p_next;
    reg [1:0] state;
    reg [31:0] ip_check,ip_temp,mask_temp,queue,lpm_miss_next;
 	reg [47:0] dest_mac;
    reg [31:0] ip_mask, net_mask, next_hop, oq;
 
-   reg header, header_next;
+   reg [1:0] header, header_next;
    reg [31:0] a , b,wire_queue,wire_nh,result;
    reg [127:0] table_line;
    reg [4:0] index; 
 
    reg arp_lnext;
-   reg [31:0] nh_next,oq_next; 
+   reg [31:0] nh_next,oq_next;
+   reg [4:0] index_next, index_hit; 
 
    always@(lpm_table[0],lpm_table[1],lpm_table[2],lpm_table[3],lpm_table[4],lpm_table[5],
 lpm_table[6],lpm_table[7],lpm_table[8],lpm_table[9],lpm_table[10],lpm_table[11],lpm_table[12],
 lpm_table[13],lpm_table[14],lpm_table[15],lpm_table[16],lpm_table[17],lpm_table[18],lpm_table[19],
 lpm_table[20],lpm_table[21],lpm_table[22],lpm_table[23],lpm_table[24],lpm_table[25],lpm_table[26],
-lpm_table[27],lpm_table[28],lpm_table[29],lpm_table[30],lpm_table[31],ip_addr,M_AXIS_TREADY,M_AXIS_TVALID,header,M_AXIS_TUSER0,M_AXIS_TLAST )
+lpm_table[27],lpm_table[28],lpm_table[29],lpm_table[30],lpm_table[31],ip_addr,M_AXIS_TREADY,
+M_AXIS_TVALID,header,M_AXIS_TUSER0,M_AXIS_TLAST,lpm_p, index_hit )
    begin
      header_next = header;
      M_AXIS_TUSER   = M_AXIS_TUSER0;
@@ -136,67 +138,61 @@ lpm_table[27],lpm_table[28],lpm_table[29],lpm_table[30],lpm_table[31],ip_addr,M_
 	nh_next = nh_reg;
 	oq_next = oq_reg;
 	lpm_hit_next = lpm_hit;
-     if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST )
+	lpm_p_next = lpm_p;
+	index_next = index_hit;
+     if(header == 2'd0 & M_AXIS_TVALID & !M_AXIS_TLAST )
      begin
-       header_next = 1; 
+       header_next = 2'd1; 
        if( !(M_AXIS_TUSER0[DST_PORT_POS+1] || M_AXIS_TUSER0[DST_PORT_POS+3] || M_AXIS_TUSER0[DST_PORT_POS+5] || M_AXIS_TUSER0[DST_PORT_POS+7]) )
        begin
 	 // ip_check = ip_addr;
-	 ip_mask = ip_addr;
-	 net_mask = 0;
+//	 ip_mask = ip_addr;
+//	 net_mask = 0;
 //	 lpm_hit = 0;
 //	 arp_lookup = 0;
 //	 nh_next = 0;
 //	 oq_next = 0;
-	 result = 0;
+//	 result = 0;
 
    for(j=31;j>=0;j=j-1)
 	 begin
-	   table_line = lpm_table[j];
-	   ip_temp = table_line[31:0];
-	   mask_temp = table_line[63:32];
-	   a = ip_temp;
-	   b = ip_mask & mask_temp;
-	   wire_queue = table_line[127:96];
-	   wire_nh =  table_line[95:64];
+//	   table_line = lpm_table[j];
+//	   ip_temp = table_line[31:0];
+//	   mask_temp = table_line[63:32];
+//	   a = ip_temp;
+//	   b = ip_mask & mask_temp;
+//	   wire_queue = table_line[127:96];
+//	   wire_nh =  table_line[95:64];
 
-	   if( ( a == b ) ) 
+	   if( (ip_addr & lpm_table[j][63:32]) == (lpm_table[j][31:0] & lpm_table[j][63:32] ) ) 
 	   begin
 //		result[j] = 1;
-
 //	     ip_mask = ip_temp; 
 //	     net_mask = mask_temp;
-	     lpm_hit_next = 1;
-	     oq = wire_queue;
-	     next_hop = wire_nh;
+	     lpm_p_next = 1;
+	     index_next = j;
+//	     oq_next = lpm_table[j][127:96];
+//	     nh_next = lpm_table[j][95:64];
 //	     end
 	   end
 	 end
- 	  oq_next = oq;	
-	  nh_next = next_hop;
-
-/*
-	if(!lpm_hit)
-	begin
-	  lpm_miss_next = lpm_miss_next + 1;
-          if(M_AXIS_TUSER0[SRC_PORT_POS])   M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000010;
-          if(M_AXIS_TUSER0[SRC_PORT_POS+2]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00001000;
-          if(M_AXIS_TUSER0[SRC_PORT_POS+4]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00100000;
-          if(M_AXIS_TUSER0[SRC_PORT_POS+6]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000000;
-	end
-	else
-	begin
- 	  oq_next = oq;	
-	  nh_next = next_hop;
-	  arp_lnext = lpm_hit;
-	end
-*/ 
       end
        end
-       else if( header == 1 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
+	else if(header == 2'd1 & M_AXIS_TVALID & !M_AXIS_TLAST)
+	begin
+	header_next = 2;
+	  if(lpm_p)
+	  begin 
+	     lpm_hit_next = 1;
+	     oq_next = lpm_table[index_hit][127:96];
+	     nh_next = lpm_table[index_hit][95:64];
+	  end
+	end
+       else if( header == 2'd2 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
        begin
 	header_next = 0;
 	lpm_hit_next = 0;
+	lpm_p_next = 0;
 	nh_next = 0;
 	oq_next = 0;
        end
@@ -208,7 +204,9 @@ lpm_table[27],lpm_table[28],lpm_table[29],lpm_table[30],lpm_table[31],ip_addr,M_
    begin
    if(~AXI_RESETN)
    begin
-     header <= 0;
+     header <= 2'd0;
+	  lpm_p <= 0;
+	  index_hit <= 5'd0;
 //     lpm_miss_count <= 0;
 //     arp_lookup <= 0;
      nh_reg <= 0;
@@ -221,6 +219,8 @@ lpm_table[27],lpm_table[28],lpm_table[29],lpm_table[30],lpm_table[31],ip_addr,M_
 //   end
    else 
    begin
+		index_hit <= index_next;
+		lpm_p <= lpm_p_next;
 //     lpm_miss_count <= lpm_miss_next;
      header <= header_next;
 //     arp_lookup <= arp_lnext;

@@ -139,7 +139,7 @@ arp_table[6],arp_table[7],arp_table[8],arp_table[9],arp_table[10],arp_table[11],
 arp_table[13],arp_table[14],arp_table[15],arp_table[16],arp_table[17],arp_table[18],arp_table[19],
 arp_table[20],arp_table[21],arp_table[22],arp_table[23],arp_table[24],arp_table[26],arp_table[27],
 arp_table[28],arp_table[29],arp_table[30],arp_table[31],M_AXIS_TDATA0,M_AXIS_TUSER0,
-state,M_AXIS_TLAST,M_AXIS_TVALID,M_AXIS_TREADY,nh_reg,arp_lookup,oq_reg )
+state,M_AXIS_TLAST,M_AXIS_TVALID,M_AXIS_TREADY,nh_reg,arp_lookup,oq_reg,oq_reg_out )
    begin
      M_AXIS_TUSER   = M_AXIS_TUSER0;
      M_AXIS_TDATA   = M_AXIS_TDATA0;
@@ -161,14 +161,15 @@ state,M_AXIS_TLAST,M_AXIS_TVALID,M_AXIS_TREADY,nh_reg,arp_lookup,oq_reg )
 	table_line = arp_table[j];
 	nh_compare = table_line[31:0];
 	result[j] = 0;
+	oq_next= oq_reg;
 	     if( nh_reg == nh_compare )
 	     begin
-		result[j] = 1'b1;
-	//	dest_mac = table_line[79:32];
-	//	arp_hit = 1;
+//		result[j] = 1'b1;
+		dmac_next = table_line[79:32];
+		arp_hit_next = 1;
 	     end
 	 end
-
+/*
 	result_final = {
 	result[0],result[1],result[2],result[3],result[4],result[5],
 	result[6],result[7],result[8],result[9],result[10],result[11],
@@ -220,7 +221,7 @@ state,M_AXIS_TLAST,M_AXIS_TVALID,M_AXIS_TREADY,nh_reg,arp_lookup,oq_reg )
 	dmac_next = arp_table[index][79:32];
 	oq_next = oq_reg;
 	end
-
+*/
 /*
 	if(arp_hit)
 	begin
