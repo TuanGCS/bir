@@ -46,15 +46,65 @@ module arp1
     input arp_lookup,
     input [31:0] nh_reg,
     input [31:0] oq_reg,
-    output reg [47:0] dest_mac,
+//    output reg [47:0] dest_mac,
     output reg arp_hit, 
-    output reg [31:0] oq_reg_out
+    output reg [31:0] oq_reg_out,
+    output reg [4:0] index_hit,
+    output [63:0] dest_mac_table6, dest_mac_table0, dest_mac_table1, dest_mac_table2, dest_mac_table3, dest_mac_table4, dest_mac_table5, dest_mac_table7, dest_mac_table8, dest_mac_table9,
+dest_mac_table10, dest_mac_table11, dest_mac_table12, dest_mac_table13, dest_mac_table14, dest_mac_table15, dest_mac_table16, dest_mac_table17, dest_mac_table18, dest_mac_table19,
+dest_mac_table20, dest_mac_table21, dest_mac_table22, dest_mac_table23, dest_mac_table24, dest_mac_table25, dest_mac_table26, dest_mac_table27, dest_mac_table28, dest_mac_table29, dest_mac_table30, dest_mac_table31
 );
 
 
     reg	[C_S_AXI_DATA_WIDTH*3-1:0] arp_table [0:31];      // Value in table
 
    integer i,j;
+
+/*
+   genvar x;
+   generate 
+   for(x=0; x < 32; x=x+1)
+   begin: dest_mac
+
+	assign dest_mac_table[x] = arp_table[x][95:32];
+
+   end
+   endgenerate
+*/
+
+  assign dest_mac_table0 = arp_table[0][95:32];
+  assign dest_mac_table1 = arp_table[1][95:32];
+  assign dest_mac_table2 = arp_table[2][95:32];
+  assign dest_mac_table3 = arp_table[3][95:32];
+  assign dest_mac_table4 = arp_table[4][95:32];
+  assign dest_mac_table5 = arp_table[5][95:32];
+  assign dest_mac_table6 = arp_table[6][95:32];
+  assign dest_mac_table7 = arp_table[7][95:32];
+  assign dest_mac_table8 = arp_table[8][95:32];
+  assign dest_mac_table9 = arp_table[9][95:32];
+  assign dest_mac_table10 = arp_table[10][95:32];
+  assign dest_mac_table11 = arp_table[11][95:32];
+  assign dest_mac_table12 = arp_table[12][95:32];
+  assign dest_mac_table13 = arp_table[13][95:32];
+  assign dest_mac_table14 = arp_table[14][95:32];
+  assign dest_mac_table15 = arp_table[15][95:32];
+  assign dest_mac_table16 = arp_table[16][95:32];
+  assign dest_mac_table17 = arp_table[17][95:32];
+  assign dest_mac_table18 = arp_table[18][95:32];
+  assign dest_mac_table19 = arp_table[19][95:32];
+  assign dest_mac_table20 = arp_table[20][95:32];
+  assign dest_mac_table21 = arp_table[21][95:32];
+  assign dest_mac_table22 = arp_table[22][95:32];
+  assign dest_mac_table23 = arp_table[23][95:32];
+  assign dest_mac_table24 = arp_table[24][95:32];
+  assign dest_mac_table25 = arp_table[25][95:32];
+  assign dest_mac_table26 = arp_table[26][95:32];
+  assign dest_mac_table27 = arp_table[27][95:32];
+  assign dest_mac_table28 = arp_table[28][95:32];
+  assign dest_mac_table29 = arp_table[29][95:32];
+  assign dest_mac_table30 = arp_table[30][95:32];
+  assign dest_mac_table31 = arp_table[31][95:32];
+
 
   always@(posedge AXI_ACLK)
   begin
@@ -112,17 +162,6 @@ module arp1
    assign M_AXIS_TVALID = !in_fifo_empty;
    assign S_AXIS_TREADY = !in_fifo_nearly_full;
 
-/*
- always@(posedge AXI_ACLK)
-  begin
-    // M_AXIS_TDATA  <= M_AXIS_TDATA0;
-    M_AXIS_TSTRB  <= M_AXIS_TSTRB0;
-    // M_AXIS_TUSER1  <= M_AXIS_TUSER0;
-    M_AXIS_TVALID <= M_AXIS_TVALID0;
-    M_AXIS_TLAST  <= M_AXIS_TLAST0;
-  end
-*/
-
 
   reg [1:0] state, state_next;
    reg arp_hit_next;
@@ -131,7 +170,7 @@ module arp1
    reg [31:0] ip_mask, net_mask, next_hop, oq, nh_compare;
    reg [95:0] table_line;
    reg result [0:31];
-   reg [4:0] index;
+   reg [4:0] index_hit_next;
    reg [31:0] result_final;
 
    always@(arp_table[0],arp_table[1],arp_table[2],arp_table[3],arp_table[4],arp_table[5],
@@ -143,11 +182,10 @@ state,M_AXIS_TLAST,M_AXIS_TVALID,M_AXIS_TREADY,nh_reg,arp_lookup,oq_reg,oq_reg_o
    begin
      M_AXIS_TUSER   = M_AXIS_TUSER0;
      M_AXIS_TDATA   = M_AXIS_TDATA0;
-	  state_next = state;
-	index = 0;
-	dmac_next = dest_mac;
+	state_next = state;
 	arp_hit_next = arp_hit;
 	oq_next = oq_reg_out;
+	index_hit_next = index_hit;
        if( (state == 2'd0) & M_AXIS_TVALID & !M_AXIS_TLAST ) 
        begin	
 	    state_next = 2'd1;
@@ -158,17 +196,112 @@ state,M_AXIS_TLAST,M_AXIS_TVALID,M_AXIS_TREADY,nh_reg,arp_lookup,oq_reg,oq_reg_o
 	begin
 	 for(j=0;j<32;j=j+1)
 	 begin
-	table_line = arp_table[j];
-	nh_compare = table_line[31:0];
-	result[j] = 0;
+//	table_line = arp_table[j];
+//	nh_compare = table_line[31:0];
+//	result[j] = 0;
 	oq_next= oq_reg;
-	     if( nh_reg == nh_compare )
+	     if( nh_reg == arp_table[j][31:0] )
 	     begin
-//		result[j] = 1'b1;
-		dmac_next = table_line[79:32];
+		index_hit_next = j;
 		arp_hit_next = 1;
 	     end
 	 end
+	end
+       end
+       end  
+       else if( (state == 2'd1) & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
+       begin
+	state_next = 2'd0;
+	arp_hit_next = 0;
+       end
+   end
+
+
+  always@(posedge AXI_ACLK)
+  begin
+      if(~AXI_RESETN)
+      begin	
+//	oq_reg_out <= oq_reg;
+        state <= 0;
+//	dest_mac <= 0;
+	arp_hit <= 0;
+	oq_reg_out <= 0;
+	index_hit <= 0;
+      end
+      else 
+      begin
+	oq_reg_out <= oq_next;
+	state <= state_next;
+//	dest_mac <= dmac_next;
+	arp_hit <= arp_hit_next;
+	index_hit <= index_hit_next;
+      end
+  end
+
+endmodule
+/*
+     else if(state == 0 & M_AXIS_TVALID0 & M_AXIS_TREADY)
+     begin
+       state <= 1; 
+       if( !(M_AXIS_TUSER0[DST_PORT_POS+1] || M_AXIS_TUSER0[DST_PORT_POS+3] || M_AXIS_TUSER0[DST_PORT_POS+5] || M_AXIS_TUSER0[DST_PORT_POS+7]) )
+       begin
+	 ip_check = ip_addr;
+	 ip_mask = 0;
+	 net_mask = 0;
+	 lpm_hit = 0;
+	 for(i=0;i<32;i=i+1)
+	 begin
+	   ip_temp = lpm_table[i][31:0];
+	   mask_temp = lpm_table[i][63:32];
+	   if(ip_temp||mask_temp > ip_mask) 
+	   begin
+	     ip_mask = ip_temp; 
+	     net_mask = mask_temp;
+	     lpm_hit = 1;
+	     oq = lpm_table[i][127:96];
+	     next_hop = lpm_table[i][95:64];
+	   end
+	   else if(ip_temp||mask_temp == ip_mask)
+	   begin
+	     if(mask_temp > net_mask )
+	     begin
+		ip_mask = ip_temp;
+		net_mask = mask_temp;
+		lpm_hit = 1;
+	   	oq = lpm_table[i][127:96];
+	   	next_hop = lpm_table[i][95:64];
+	     end
+	   end
+	 end
+	
+	if(!lpm_hit)
+	begin
+	  lpm_miss_count <= lpm_miss_count + 1;
+          if(M_AXIS_TUSER0[SRC_PORT_POS])   M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000010;
+          if(M_AXIS_TUSER0[SRC_PORT_POS+2]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00001000;
+          if(M_AXIS_TUSER0[SRC_PORT_POS+4]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00100000;
+          if(M_AXIS_TUSER0[SRC_PORT_POS+6]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000000;
+	end
+	else
+	begin
+ 	  oq_reg <= oq;	
+	  nh_reg <= next_hop;
+	  arp_lookup <= lpm_hit;
+	end
+
+       end
+       end
+*/
+/*
+	  case(oq_reg)	
+          0: M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000001;
+          1: M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00000100;
+          2: M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00010000;
+          3: M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b01000000;
+          4: M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00000010;	 
+	  endcase
+*/
+//!( M_AXIS_TUSER0[SRC_PORT_POS] || M_AXIS_TUSER0[SRC_PORT_POS+2] || M_AXIS_TUSER0[SRC_PORT_POS+6] || M_AXIS_TUSER0[SRC_PORT_POS+8]) && (
 /*
 	result_final = {
 	result[0],result[1],result[2],result[3],result[4],result[5],
@@ -249,99 +382,3 @@ state,M_AXIS_TLAST,M_AXIS_TVALID,M_AXIS_TREADY,nh_reg,arp_lookup,oq_reg,oq_reg_o
 	end
 	end
 */
-	end
-
-//	          tdata = M_AXIS_TDATA;
-       end
-       end  
-       else if( (state == 2'd1) & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
-       begin
-	state_next = 2'd0;
-	arp_hit_next = 0;
-       end
-   end
-
-
-  always@(posedge AXI_ACLK)
-  begin
-      if(~AXI_RESETN)
-      begin	
-//	oq_reg_out <= oq_reg;
-        state <= 0;
-	dest_mac <= 0;
-	arp_hit <= 0;
-	oq_reg_out <= 0;
-      end
-      else 
-      begin
-	oq_reg_out <= oq_next;
-	state <= state_next;
-	dest_mac <= dmac_next;
-	arp_hit <= arp_hit_next;
-      end
-  end
-
-endmodule
-/*
-     else if(state == 0 & M_AXIS_TVALID0 & M_AXIS_TREADY)
-     begin
-       state <= 1; 
-       if( !(M_AXIS_TUSER0[DST_PORT_POS+1] || M_AXIS_TUSER0[DST_PORT_POS+3] || M_AXIS_TUSER0[DST_PORT_POS+5] || M_AXIS_TUSER0[DST_PORT_POS+7]) )
-       begin
-	 ip_check = ip_addr;
-	 ip_mask = 0;
-	 net_mask = 0;
-	 lpm_hit = 0;
-	 for(i=0;i<32;i=i+1)
-	 begin
-	   ip_temp = lpm_table[i][31:0];
-	   mask_temp = lpm_table[i][63:32];
-	   if(ip_temp||mask_temp > ip_mask) 
-	   begin
-	     ip_mask = ip_temp; 
-	     net_mask = mask_temp;
-	     lpm_hit = 1;
-	     oq = lpm_table[i][127:96];
-	     next_hop = lpm_table[i][95:64];
-	   end
-	   else if(ip_temp||mask_temp == ip_mask)
-	   begin
-	     if(mask_temp > net_mask )
-	     begin
-		ip_mask = ip_temp;
-		net_mask = mask_temp;
-		lpm_hit = 1;
-	   	oq = lpm_table[i][127:96];
-	   	next_hop = lpm_table[i][95:64];
-	     end
-	   end
-	 end
-	
-	if(!lpm_hit)
-	begin
-	  lpm_miss_count <= lpm_miss_count + 1;
-          if(M_AXIS_TUSER0[SRC_PORT_POS])   M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000010;
-          if(M_AXIS_TUSER0[SRC_PORT_POS+2]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00001000;
-          if(M_AXIS_TUSER0[SRC_PORT_POS+4]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00100000;
-          if(M_AXIS_TUSER0[SRC_PORT_POS+6]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000000;
-	end
-	else
-	begin
- 	  oq_reg <= oq;	
-	  nh_reg <= next_hop;
-	  arp_lookup <= lpm_hit;
-	end
-
-       end
-       end
-*/
-/*
-	  case(oq_reg)	
-          0: M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000001;
-          1: M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00000100;
-          2: M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00010000;
-          3: M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b01000000;
-          4: M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00000010;	 
-	  endcase
-*/
-//!( M_AXIS_TUSER0[SRC_PORT_POS] || M_AXIS_TUSER0[SRC_PORT_POS+2] || M_AXIS_TUSER0[SRC_PORT_POS+6] || M_AXIS_TUSER0[SRC_PORT_POS+8]) && (
