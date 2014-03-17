@@ -132,7 +132,7 @@ destip_addr,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_count,M_AXIS_TU
 
 )
   begin
-	  ip_addr = destip_addr;
+//	  ip_addr = destip_addr;
           header_next = header;
 	  ver_next = ver_count;
 	  bad_ttl_next = bad_ttl_count;
@@ -211,6 +211,7 @@ destip_addr,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_count,M_AXIS_TU
  integer a;
   always@(posedge AXI_ACLK)
   begin
+     ip_addr <= destip_addr;
      if(~AXI_RESETN) begin
 //	for(a = 0; a < LOOP; a=a+1)   begin  dest_ip_table[a] <= 32'd0; end
 
