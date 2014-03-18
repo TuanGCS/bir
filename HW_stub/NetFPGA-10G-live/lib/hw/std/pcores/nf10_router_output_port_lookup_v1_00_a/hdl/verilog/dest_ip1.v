@@ -164,11 +164,11 @@ destip_addr,cpu_hit_array,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_c
 	  cpu_hit_array_next[2] = 1;
 	  non_ip_next = non_ip_next + 1;
 	end
-  	if(M_AXIS_TDATA[159:144] == 16'h0800)
+  	else //if(M_AXIS_TDATA[159:144] == 16'h0800)
 	begin//{
-	  for(j=0; j<31; j=j+1)
+	  for(j=0; j<32; j=j+1)
 	  begin
-	    if(ip_data_check == dest_ip_table[j]) 
+	    if(destip_addr == dest_ip_table[j]) 
 	    begin
 	      dest_ip_hit = 1;
 	    end

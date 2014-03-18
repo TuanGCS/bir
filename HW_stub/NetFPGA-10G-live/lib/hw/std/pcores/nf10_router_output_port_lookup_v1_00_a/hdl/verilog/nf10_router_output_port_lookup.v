@@ -505,6 +505,13 @@ module nf10_router_output_port_lookup
     wire  				M_AXIS_TREADY_11;
     wire 				M_AXIS_TLAST_11;
 
+    wire [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA_12;
+    wire [((C_M_AXIS_DATA_WIDTH/8))-1:0]M_AXIS_TSTRB_12;
+    wire [C_M_AXIS_TUSER_WIDTH-1:0]	M_AXIS_TUSER_12;
+    wire 				M_AXIS_TVALID_12;
+    wire  				M_AXIS_TREADY_12;
+    wire 				M_AXIS_TLAST_12;
+
    fallthrough_small_fifo
         #( .WIDTH(C_M_AXIS_DATA_WIDTH+C_M_AXIS_TUSER_WIDTH+C_M_AXIS_DATA_WIDTH/8+1),
            .MAX_DEPTH_BITS(2))
@@ -679,10 +686,11 @@ module nf10_router_output_port_lookup
 	.low_ip_addr(low_ip_addr)
    );
 
-    wire [31:0] destip_addr,destip_addr2;
+    wire [31:0] destip_addr,destip_addr1,destip_addr2;
     wire [5:0] cpu_hit_array;
+    wire [4:0] drop_array;
   
-    drop_packets
+    drop_packets1
     #(
       .C_S_AXI_DATA_WIDTH ( 32 ),
       .C_S_AXI_ADDR_WIDTH ( 32 ),
@@ -692,15 +700,15 @@ module nf10_router_output_port_lookup
       .C_M_AXIS_TUSER_WIDTH ( 128 ),
       .C_S_AXIS_TUSER_WIDTH ( 128 )
     )
-    drop_packets (
+    drop_packets1 (
       .AXI_ACLK ( AXI_ACLK ),
       .AXI_RESETN ( AXI_RESETN ),
-      .M_AXIS_TDATA ( M_AXIS_TDATA_2 ),
-      .M_AXIS_TSTRB ( M_AXIS_TSTRB_2 ),
-      .M_AXIS_TUSER ( M_AXIS_TUSER_2 ),
-      .M_AXIS_TVALID ( M_AXIS_TVALID_2 ),
-      .M_AXIS_TREADY ( M_AXIS_TREADY_2 ),
-      .M_AXIS_TLAST ( M_AXIS_TLAST_2 ),
+      .M_AXIS_TDATA ( M_AXIS_TDATA_12 ),
+      .M_AXIS_TSTRB ( M_AXIS_TSTRB_12 ),
+      .M_AXIS_TUSER ( M_AXIS_TUSER_12 ),
+      .M_AXIS_TVALID ( M_AXIS_TVALID_12 ),
+      .M_AXIS_TREADY ( M_AXIS_TREADY_12 ),
+      .M_AXIS_TLAST ( M_AXIS_TLAST_12 ),
       .S_AXIS_TDATA ( M_AXIS_TDATA_1 ),
       .S_AXIS_TSTRB ( M_AXIS_TSTRB_1 ),
       .S_AXIS_TUSER ( M_AXIS_TUSER_1 ),
@@ -720,10 +728,40 @@ module nf10_router_output_port_lookup
 	.checksum(checksum16),
 	.wrong_mac_count(wrong_mac_count),
 	.dropped_count(dropped_count),
-	.destip_addr(destip_addr)
+	.destip_addr(destip_addr1),
+	.drop_array(drop_array)
    );
 
 
+    drop_packets2
+    #(
+      .C_S_AXI_DATA_WIDTH ( 32 ),
+      .C_S_AXI_ADDR_WIDTH ( 32 ),
+      .C_S_AXI_ACLK_FREQ_HZ ( 160000000 ),
+      .C_M_AXIS_DATA_WIDTH ( 256 ),
+      .C_S_AXIS_DATA_WIDTH ( 256 ),
+      .C_M_AXIS_TUSER_WIDTH ( 128 ),
+      .C_S_AXIS_TUSER_WIDTH ( 128 )
+    )
+    drop_packets2 (
+      .AXI_ACLK ( AXI_ACLK ),
+      .AXI_RESETN ( AXI_RESETN ),
+      .M_AXIS_TDATA ( M_AXIS_TDATA_2 ),
+      .M_AXIS_TSTRB ( M_AXIS_TSTRB_2 ),
+      .M_AXIS_TUSER ( M_AXIS_TUSER_2 ),
+      .M_AXIS_TVALID ( M_AXIS_TVALID_2 ),
+      .M_AXIS_TREADY ( M_AXIS_TREADY_2 ),
+      .M_AXIS_TLAST ( M_AXIS_TLAST_2 ),
+      .S_AXIS_TDATA ( M_AXIS_TDATA_12 ),
+      .S_AXIS_TSTRB ( M_AXIS_TSTRB_12 ),
+      .S_AXIS_TUSER ( M_AXIS_TUSER_12 ),
+      .S_AXIS_TVALID ( M_AXIS_TVALID_12 ),
+      .S_AXIS_TREADY ( M_AXIS_TREADY_12 ),
+      .S_AXIS_TLAST ( M_AXIS_TLAST_12 ),
+	.destip_in(destip_addr1),
+	.destip_addr(destip_addr),
+	.drop_array(drop_array)
+   );
 
     dest_ip1
     #(
