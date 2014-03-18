@@ -77,7 +77,7 @@ module ip_addr_checksum_delay
 
 //   assign low_ip_addr = M_AXIS_TDATA[255:240];
 
-  reg [1:0] header , header_next;
+  reg header , header_next;
   reg [31:0] cpu_count_next;
   reg [31:0] checksum_next1;
   reg [31:0] checksum_next2;
@@ -90,7 +90,7 @@ module ip_addr_checksum_delay
      header_next = header;
      cs = checksum_out;
      ip_next = low_ip_addr;
-     if(header == 2'd0 & M_AXIS_TVALID & !M_AXIS_TLAST) begin
+     if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST) begin
 	    header_next = 1;
 
 	cs = ~(checksum_in[15:0] + checksum_in[19:16]);
@@ -101,7 +101,7 @@ module ip_addr_checksum_delay
 	  cpu_count_next = cpu_count_next + 1;
 	end 
      end
-     else if(header == 2'd1 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
+     else if(header == 1 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
      begin
         header_next = 0;
 //	checksum_next1 = 0;

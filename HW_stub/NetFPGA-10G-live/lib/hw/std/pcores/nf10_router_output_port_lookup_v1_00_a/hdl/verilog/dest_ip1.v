@@ -190,16 +190,10 @@ destip_addr,cpu_hit_array,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_c
  end
 
 
-// parameter LOOP = 32;
   always@(posedge AXI_ACLK)
   begin
      ip_addr <= destip_addr;
      if(~AXI_RESETN) begin
-//	for(a = 0; a < LOOP; a=a+1)   begin  dest_ip_table[a] <= 32'd0; end
-
-//	tbl_wr_ack <= 0;
-//	tbl_rd_ack <= 0;
-// 	tbl_rd_data <= 0;
 	cpu_hit_array <= 6'd0;
 	bad_ttl_count <= 0;
 	ver_count <= 0;
@@ -211,23 +205,13 @@ destip_addr,cpu_hit_array,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_c
      begin
 	cpu_hit_array <= cpu_hit_array_next;
 	bad_ttl_count <= 0;
-//	for(l = 0; l < 32; l=l+1)
-//	begin
-//	dest_ip_table[l] <= 32'd0;
-//	end
 	ver_count <= 0;
 	dest_hit_count <= 0;
 	non_ip_count <= 0;
+        header <= header_next;
      end
      else 
      begin
-//	for(m = 0; m < 32; m=m+1)
-//	begin
-//	dest_ip_table[m] <= dest_ip_table_next[m];
-//	end
-//	tbl_wr_ack <= tbl_wr_ack_next;
-//	tbl_rd_ack <= tbl_rd_ack_next;
-// 	tbl_rd_data <= tbl_rd_data_next;
 	cpu_hit_array <= cpu_hit_array_next;
 	bad_ttl_count <= bad_ttl_next;
 	ver_count <= ver_next;

@@ -78,7 +78,7 @@ module checksum1
 
 //   assign low_ip_addr = M_AXIS_TDATA[255:240];
 
-  reg [1:0] header , header_next;
+  reg header , header_next;
   reg [31:0] cpu_count_next;
   reg [31:0] cs1,cs2,cs3,cs4;
 
@@ -91,7 +91,7 @@ module checksum1
      cs3 = checksum03;
      cs4 = checksum04;
 
-     if(header == 2'd0 & M_AXIS_TVALID & !M_AXIS_TLAST) begin
+     if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST) begin
 	    header_next = 1;
 //	    checksum_next = M_AXIS_TDATA[143:128] + M_AXIS_TDATA[127:112] + M_AXIS_TDATA[111:96] + M_AXIS_TDATA[95:80] + M_AXIS_TDATA[79:64] + M_AXIS_TDATA[47:32] +  M_AXIS_TDATA[31:16]; //+ M_AXIS_TDATA[15:0];
 
@@ -112,7 +112,7 @@ module checksum1
 	end 
 */
      end
-     else if(header == 2'd1 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
+     else if(header == 1 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
      begin
         header_next = 0;
 //	checksum_next1 = 0;

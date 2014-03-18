@@ -149,16 +149,11 @@ module drop_packets
 //	M_AXIS_TVALID = drop_next ? 0 : M_AXIS_TVALID0;
      end //}
 	end
-     else if(header == 1 & M_AXIS_TVALID0 & !M_AXIS_TLAST )
-     begin
-//	drop_next = 1;
-//	M_AXIS_TVALID = drop_next ? 0 : M_AXIS_TVALID0;
-     end
      else if(header == 1 & M_AXIS_TVALID0 & M_AXIS_TLAST & M_AXIS_TREADY )
      begin
 //	M_AXIS_TVALID = drop_next ? 0 : M_AXIS_TVALID0;
 	header_next = 0;
-	drop_next = 0;
+//	drop_next = 0;
      end
   end
 
@@ -172,10 +167,13 @@ module drop_packets
 	drop <= 0;
 	destip_addr <= 0;
      end
-     else if(reset == 1)
+     else if(reset == 32'd1)
      begin
 	dropped_count <= 0;
 	wrong_mac_count <= 0;
+	header <= header_next;
+	drop <= drop_next;
+	destip_addr <= destip_next;
      end 
      else 
      begin

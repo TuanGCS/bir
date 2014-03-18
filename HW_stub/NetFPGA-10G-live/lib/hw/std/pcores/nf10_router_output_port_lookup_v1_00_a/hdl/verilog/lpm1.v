@@ -178,7 +178,7 @@ M_AXIS_TVALID,header,M_AXIS_TUSER0,M_AXIS_TLAST,lpm_p, index_hit )
 	 end
       end
        end
-	else if(header == 2'd1 & M_AXIS_TVALID & !M_AXIS_TLAST)
+	else if(header == 2'd1 & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY)
 	begin
 	header_next = 2;
 	  if(lpm_p)

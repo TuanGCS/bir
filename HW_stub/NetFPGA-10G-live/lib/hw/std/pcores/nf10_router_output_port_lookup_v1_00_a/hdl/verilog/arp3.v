@@ -152,6 +152,7 @@ module arp3
       end
       else if(reset == 32'd1)
       begin
+	state <= state_next;
         arp_miss_count <= 0;
 	forwarded_count <= 0;
       end

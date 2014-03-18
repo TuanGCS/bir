@@ -188,6 +188,10 @@ module lpm2
    else if(reset == 32'd1)
    begin
      lpm_miss_count <= 0;
+     header <= header_next;
+     arp_lookup <= arp_lnext;
+     nh_reg <= nh_next;
+     oq_reg <= oq_next;
    end
    else 
    begin

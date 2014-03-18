@@ -1090,7 +1090,7 @@ module nf10_router_output_port_lookup
 
 
    // modify the dst port in tuser
-   always @(*) begin
+/*   always @(*) begin
 //      M_AXIS_TUSER = tuser_fifo;
       state_next      = state;
 
@@ -1098,7 +1098,8 @@ module nf10_router_output_port_lookup
 	MODULE_HEADER: begin
 	   if (M_AXIS_TVALID) begin
 
-               // Send all packets to ethernet port 1 (nf1)
+  */
+             // Send all packets to ethernet port 1 (nf1)
 //		M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b100;
 /*		if(!pkt_is_from_cpu)
 		begin
@@ -1139,7 +1140,7 @@ module nf10_router_output_port_lookup
 		   M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = {
 			tuser_fifo[SRC_PORT_POS+6:SRC_PORT_POS], 1'b0};
 	       */
-	       if(M_AXIS_TREADY)
+/*	       if(M_AXIS_TREADY)
 			    state_next = IN_PACKET;
 	   end
 	end // case: MODULE_HEADER
@@ -1151,7 +1152,7 @@ module nf10_router_output_port_lookup
 	end
       endcase // case (state)
    end // always @ (*)
-
+*/
 /*
  reg c_state;
 
@@ -1174,7 +1175,7 @@ module nf10_router_output_port_lookup
       else if(c_state & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY) c_state <= 0;
   end
 */
-
+/*
  reg [1:0] crc_state;
  reg [191:0] crc_data;
  reg [15:0] checksum;
@@ -1220,6 +1221,7 @@ module nf10_router_output_port_lookup
 	 state <= state_next;
       end
    end
+*/
 
 endmodule // output_port_lookup
 
