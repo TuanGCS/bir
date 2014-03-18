@@ -45,11 +45,10 @@ module drop_packets
     input [C_S_AXI_DATA_WIDTH-1:0] mac3_low,
     input [C_S_AXI_DATA_WIDTH-1:0] mac3_high,
     input	[15:0] low_ip_addr,
+    input 	[15:0] checksum,
     output reg [31:0] destip_addr,
     output reg [31:0] wrong_mac_count, 
-    output reg [31:0] dropped_count,
-    input [31:0] partial_checksum1,
-    input [31:0] partial_checksum2
+    output reg [31:0] dropped_count
 /*
     output reg [C_S_AXI_DATA_WIDTH-1:0] ipv4_count,
     output reg [C_S_AXI_DATA_WIDTH-1:0] arp_count,
@@ -85,7 +84,7 @@ module drop_packets
    assign S_AXIS_TREADY = !in_fifo_nearly_full;
 
   reg header , header_next;
-  reg [31:0] checksum,temp_checksum1;
+  reg [31:0] checksum11,temp_checksum1;
   reg [15:0] temp_checksum, checksum_final; 
   reg drop,drop_next;
   reg [4:0] drop_array;
@@ -110,9 +109,10 @@ module drop_packets
 	if(M_AXIS_TUSER[SRC_PORT_POS] || M_AXIS_TUSER[SRC_PORT_POS+2] || M_AXIS_TUSER[SRC_PORT_POS+4] || M_AXIS_TUSER[SRC_PORT_POS+6] )
 	begin //{
 	destip_next = {M_AXIS_TDATA[15:0],low_ip_addr};
-	checksum = partial_checksum1 + low_ip_addr; /*+  M_AXIS_TDATA[47:32] + M_AXIS_TDATA[31:16] + M_AXIS_TDATA[15:0];*/
-	checksum_final = ~(checksum[15:0] + checksum[19:16]);
-	if(checksum_final != M_AXIS_TDATA[63:48]) 
+//	checksum = partial_checksum1 + low_ip_addr + M_AXIS_TDATA[15:0];
+/*+  M_AXIS_TDATA[47:32] + M_AXIS_TDATA[31:16] + M_AXIS_TDATA[15:0];*/
+//	checksum_final = ~(checksum[15:0] + checksum[19:16]);
+	if(checksum != M_AXIS_TDATA[63:48]) 
 	begin
 	  drop_array[0] = 1;
 	  // drop1 <= 1;

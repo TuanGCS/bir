@@ -484,6 +484,27 @@ module nf10_router_output_port_lookup
     wire  				M_AXIS_TREADY_8;
     wire 				M_AXIS_TLAST_8;
 
+    wire [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA_9;
+    wire [((C_M_AXIS_DATA_WIDTH/8))-1:0]M_AXIS_TSTRB_9;
+    wire [C_M_AXIS_TUSER_WIDTH-1:0]	M_AXIS_TUSER_9;
+    wire 				M_AXIS_TVALID_9;
+    wire  				M_AXIS_TREADY_9;
+    wire 				M_AXIS_TLAST_9;
+
+    wire [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA_10;
+    wire [((C_M_AXIS_DATA_WIDTH/8))-1:0]M_AXIS_TSTRB_10;
+    wire [C_M_AXIS_TUSER_WIDTH-1:0]	M_AXIS_TUSER_10;
+    wire 				M_AXIS_TVALID_10;
+    wire  				M_AXIS_TREADY_10;
+    wire 				M_AXIS_TLAST_10;
+
+    wire [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA_11;
+    wire [((C_M_AXIS_DATA_WIDTH/8))-1:0]M_AXIS_TSTRB_11;
+    wire [C_M_AXIS_TUSER_WIDTH-1:0]	M_AXIS_TUSER_11;
+    wire 				M_AXIS_TVALID_11;
+    wire  				M_AXIS_TREADY_11;
+    wire 				M_AXIS_TLAST_11;
+
    fallthrough_small_fifo
         #( .WIDTH(C_M_AXIS_DATA_WIDTH+C_M_AXIS_TUSER_WIDTH+C_M_AXIS_DATA_WIDTH/8+1),
            .MAX_DEPTH_BITS(2))
@@ -518,11 +539,114 @@ module nf10_router_output_port_lookup
 
 
 
-   wire [15:0] low_ip_addr;
+   wire [15:0] low_ip_addr,low_ip_addr1,low_ip_addr2;
    wire [31:0] partial_checksum1;
    wire [31:0] partial_checksum2;
 
-   ip_addr_checksum_delay
+   wire [31:0] checksum01,checksum02,checksum03,checksum04,checksum11,checksum12,
+	       checksum31_final;
+
+  checksum1 
+    #(
+      .C_S_AXI_DATA_WIDTH ( 32 ),
+      .C_S_AXI_ADDR_WIDTH ( 32 ),
+      .C_S_AXI_ACLK_FREQ_HZ ( 160000000 ),
+      .C_M_AXIS_DATA_WIDTH ( 256 ),
+      .C_S_AXIS_DATA_WIDTH ( 256 ),
+      .C_M_AXIS_TUSER_WIDTH ( 128 ),
+      .C_S_AXIS_TUSER_WIDTH ( 128 )
+    )
+    checksum1 (
+      .AXI_ACLK ( AXI_ACLK ),
+      .AXI_RESETN ( AXI_RESETN ),
+      .M_AXIS_TDATA ( M_AXIS_TDATA_9 ),
+      .M_AXIS_TSTRB ( M_AXIS_TSTRB_9 ),
+      .M_AXIS_TUSER ( M_AXIS_TUSER_9 ),
+      .M_AXIS_TVALID ( M_AXIS_TVALID_9 ),
+      .M_AXIS_TREADY ( M_AXIS_TREADY_9 ),
+      .M_AXIS_TLAST ( M_AXIS_TLAST_9 ),
+      .S_AXIS_TDATA ( M_AXIS_TDATA_0 ),
+      .S_AXIS_TSTRB ( M_AXIS_TSTRB_0 ),
+      .S_AXIS_TUSER ( M_AXIS_TUSER_0 ),
+      .S_AXIS_TVALID ( M_AXIS_TVALID_0 ),
+      .S_AXIS_TREADY ( M_AXIS_TREADY_0 ),
+      .S_AXIS_TLAST ( M_AXIS_TLAST_0 ),
+	.checksum01(checksum01),
+	.checksum02(checksum02),
+	.checksum03(checksum03),
+	.checksum04(checksum04)
+   );
+   
+
+  checksum2 
+    #(
+      .C_S_AXI_DATA_WIDTH ( 32 ),
+      .C_S_AXI_ADDR_WIDTH ( 32 ),
+      .C_S_AXI_ACLK_FREQ_HZ ( 160000000 ),
+      .C_M_AXIS_DATA_WIDTH ( 256 ),
+      .C_S_AXIS_DATA_WIDTH ( 256 ),
+      .C_M_AXIS_TUSER_WIDTH ( 128 ),
+      .C_S_AXIS_TUSER_WIDTH ( 128 )
+    )
+    checksum2 (
+      .AXI_ACLK ( AXI_ACLK ),
+      .AXI_RESETN ( AXI_RESETN ),
+      .M_AXIS_TDATA ( M_AXIS_TDATA_10 ),
+      .M_AXIS_TSTRB ( M_AXIS_TSTRB_10 ),
+      .M_AXIS_TUSER ( M_AXIS_TUSER_10 ),
+      .M_AXIS_TVALID ( M_AXIS_TVALID_10 ),
+      .M_AXIS_TREADY ( M_AXIS_TREADY_10 ),
+      .M_AXIS_TLAST ( M_AXIS_TLAST_10 ),
+      .S_AXIS_TDATA ( M_AXIS_TDATA_9 ),
+      .S_AXIS_TSTRB ( M_AXIS_TSTRB_9 ),
+      .S_AXIS_TUSER ( M_AXIS_TUSER_9 ),
+      .S_AXIS_TVALID ( M_AXIS_TVALID_9 ),
+      .S_AXIS_TREADY ( M_AXIS_TREADY_9 ),
+      .S_AXIS_TLAST ( M_AXIS_TLAST_9 ),
+	.checksum01(checksum01),
+	.checksum02(checksum02),
+	.checksum03(checksum03),
+	.checksum04(checksum04),
+	.checksum11(checksum11),
+	.checksum12(checksum12),
+	.low_ip_addr(low_ip_addr1)
+   );
+  
+  checksum3 
+    #(
+      .C_S_AXI_DATA_WIDTH ( 32 ),
+      .C_S_AXI_ADDR_WIDTH ( 32 ),
+      .C_S_AXI_ACLK_FREQ_HZ ( 160000000 ),
+      .C_M_AXIS_DATA_WIDTH ( 256 ),
+      .C_S_AXIS_DATA_WIDTH ( 256 ),
+      .C_M_AXIS_TUSER_WIDTH ( 128 ),
+      .C_S_AXIS_TUSER_WIDTH ( 128 )
+    )
+    checksum3 (
+      .AXI_ACLK ( AXI_ACLK ),
+      .AXI_RESETN ( AXI_RESETN ),
+      .M_AXIS_TDATA ( M_AXIS_TDATA_11 ),
+      .M_AXIS_TSTRB ( M_AXIS_TSTRB_11 ),
+      .M_AXIS_TUSER ( M_AXIS_TUSER_11 ),
+      .M_AXIS_TVALID ( M_AXIS_TVALID_11 ),
+      .M_AXIS_TREADY ( M_AXIS_TREADY_11 ),
+      .M_AXIS_TLAST ( M_AXIS_TLAST_11 ),
+      .S_AXIS_TDATA ( M_AXIS_TDATA_10 ),
+      .S_AXIS_TSTRB ( M_AXIS_TSTRB_10 ),
+      .S_AXIS_TUSER ( M_AXIS_TUSER_10 ),
+      .S_AXIS_TVALID ( M_AXIS_TVALID_10 ),
+      .S_AXIS_TREADY ( M_AXIS_TREADY_10 ),
+      .S_AXIS_TLAST ( M_AXIS_TLAST_10 ),
+	.checksum11(checksum11),
+	.checksum12(checksum12),
+	.checksum_final(checksum31_final),
+	.low_ip_addr_in(low_ip_addr1),
+	.low_ip_addr_out(low_ip_addr2)
+   );
+   
+   wire [15:0] checksum16;
+
+    ip_addr_checksum_delay
     #(
       .C_S_AXI_DATA_WIDTH ( 32 ),
       .C_S_AXI_ADDR_WIDTH ( 32 ),
@@ -541,17 +665,18 @@ module nf10_router_output_port_lookup
       .M_AXIS_TVALID ( M_AXIS_TVALID_1 ),
       .M_AXIS_TREADY ( M_AXIS_TREADY_1 ),
       .M_AXIS_TLAST ( M_AXIS_TLAST_1 ),
-      .S_AXIS_TDATA ( M_AXIS_TDATA_0 ),
-      .S_AXIS_TSTRB ( M_AXIS_TSTRB_0 ),
-      .S_AXIS_TUSER ( M_AXIS_TUSER_0 ),
-      .S_AXIS_TVALID ( M_AXIS_TVALID_0 ),
-      .S_AXIS_TREADY ( M_AXIS_TREADY_0 ),
-      .S_AXIS_TLAST ( M_AXIS_TLAST_0 ),
+      .S_AXIS_TDATA ( M_AXIS_TDATA_11 ),
+      .S_AXIS_TSTRB ( M_AXIS_TSTRB_11 ),
+      .S_AXIS_TUSER ( M_AXIS_TUSER_11 ),
+      .S_AXIS_TVALID ( M_AXIS_TVALID_11 ),
+      .S_AXIS_TREADY ( M_AXIS_TREADY_11 ),
+      .S_AXIS_TLAST ( M_AXIS_TLAST_11 ),
       .reset(reset),
       .cpu_count(cpu_count),
-	.low_ip_addr(low_ip_addr),
-	.partial_checksum1(partial_checksum1),
-	.partial_checksum2(partial_checksum2)
+	.checksum_in(checksum31_final),
+	.ip_addr_in(low_ip_addr2),
+	.checksum_out(checksum16),
+	.low_ip_addr(low_ip_addr)
    );
 
     wire [31:0] destip_addr,destip_addr2;
@@ -592,11 +717,10 @@ module nf10_router_output_port_lookup
 	.mac3_low (mac3_low),
 	.mac3_high(mac3_high),
 	.low_ip_addr(low_ip_addr),
+	.checksum(checksum16),
 	.wrong_mac_count(wrong_mac_count),
 	.dropped_count(dropped_count),
-	.destip_addr(destip_addr),
-	.partial_checksum1(partial_checksum1),
-	.partial_checksum2(partial_checksum2)
+	.destip_addr(destip_addr)
    );
 
 
