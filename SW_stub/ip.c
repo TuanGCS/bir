@@ -355,13 +355,14 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 					return;
 
 				} else if (icmp->type == ICMP_TYPE_REPLAY) {
-					cli_ping_handle_reply(ipv4->src_ip, icmp->seq_num);
+					if (!cli_ping_handle_reply(ipv4->src_ip, icmp->seq_num))
+						icmp_send(pi, ipv4, pi->router->interface[i].ip, ICMP_TYPE_DST_UNREACH, ICMP_CODE_PORT_UNREACH);
 					return;
-				} else if (icmp->type == ICMP_TYPE_DST_UNREACH) {
-					cli_traceroute_handle_reply(ipv4->src_ip, icmp);
-					return;
-				} else if (icmp->type == ICMP_TYPE_TIME_EXCEEDED) {
-
+				//} else if (icmp->type == ICMP_TYPE_DST_UNREACH) {
+				//	cli_traceroute_handle_reply(ipv4->src_ip, icmp);
+				//	return;
+				//} else if (icmp->type == ICMP_TYPE_TIME_EXCEEDED) {
+				//
 				} else {
 					fprintf(stderr,
 							"Unknown type of ICMP %d (0x%x) was targeted at router interface %s\n",
@@ -386,11 +387,17 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 				} else
 					fprintf(stderr, "Invalid PWOSPF packet was sent to us!\n");
 				return;
+			} else if (ipv4->protocol == IP_TYPE_UDP) {
+				fprintf(stderr, "No UDP ports are used on the router\n");
+				icmp_send(pi, ipv4, pi->router->interface[i].ip, ICMP_TYPE_DST_UNREACH, ICMP_CODE_PORT_UNREACH);
+
+				return;
 			} else {
 
 				fprintf(stderr, "Unsupported IP packet type %d (0x%x)\n",
 						ipv4->protocol, ipv4->protocol);
-				icmp_type_dst_unreach(pi, ipv4, ICMP_CODE_PROT_UNREACH);
+				icmp_send(pi, ipv4, pi->router->interface[i].ip, ICMP_TYPE_DST_UNREACH, ICMP_CODE_PROT_UNREACH);
+				//icmp_type_dst_unreach(pi, ipv4, ICMP_CODE_PROT_UNREACH);
 				return;
 
 			}
@@ -444,7 +451,8 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 				quick_ip_to_string(ipv4->dst_ip));
 		//ip_print_table(&pi->router->ip_table);
 
-		icmp_type_dst_unreach(pi, ipv4, ICMP_CODE_HOST_UNREACH);
+		icmp_send(pi, ipv4, pi->router->interface[i].ip, ICMP_TYPE_DST_UNREACH, ICMP_CODE_HOST_UNREACH);
+		//icmp_type_dst_unreach(pi, ipv4, ICMP_CODE_HOST_UNREACH);
 	}
 
 }

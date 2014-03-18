@@ -30,6 +30,6 @@ void cli_ping_destroy();
 void cli_ping_request( router_t* rtr, int fd, addr_ip_t ip );
 
 /** Handles an ICMP Echo Reply from ip with sequence number seq. */
-void cli_ping_handle_reply( addr_ip_t src_ip, uint16_t seq );
+int cli_ping_handle_reply( addr_ip_t src_ip, uint16_t seq );
 
 #endif /* CLI_PING_H */

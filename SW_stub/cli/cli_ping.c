@@ -180,13 +180,13 @@ static void cli_ping_feedback( ping_t* p, bool worked ) {
     cli_send_prompt();
 }
 
-void cli_ping_handle_reply( addr_ip_t ip, uint16_t seq ) {
+int cli_ping_handle_reply( addr_ip_t ip, uint16_t seq ) {
 	printf("CLI received a ping rely from %s seq %d\n", quick_ip_to_string(ip), seq); fflush(stdout);
     ping_t* p;
 
     /* after shutdown is set, ping_list becomes garbage */
     if( cli_is_time_to_shutdown() )
-        return;
+        return 0;
 
     /* search the ping_list for a matching request */
     pthread_mutex_lock( &ping_list_lock );
@@ -216,12 +216,19 @@ void cli_ping_handle_reply( addr_ip_t ip, uint16_t seq ) {
 
         p = p->next;
     }
-    if( !ping_list )
-        debug_println( "There are no outstanding requests to match to the Echo Reply." );
-    else if( !p )
+
+    int worked = 1;
+    if( !ping_list ) {
+        worked = 0;
+    	debug_println( "There are no outstanding requests to match to the Echo Reply." );
+    } else if( !p ) {
+    	worked = 0;
         debug_println( "Echo Reply does not match any outstanding request." );
+    }
 
     pthread_mutex_unlock( &ping_list_lock );
+
+    return worked;
 }
 
 THREAD_RETURN_TYPE cli_ping_scrubber_main( void* nil ) {

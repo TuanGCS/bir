@@ -6,6 +6,7 @@
 
 #define IP_TYPE_ICMP (1)
 #define IP_TYPE_TCP (6)
+#define IP_TYPE_UDP (17)
 #define IP_TYPE_OSPF (89)
 
 #define IP_CONVERT(a,b,c,d) (a | (b << 8) | (c << 16) | (d << 24))
