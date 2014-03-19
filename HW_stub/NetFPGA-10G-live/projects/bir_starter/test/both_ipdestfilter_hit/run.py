@@ -52,7 +52,7 @@ for i in range(30):
 	for portid in range(2):
 	    DA = routerMAC[portid]
             sent_pkt = make_IP_pkt(dst_MAC=DA, src_MAC=SA, src_IP=SRC_IP,
-                               dst_IP=DST_IP, pkt_len=random.randint(60,1514))
+                              dst_IP=DST_IP, pkt_len=60) #random.randint(60,1514))
 
             nftest_send_phy('nf%d'%portid, sent_pkt)
             nftest_expect_dma('nf%d'%portid, sent_pkt)

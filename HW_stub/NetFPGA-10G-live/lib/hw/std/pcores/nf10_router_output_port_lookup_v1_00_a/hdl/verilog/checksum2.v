@@ -106,7 +106,7 @@ module checksum2
         header_next = 2'd0;
 //	checksum_next1 = 0;
 //	checksum_next2 = 0;
-        low_ip_addr = 16'd0;
+//        low_ip_addr = 16'd0;
      end 
   end
 
