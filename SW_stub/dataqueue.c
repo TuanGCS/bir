@@ -117,8 +117,8 @@ void queue_unlockidandremove(dataqueue_t * queue, int id) {
 	}
 
 	// shrink
-	queue->packet = realloc(queue->packet, sizeof(void *) * (size-1));
-	queue->packet_sizes = (int *) realloc((void *) queue->packet_sizes, sizeof(int) * (size-1));
+	//queue->packet = realloc(queue->packet, sizeof(void *) * (size-1));
+	//queue->packet_sizes = (int *) realloc((void *) queue->packet_sizes, sizeof(int) * (size-1));
 
 	queue->size--;
 
@@ -199,25 +199,19 @@ void queue_unlockid(dataqueue_t * queue, int id) {
 }
 
 void queue_purge(dataqueue_t * queue) {
-	int i;
 	void * temp_v; int temp_i;
 
-	while (queue->size > 0) {
-		for (i = 0; i < queue->size; i++)
-			if (queue_getidandlock(queue, i, &temp_v, &temp_i))
-				queue_unlockidandremove(queue, i);
-	}
+	while (queue->size > 0)
+		if (queue_getidandlock(queue, 0, &temp_v, &temp_i))
+			queue_unlockidandremove(queue, 0);
 }
 
 void queue_purge_unsafe(dataqueue_t * queue) {
-	int i;
 	void * temp_v; int temp_i;
 
-	while (queue->size > 0) {
-		for (i = 0; i < queue->size; i++)
-			if (queue_getidunsafe(queue, i, &temp_v, &temp_i))
-				queue_removeunsafe(queue, i);
-	}
+	while (queue->size > 0)
+		if (queue_getidunsafe(queue, 0, &temp_v, &temp_i))
+			queue_removeunsafe(queue, 0);
 }
 
 int queue_existsunsafe(dataqueue_t * queue, void * data) {

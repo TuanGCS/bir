@@ -364,9 +364,9 @@ void djikstra_recompute(router_t * router) {
 							sizeof(rtable_entry_t) * (entries_size));
 				}
 
-				rtable_entry_t * entry = &entries[entry_size-1];
+				rtable_entry_t * entry = &entries[entries_size-1];
 
-				//assert(intf[q] >= 0 && intf[q] < router->num_interfaces);
+				assert(intf[q] >= 0 && intf[q] < router->num_interfaces);
 
 				entry->interface = &router->interface[intf[q]];
 				entry->dynamic = TRUE;
@@ -399,28 +399,18 @@ void djikstra_recompute(router_t * router) {
 
 			}
 
-			queue_unlockid(rtable, i);
+			queue_unlockid(rtable, q);
 		}
 	}
 
 	qsort(entries, entries_size, sizeof(rtable_entry_t), cmpfunc);
 
-	// LOCK
-	queue_lockall(rtable);
-	queue_purge_unsafe(rtable);
+	queue_purge(rtable);
 
-	for (q = 0; q < entries_size; q++) {
-
-		// TEMP solution
-		if (entries[q].interface != NULL) {
-			queue_add_unsafe(rtable, &entries[q], sizeof(rtable_entry_t));
-		}
-//		ip_putintable(rtable, entries[q].subnet, entries[q].interface,
-//				entries[q].netmask, entries[q].dynamic, entries[q].metric,
-//				entries[q].router_ip);
-	}
-	queue_unlockall(rtable);
-	// UNLOCK
+	for (q = 0; q < entries_size; q++)
+		ip_putintable(rtable, entries[q].subnet, entries[q].interface,
+				entries[q].netmask, entries[q].dynamic, entries[q].metric,
+				entries[q].router_ip);
 
 	free(entries);
 
