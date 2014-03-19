@@ -146,7 +146,8 @@ void thread_arpipqueue_maintain(void * arg) {
 							byte * packet_info = entry->packet_info;
 							queue_unlockidandremove(queue, i); // release queue
 
-							icmp_type_dst_unreach(pi, ip_packet, ICMP_CODE_HOST_UNREACH);
+							//icmp_type_dst_unreach(pi, ip_packet, ICMP_CODE_HOST_UNREACH);
+							icmp_send(pi, ip_packet, pi->router->interface[i].ip, ICMP_TYPE_DST_UNREACH, ICMP_CODE_HOST_UNREACH);
 
 							printf("A packet for %s has timed out due to ARP response not received!\n",  quick_ip_to_string(ip_packet->dst_ip));
 

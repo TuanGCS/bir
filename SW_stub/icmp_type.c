@@ -21,33 +21,33 @@ void icmp_type_echo_replay(packet_info_t* pi, packet_icmp_t* icmp) {
 	update_ip_packet_response(pi, ipv4->src_ip, ipv4->dst_ip, 64);
 }
 
-void icmp_type_dst_unreach(packet_info_t* pi, packet_ip4_t* ipv4, int code) {
-
-	packet_icmp_t* icmp =
-			(packet_icmp_t *) &pi->packet[sizeof(packet_ethernet_t)
-					+ sizeof(packet_ip4_t)];
-
-	ipv4->ttl = 64;
-	byte data[28];
-	memcpy(data, (void *) ipv4, 20);
-	memcpy(&data[20], (void *) icmp, 8);
-
-	icmp->type = ICMP_TYPE_DST_UNREACH;
-	icmp->code = code;
-	icmp->id = 0;
-	if (icmp->code == (ICMP_CODE_DG_BIG)) {
-		icmp->seq_num = 1500; // TODO
-	}
-
-	memcpy(icmp->data, data, 28);
-
-	icmp->header_checksum = 0;
-	icmp->header_checksum = generatechecksum((unsigned short*) icmp,
-			sizeof(packet_icmp_t));
-
-	update_ip_packet_response(pi, ipv4->src_ip, pi->interface->ip, ipv4->ttl);
-
-}
+//void icmp_type_dst_unreach(packet_info_t* pi, packet_ip4_t* ipv4, int code) {
+//	TODO! THIS FUNCTION SEEMS TO BE NOT WORKING!! NO PACKETS SHOW UP IN WIRESHARK
+//	packet_icmp_t* icmp =
+//			(packet_icmp_t *) &pi->packet[sizeof(packet_ethernet_t)
+//					+ sizeof(packet_ip4_t)];
+//
+//	ipv4->ttl = 64;
+//	byte data[28];
+//	memcpy(data, (void *) ipv4, 20);
+//	memcpy(&data[20], (void *) icmp, 8);
+//
+//	icmp->type = ICMP_TYPE_DST_UNREACH;
+//	icmp->code = code;
+//	icmp->id = 0;
+//	if (icmp->code == (ICMP_CODE_DG_BIG)) {
+//		icmp->seq_num = 1500; // TODO
+//	}
+//
+//	memcpy(icmp->data, data, 28);
+//
+//	icmp->header_checksum = 0;
+//	icmp->header_checksum = generatechecksum((unsigned short*) icmp,
+//			sizeof(packet_icmp_t));
+//
+//	update_ip_packet_response(pi, ipv4->src_ip, pi->interface->ip, ipv4->ttl);
+//
+//}
 
 void icmp_type_time_exceeded(packet_info_t* pi, packet_ip4_t* ipv4, addr_ip_t src) {
 
@@ -60,6 +60,20 @@ void icmp_type_time_exceeded(packet_info_t* pi, packet_ip4_t* ipv4, addr_ip_t sr
 	memcpy(&data[20], (void *) icmp, 8);
 
 	icmp_allocate_and_send(get_router(), ipv4->src_ip, 0, ICMP_TYPE_TIME_EXCEEDED, 0, 0, data, 56, src);
+
+}
+
+void icmp_send(packet_info_t* pi, packet_ip4_t* ipv4, addr_ip_t src, int type, int code) {
+
+	packet_icmp_t* icmp =
+			(packet_icmp_t *) &pi->packet[sizeof(packet_ethernet_t)
+					+ sizeof(packet_ip4_t)];
+
+	byte data[28];
+	memcpy(data, (void *) ipv4, 20);
+	memcpy(&data[20], (void *) icmp, 8);
+
+	icmp_allocate_and_send(get_router(), ipv4->src_ip, code, type, 0, 0, data, 56, src);
 
 }
 

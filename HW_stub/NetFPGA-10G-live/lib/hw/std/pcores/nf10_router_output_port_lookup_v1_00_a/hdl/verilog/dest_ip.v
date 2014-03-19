@@ -132,13 +132,13 @@ destip_addr,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_count,M_AXIS_TU
 
 )
   begin
-	  ip_addr = destip_addr;
+//	  ip_addr = destip_addr;
           header_next = header;
 	  ver_next = ver_count;
 	  bad_ttl_next = bad_ttl_count;
 	  non_ip_next = non_ip_count;
 	  dest_hit_next = dest_hit_count;
-     M_AXIS_TUSER = M_AXIS_TUSER0;
+	  M_AXIS_TUSER = M_AXIS_TUSER0;
 	  ip_data_check = destip_addr;
 	  cpu_hit = 0;
 	  dest_ip_hit = 0;
@@ -165,7 +165,7 @@ destip_addr,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_count,M_AXIS_TU
 	end
   	if(M_AXIS_TDATA[159:144] == 16'h0800)
 	begin//{
-	  for(j=0; j<32; j=j+1)
+	  for(j=0; j<31; j=j+1)
 	  begin
 	    if(ip_data_check == dest_ip_table[j]) 
 	    begin
@@ -206,17 +206,10 @@ destip_addr,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_count,M_AXIS_TU
  end
 
 
-// parameter LOOP = 32;
- integer ka = 32; 
- integer a;
   always@(posedge AXI_ACLK)
   begin
+     ip_addr <= destip_addr;
      if(~AXI_RESETN) begin
-//	for(a = 0; a < LOOP; a=a+1)   begin  dest_ip_table[a] <= 32'd0; end
-
-//	tbl_wr_ack <= 0;
-//	tbl_rd_ack <= 0;
-// 	tbl_rd_data <= 0;
 	bad_ttl_count <= 0;
 	ver_count <= 0;
 	header <= 0;
@@ -226,23 +219,13 @@ destip_addr,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_count,M_AXIS_TU
      else if(reset == 1)
      begin
 	bad_ttl_count <= 0;
-//	for(l = 0; l < 32; l=l+1)
-//	begin
-//	dest_ip_table[l] <= 32'd0;
-//	end
 	ver_count <= 0;
 	dest_hit_count <= 0;
 	non_ip_count <= 0;
+        header <= header_next;
      end
      else 
      begin
-//	for(m = 0; m < 32; m=m+1)
-//	begin
-//	dest_ip_table[m] <= dest_ip_table_next[m];
-//	end
-//	tbl_wr_ack <= tbl_wr_ack_next;
-//	tbl_rd_ack <= tbl_rd_ack_next;
-// 	tbl_rd_data <= tbl_rd_data_next;
 	bad_ttl_count <= bad_ttl_next;
 	ver_count <= ver_next;
 	non_ip_count <= non_ip_next;

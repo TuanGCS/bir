@@ -62,7 +62,7 @@ print "Sending packets"
 for i in range(30):
     sent_pkt = make_IP_pkt(src_MAC=SA, dst_MAC=DA,
                            dst_IP=DST_IP, src_IP=SRC_IP,
-                           pkt_len=random.randint(60,1514))
+                           pkt_len=60)#random.randint(60,1514))
     if isHW():
 	nftest_send_phy('nf0', sent_pkt)
 	nftest_expect_dma('nf0', sent_pkt)
