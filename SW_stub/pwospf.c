@@ -82,8 +82,6 @@ void pwospf_reflood_to(packet_info_t * pi, interface_t * intf, addr_ip_t dest) {
 	arp_cache_entry_t arp_dest; // memory allocation ;(
 	if (arp_getcachebyip(&pi->router->arp_cache, dest, &arp_dest) >= 0) {
 
-		printf("%s\n", quick_mac_to_string(&arp_dest.mac));
-
 		ip->header_checksum = 0;
 		ip->header_checksum = generatechecksum((unsigned short*) ip,
 				sizeof(packet_ip4_t));
