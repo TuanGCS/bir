@@ -20,9 +20,13 @@ void queue_init(dataqueue_t * queue);
 // a copy of the data is made
 void queue_add(dataqueue_t * queue, void * data, int size);
 
+void queue_add_unsafe(dataqueue_t * queue, void * data, int size);
+
 int queue_replace(dataqueue_t * queue, void * data, int size, int id);
 
 void queue_unlockidandremove(dataqueue_t * queue, int id);
+
+void queue_removeunsafe(dataqueue_t * queue, int id);
 
 int queue_getcurrentsize(dataqueue_t * queue);
 
@@ -35,6 +39,8 @@ void queue_unlockid(dataqueue_t * queue, int id);
 void queue_free(dataqueue_t * queue);
 
 void queue_purge(dataqueue_t * queue);
+
+void queue_purge_unsafe(dataqueue_t * queue);
 
 void queue_lockall(dataqueue_t * queue);
 

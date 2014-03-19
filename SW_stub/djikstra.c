@@ -18,33 +18,50 @@ dataqueue_t rtable;
 #include "common/nf10util.h"
 #include "reg_defines.h"
 
-void update_hardwarearponeentry(router_t * router, int id, addr_ip_t ip, addr_ip_t netmask, addr_ip_t router_ip, int hw_oq) {
+void update_hardwarearponeentry(router_t * router, int id, addr_ip_t ip,
+		addr_ip_t netmask, addr_ip_t router_ip, int hw_oq) {
 	if (id < 32) {
 
-		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP, ntohl(ip));
-		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP_MASK, ntohl(netmask));
-		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_NEXT_HOP_IP, ntohl(router_ip));
-		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_OQ, hw_oq);
+		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP,
+				ntohl(ip));
+		writeReg(router->nf.fd,
+		XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP_MASK, ntohl(netmask));
+		writeReg(router->nf.fd,
+		XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_NEXT_HOP_IP,
+				ntohl(router_ip));
+		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_OQ,
+				hw_oq);
 
-		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_WR_ADDR, id);
+		writeReg(router->nf.fd,
+		XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_WR_ADDR, id);
 
-		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP, 0);
-		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP_MASK, 0);
-		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_NEXT_HOP_IP, 0);
-		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_OQ, 0);
+		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP,
+				0);
+		writeReg(router->nf.fd,
+		XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP_MASK, 0);
+		writeReg(router->nf.fd,
+		XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_NEXT_HOP_IP, 0);
+		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_OQ,
+				0);
 
-		writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_RD_ADDR, id);
+		writeReg(router->nf.fd,
+		XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_RD_ADDR, id);
 
 		uint32_t read_ip, read_ip_mask, read_next_hop_ip, read_lpm_oq;
-		readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP, &read_ip);
-		readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP_MASK, &read_ip_mask);
-		readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_NEXT_HOP_IP, &read_next_hop_ip);
-		readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_OQ, &read_lpm_oq);
+		readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP,
+				&read_ip);
+		readReg(router->nf.fd,
+		XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP_MASK, &read_ip_mask);
+		readReg(router->nf.fd,
+		XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_NEXT_HOP_IP,
+				&read_next_hop_ip);
+		readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_OQ,
+				&read_lpm_oq);
 
-		assert (read_ip == ntohl(ip));
-		assert (read_ip_mask == ntohl(netmask));
-		assert (read_next_hop_ip == ntohl(router_ip));
-		assert (read_lpm_oq == hw_oq);
+		assert(read_ip == ntohl(ip));
+		assert(read_ip_mask == ntohl(netmask));
+		assert(read_next_hop_ip == ntohl(router_ip));
+		assert(read_lpm_oq == hw_oq);
 	}
 }
 
@@ -52,20 +69,24 @@ void update_hardwarearp(router_t * router, dataqueue_t * table) {
 	int i;
 
 	for (i = 0; i < router->num_interfaces; i++)
-		update_hardwarearponeentry(router, i, router->interface[i].ip, IP_CONVERT(255,255,255,255), 0, router->interface[i].hw_id);
+		update_hardwarearponeentry(router, i, router->interface[i].ip,
+				IP_CONVERT(255, 255, 255, 255), 0, router->interface[i].hw_id);
 
-	for (i = 0; i < 32-router->num_interfaces; i++) {
+	for (i = 0; i < 32 - router->num_interfaces; i++) {
 		rtable_entry_t * entry;
 		int entry_size;
 		if (queue_getidandlock(table, i, (void **) &entry, &entry_size)) {
 
 			assert(entry_size == sizeof(rtable_entry_t));
 
-			update_hardwarearponeentry(router, i+router->num_interfaces, entry->subnet, entry->netmask, entry->router_ip, entry->interface->hw_oq);
+			update_hardwarearponeentry(router, i + router->num_interfaces,
+					entry->subnet, entry->netmask, entry->router_ip,
+					entry->interface->hw_oq);
 
 			queue_unlockid(table, i);
 		} else {
-			update_hardwarearponeentry(router, i+router->num_interfaces, 0, 0, 0, 0);
+			update_hardwarearponeentry(router, i + router->num_interfaces, 0, 0,
+					0, 0);
 		}
 	}
 
@@ -108,7 +129,7 @@ void djikstra_recompute(router_t * router) {
 	addr_ip_t routers[router->num_interfaces];
 
 	int i;
-	for(i = 0; i < router->num_interfaces; i++) {
+	for (i = 0; i < router->num_interfaces; i++) {
 		routers[i] = 0;
 	}
 
@@ -185,12 +206,13 @@ void djikstra_recompute(router_t * router) {
 	int s = subnets->size;
 	int graph[s][s];
 	int aa, bb;
-	for (aa = 0; aa < subnets->size; aa++) {
-		for (bb = 0; bb < subnets->size; bb++) {
+	for (aa = 0; aa < s; aa++) {
+		for (bb = 0; bb < s; bb++) {
 			graph[aa][bb] = 0;
 		}
 	}
 
+	// Populate graph
 	int k;
 	for (k = 0; k < topology->size; k++) {
 
@@ -317,35 +339,51 @@ void djikstra_recompute(router_t * router) {
 //		}
 //	}
 
-	dataqueue_t rtable;
-	queue_init(&rtable);
-	dataqueue_t * rtable_old = &router->ip_table;
+	dataqueue_t * rtable = &router->ip_table;
 
-	rtable_entry_t * entries = (rtable_entry_t *) malloc(
-			sizeof(rtable_entry_t) * subnets->size);
-	int entries_size = subnets->size;
+//	rtable_entry_t * entries = (rtable_entry_t *) malloc(
+//			sizeof(rtable_entry_t) * subnets->size);
+	rtable_entry_t * entries;
+	int entries_size = 0;
 
 	for (q = 0; q < subnets->size; q++) {
-		d_link_t * subnet;
-		int entry_size;
-		if (queue_getidunsafe(subnets, q, (void **) &subnet, &entry_size)
-				!= -1) {
-			rtable_entry_t * entry = &entries[q];
-			entry->interface = &router->interface[intf[q]];
-			entry->dynamic = TRUE;
-			entry->metric = final[q];
-			entry->netmask = subnet->netmask;
-			entry->router_ip = rips[q];
-			entry->subnet = subnet->subnet;
 
+		if (intf[q] >= 0 && intf[q] < router->num_interfaces) {
+
+			d_link_t * subnet;
+			int entry_size;
+			if (queue_getidunsafe(subnets, q, (void **) &subnet, &entry_size)
+					!= -1) {
+
+				if (entries_size == 0) {
+					entries_size = 1;
+					entries = (rtable_entry_t *) malloc(sizeof(rtable_entry_t));
+				} else {
+					entries_size++;
+					entries = (rtable_entry_t *) realloc(entries,
+							sizeof(rtable_entry_t) * (entries_size));
+				}
+
+				rtable_entry_t * entry = &entries[entries_size-1];
+
+				assert(intf[q] >= 0 && intf[q] < router->num_interfaces);
+
+				entry->interface = &router->interface[intf[q]];
+				entry->dynamic = TRUE;
+				entry->metric = final[q];
+				entry->netmask = subnet->netmask;
+				entry->router_ip = rips[q];
+				entry->subnet = subnet->subnet;
+
+			}
 		}
 	}
 
-	for (q = 0; q < queue_getcurrentsize(rtable_old); q++) {
+	for (q = 0; q < queue_getcurrentsize(rtable); q++) {
 
 		rtable_entry_t * entry_old;
 		int entry_size_old;
-		if (queue_getidandlock(rtable_old, q, (void **) &entry_old,
+		if (queue_getidandlock(rtable, q, (void **) &entry_old,
 				&entry_size_old)) {
 
 			assert(entry_size_old == sizeof(rtable_entry_t));
@@ -361,21 +399,23 @@ void djikstra_recompute(router_t * router) {
 
 			}
 
-			queue_unlockid(rtable_old, i);
+			queue_unlockid(rtable, q);
 		}
 	}
 
 	qsort(entries, entries_size, sizeof(rtable_entry_t), cmpfunc);
 
-	for (q = 0; q < entries_size; q++) {
-		ip_putintable(&rtable, entries[q].subnet, entries[q].interface,
+	queue_purge(rtable);
+
+	for (q = 0; q < entries_size; q++)
+		ip_putintable(rtable, entries[q].subnet, entries[q].interface,
 				entries[q].netmask, entries[q].dynamic, entries[q].metric,
 				entries[q].router_ip);
-	}
+
 	free(entries);
 
-	queue_free(&router->ip_table);
-	router->ip_table = rtable;
+	//queue_free(&router->ip_table); // REMOVE
+	//router->ip_table = rtable; // REMOVE
 	ip_print_table(&router->ip_table);
 
 	queue_free(topology);
