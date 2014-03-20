@@ -35,7 +35,7 @@ module lpm2
     input  				S_AXIS_TVALID,
     output 				S_AXIS_TREADY,
     input  				S_AXIS_TLAST,
-    input [C_S_AXI_DATA_WIDTH-1:0]	ip_addr,
+//    input [C_S_AXI_DATA_WIDTH-1:0]	ip_addr,
 //    input [C_S_AXI_DATA_WIDTH-1:0]	reset,
 //    output reg [C_S_AXI_DATA_WIDTH-1:0] lpm_miss_count,
     input tbl_rd_req,       // Request a read
@@ -141,7 +141,7 @@ lpm_result24, lpm_result25, lpm_result26, lpm_result27, lpm_result28, lpm_result
 lpm_result[6],lpm_result[7],lpm_result[8],lpm_result[9],lpm_result[10],lpm_result[11],lpm_result[12],
 lpm_result[13],lpm_result[14],lpm_result[15],lpm_result[16],lpm_result[17],lpm_result[18],lpm_result[19],
 lpm_result[20],lpm_result[21],lpm_result[22],lpm_result[23],lpm_result[24],lpm_result[25],lpm_result[26],
-lpm_result[27],lpm_result[28],lpm_result[29],lpm_result[30],lpm_result[31],ip_addr,M_AXIS_TREADY,
+lpm_result[27],lpm_result[28],lpm_result[29],lpm_result[30],lpm_result[31],M_AXIS_TREADY,
 M_AXIS_TVALID,header,M_AXIS_TUSER,M_AXIS_TLAST,lpm_p, index_hit )
    begin
      header_next = header;

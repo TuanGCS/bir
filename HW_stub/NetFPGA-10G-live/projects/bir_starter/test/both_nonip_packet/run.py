@@ -55,7 +55,7 @@ for i in range(30):
     else:
 	DA = routerMAC[0]
         sent_pkt = make_IP_pkt(dst_MAC=DA, src_MAC=SA, dst_IP=DST_IP,
-                               EtherType=EtherType, pkt_len=random.randint(60,1514))
+                               EtherType=EtherType, pkt_len=60) # random.randint(60,1514))
 	sent_pkt.time = (i*(1e-8))
     	sent_pkts.append(sent_pkt)
 
