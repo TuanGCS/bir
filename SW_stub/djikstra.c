@@ -364,7 +364,7 @@ void djikstra_recompute(router_t * router) {
 							sizeof(rtable_entry_t) * (entries_size));
 				}
 
-				rtable_entry_t * entry = &entries[entries_size-1];
+				rtable_entry_t * entry = &entries[entries_size - 1];
 
 				assert(intf[q] >= 0 && intf[q] < router->num_interfaces);
 
@@ -390,9 +390,14 @@ void djikstra_recompute(router_t * router) {
 
 			if (!entry_old->dynamic) {
 
-				entries_size++;
-				entries = (rtable_entry_t *) realloc(entries,
-						sizeof(rtable_entry_t) * (entries_size));
+				if (entries_size == 0) {
+					entries_size = 1;
+					entries = (rtable_entry_t *) malloc(sizeof(rtable_entry_t));
+				} else {
+					entries_size++;
+					entries = (rtable_entry_t *) realloc(entries,
+							sizeof(rtable_entry_t) * (entries_size));
+				}
 
 				memcpy(&entries[entries_size - 1], entry_old,
 						sizeof(rtable_entry_t));
@@ -411,7 +416,9 @@ void djikstra_recompute(router_t * router) {
 	//queue_purge(rtable);
 
 	for (q = 0; q < entries_size; q++) {
-		queue_add_unsafe(rtable, &entries[q], sizeof(rtable_entry_t));
+		if (queue_existsunsafe(rtable, &entries[q]) == -1) {
+			queue_add_unsafe(rtable, &entries[q], sizeof(rtable_entry_t));
+		}
 	}
 //		ip_putintable(rtable, entries[q].subnet, entries[q].interface,
 //				entries[q].netmask, entries[q].dynamic, entries[q].metric,
