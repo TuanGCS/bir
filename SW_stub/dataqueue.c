@@ -117,8 +117,8 @@ void queue_unlockidandremove(dataqueue_t * queue, int id) {
 	}
 
 	// shrink
-	//queue->packet = realloc(queue->packet, sizeof(void *) * (size-1));
-	//queue->packet_sizes = (int *) realloc((void *) queue->packet_sizes, sizeof(int) * (size-1));
+	queue->packet = realloc(queue->packet, sizeof(void *) * (size-1));
+	queue->packet_sizes = (int *) realloc((void *) queue->packet_sizes, sizeof(int) * (size-1));
 
 	queue->size--;
 
