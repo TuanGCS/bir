@@ -51,10 +51,10 @@ for i in range(30):
                                dst_IP=DST_IP, src_IP=SRC_IP,
                                pkt_len=random.randint(60,1514))
             sent_pkt.ttl = TTL
-            #nftest_send_phy('nf%d'%port, sent_pkt)
-            #nftest_expect_dma('nf%d'%port, sent_pkt)
-            nftest_send_phy('nf1', sent_pkt)
-            nftest_expect_dma('nf1', sent_pkt)
+            nftest_send_phy('nf%d'%port, sent_pkt)
+            nftest_expect_dma('nf%d'%port, sent_pkt)
+            #nftest_send_phy('nf1', sent_pkt)
+            #nftest_expect_dma('nf1', sent_pkt)
     else:
 	DA = routerMAC[0]
 	sent_pkt = make_IP_pkt(dst_MAC=DA, src_MAC=SA,
