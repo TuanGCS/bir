@@ -405,12 +405,20 @@ void djikstra_recompute(router_t * router) {
 
 	qsort(entries, entries_size, sizeof(rtable_entry_t), cmpfunc);
 
-	queue_purge(rtable);
+	// LOCK
+	queue_lockall(rtable);
+	queue_purge_unsafe(rtable);
+	//queue_purge(rtable);
 
-	for (q = 0; q < entries_size; q++)
-		ip_putintable(rtable, entries[q].subnet, entries[q].interface,
-				entries[q].netmask, entries[q].dynamic, entries[q].metric,
-				entries[q].router_ip);
+	for (q = 0; q < entries_size; q++) {
+		queue_add_unsafe(rtable, &entries[q], sizeof(rtable_entry_t));
+	}
+//		ip_putintable(rtable, entries[q].subnet, entries[q].interface,
+//				entries[q].netmask, entries[q].dynamic, entries[q].metric,
+//				entries[q].router_ip);
+
+	queue_unlockall(rtable);
+	// UNLOCK
 
 	free(entries);
 
