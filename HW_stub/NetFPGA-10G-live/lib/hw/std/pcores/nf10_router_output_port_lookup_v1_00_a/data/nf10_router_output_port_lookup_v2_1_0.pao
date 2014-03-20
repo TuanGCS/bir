@@ -45,6 +45,7 @@ lib nf10_router_output_port_lookup_v1_00_a dest_ip2 verilog
 lib nf10_router_output_port_lookup_v1_00_a lpm verilog
 lib nf10_router_output_port_lookup_v1_00_a lpm1 verilog
 lib nf10_router_output_port_lookup_v1_00_a lpm2 verilog
+lib nf10_router_output_port_lookup_v1_00_a lpm3 verilog
 lib nf10_router_output_port_lookup_v1_00_a arp verilog
 lib nf10_router_output_port_lookup_v1_00_a arp1 verilog
 lib nf10_router_output_port_lookup_v1_00_a arp2 verilog
