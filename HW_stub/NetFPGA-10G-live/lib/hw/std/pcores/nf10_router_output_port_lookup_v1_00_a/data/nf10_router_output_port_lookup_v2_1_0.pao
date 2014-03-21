@@ -50,6 +50,7 @@ lib nf10_router_output_port_lookup_v1_00_a arp verilog
 lib nf10_router_output_port_lookup_v1_00_a arp1 verilog
 lib nf10_router_output_port_lookup_v1_00_a arp2 verilog
 lib nf10_router_output_port_lookup_v1_00_a arp3 verilog
+lib nf10_router_output_port_lookup_v1_00_a arp4 verilog
 lib nf10_router_output_port_lookup_v1_00_a drop_packets verilog
 lib nf10_router_output_port_lookup_v1_00_a drop_packets1 verilog
 lib nf10_router_output_port_lookup_v1_00_a drop_packets2 verilog

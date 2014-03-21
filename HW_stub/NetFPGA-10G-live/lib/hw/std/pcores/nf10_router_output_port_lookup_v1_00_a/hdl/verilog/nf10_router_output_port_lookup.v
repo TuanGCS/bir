@@ -1206,12 +1206,12 @@ lpm_result24, lpm_result25, lpm_result26, lpm_result27, lpm_result28, lpm_result
     arp3 (
       .AXI_ACLK ( AXI_ACLK ),
       .AXI_RESETN ( AXI_RESETN ),
-      .M_AXIS_TDATA ( M_AXIS_TDATA ),
-      .M_AXIS_TSTRB ( M_AXIS_TSTRB ),
-      .M_AXIS_TUSER ( M_AXIS_TUSER ),
-      .M_AXIS_TVALID ( M_AXIS_TVALID ),
-      .M_AXIS_TREADY ( M_AXIS_TREADY ),
-      .M_AXIS_TLAST ( M_AXIS_TLAST ),
+      .M_AXIS_TDATA ( M_AXIS_TDATA_14 ),
+      .M_AXIS_TSTRB ( M_AXIS_TSTRB_14 ),
+      .M_AXIS_TUSER ( M_AXIS_TUSER_14 ),
+      .M_AXIS_TVALID ( M_AXIS_TVALID_14 ),
+      .M_AXIS_TREADY ( M_AXIS_TREADY_14 ),
+      .M_AXIS_TLAST ( M_AXIS_TLAST_14 ),
       .S_AXIS_TDATA ( M_AXIS_TDATA_7 ),
       .S_AXIS_TSTRB ( M_AXIS_TSTRB_7 ),
       .S_AXIS_TUSER ( M_AXIS_TUSER_7 ),
@@ -1237,6 +1237,33 @@ lpm_result24, lpm_result25, lpm_result26, lpm_result27, lpm_result28, lpm_result
    // -- Table ports
    );
 
+
+    arp4
+    #(
+      .C_S_AXI_DATA_WIDTH ( 32 ),
+      .C_S_AXI_ADDR_WIDTH ( 32 ),
+      .C_S_AXI_ACLK_FREQ_HZ ( 160000000 ),
+      .C_M_AXIS_DATA_WIDTH ( 256 ),
+      .C_S_AXIS_DATA_WIDTH ( 256 ),
+      .C_M_AXIS_TUSER_WIDTH ( 128 ),
+      .C_S_AXIS_TUSER_WIDTH ( 128 )
+    )
+    arp4 (
+      .AXI_ACLK ( AXI_ACLK ),
+      .AXI_RESETN ( AXI_RESETN ),
+      .M_AXIS_TDATA ( M_AXIS_TDATA ),
+      .M_AXIS_TSTRB ( M_AXIS_TSTRB ),
+      .M_AXIS_TUSER ( M_AXIS_TUSER ),
+      .M_AXIS_TVALID ( M_AXIS_TVALID ),
+      .M_AXIS_TREADY ( M_AXIS_TREADY ),
+      .M_AXIS_TLAST ( M_AXIS_TLAST ),
+      .S_AXIS_TDATA ( M_AXIS_TDATA_14 ),
+      .S_AXIS_TSTRB ( M_AXIS_TSTRB_14 ),
+      .S_AXIS_TUSER ( M_AXIS_TUSER_14 ),
+      .S_AXIS_TVALID ( M_AXIS_TVALID_14 ),
+      .S_AXIS_TREADY ( M_AXIS_TREADY_14 ),
+      .S_AXIS_TLAST ( M_AXIS_TLAST_14 )
+   );
 
 
 

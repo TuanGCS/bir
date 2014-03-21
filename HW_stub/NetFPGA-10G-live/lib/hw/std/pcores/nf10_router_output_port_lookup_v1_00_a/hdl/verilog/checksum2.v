@@ -91,19 +91,26 @@ module checksum2
      header_next = header;
      cs1 = checksum11;
      cs2 = checksum12;
-     if(header == 2'd0 & M_AXIS_TVALID & !M_AXIS_TLAST) begin
+     if(header == 2'd0 & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY) begin
 	header_next = 2'd1;
 	cs1 = checksum01 + checksum02;
 	cs2 = checksum03 + checksum04;
      end
-/*
+
      else if(header == 2'd1 & M_AXIS_TVALID & M_AXIS_TREADY)
      begin
-	header_next = 2'd2;
-//	low_ip_addr = M_AXIS_TDATA[255:240];
+	  if(M_AXIS_TLAST)
+		begin
+		header_next = 2'd0;
+		end
+		else
+		begin
+		header_next = 2'd2;
+		end
+		low_ip_addr = M_AXIS_TDATA[255:240];
      end
-*/
-     else if(header == 2'd1 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
+
+     else if(header == 2'd2 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
      begin
         header_next = 2'd0;
 //	low_ip_addr = M_AXIS_TDATA[255:240];
@@ -113,10 +120,11 @@ module checksum2
      end 
   end
 
+/*
   always@* //(posedge AXI_ACLK)
   begin
      header2_next = header2;
-     if(header2 == 2'd0 & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY) begin
+     if(header2 == 2'd0 & M_AXIS_TVALID & !M_AXIS_TLAST ) begin
 	header2_next = 2'd1;
      end
      else if(header2 == 2'd1 & M_AXIS_TVALID & M_AXIS_TREADY)
@@ -131,6 +139,7 @@ module checksum2
 	end
 	low_ip_addr = M_AXIS_TDATA[255:240];
      end
+*/
 /*
      else if(header == 2'd1 & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY)
      begin
@@ -138,6 +147,7 @@ module checksum2
 	low_ip_addr = M_AXIS_TDATA[255:240];
      end
 */
+/*
      else if(header2 == 2'd2 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
      begin
         header2_next = 2'd0;
@@ -147,19 +157,21 @@ module checksum2
 //      low_ip_addr = 16'd0;
      end 
   end
+*/
+
 
   always@(posedge AXI_ACLK)
   begin
      if(~AXI_RESETN) begin
 	header <= 0;
-	header2 <= 0;
+//	header2 <= 0;
 	checksum11 <= 0;
 	checksum12 <= 0;
      end
      else
      begin
 	header <= header_next;
-	header2 <= header2_next;
+//	header2 <= header2_next;
 	checksum11 <= cs1;
 	checksum12 <= cs2;
      end
