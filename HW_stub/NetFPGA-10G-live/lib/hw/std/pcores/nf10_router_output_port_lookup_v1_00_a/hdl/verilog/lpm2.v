@@ -38,14 +38,6 @@ module lpm2
 //    input [C_S_AXI_DATA_WIDTH-1:0]	ip_addr,
 //    input [C_S_AXI_DATA_WIDTH-1:0]	reset,
 //    output reg [C_S_AXI_DATA_WIDTH-1:0] lpm_miss_count,
-    input tbl_rd_req,       // Request a read
-    input tbl_wr_req,       // Request a write
-    input 	[4:0] tbl_rd_addr,      // Address in table to read
-    input	[4:0] tbl_wr_addr,      // Address in table to write
-    input	[C_S_AXI_DATA_WIDTH*4-1:0] tbl_wr_data,      // Value to write to table
-    output reg 	[C_S_AXI_DATA_WIDTH*4-1:0] tbl_rd_data,      // Value in table
-    output reg tbl_wr_ack,       // Pulses hi on ACK
-    output reg tbl_rd_ack,      // Pulses hi on ACK
     output reg lpm_hit,
 //    output reg arp_lookup,
     output reg [31:0] nh_reg,

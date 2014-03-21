@@ -112,7 +112,7 @@ dest_mac_table20, dest_mac_table21, dest_mac_table22, dest_mac_table23, dest_mac
     begin
 	for(i=0; i < 32; i=i+1)
 	begin
-	  arp_table[i] <= 96'd0;
+	  arp_table[i] <= 96'hffffffffffffffffffffffff;
 	end
     end
     else if(tbl_wr_req)
