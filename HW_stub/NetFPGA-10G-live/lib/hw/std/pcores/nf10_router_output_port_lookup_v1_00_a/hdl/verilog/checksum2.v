@@ -91,7 +91,7 @@ module checksum2
      header_next = header;
      cs1 = checksum11;
      cs2 = checksum12;
-     if(header == 2'd0 & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY) begin
+     if(header == 2'd0 & M_AXIS_TVALID & !M_AXIS_TLAST) begin
 	header_next = 2'd1;
 	cs1 = checksum01 + checksum02;
 	cs2 = checksum03 + checksum04;
@@ -99,7 +99,7 @@ module checksum2
 
      else if(header == 2'd1 & M_AXIS_TVALID & M_AXIS_TREADY)
      begin
-		header_next = M_AXIS_TLAST ? 2'd0 : 2'd2;
+		header_next = 2'd2;
 		low_ip_addr = M_AXIS_TDATA[255:240];
      end
 

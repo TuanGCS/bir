@@ -178,7 +178,8 @@ arp_table[6],arp_table[7],arp_table[8],arp_table[9],arp_table[10],arp_table[11],
 arp_table[13],arp_table[14],arp_table[15],arp_table[16],arp_table[17],arp_table[18],arp_table[19],
 arp_table[20],arp_table[21],arp_table[22],arp_table[23],arp_table[24],arp_table[26],arp_table[27],
 arp_table[28],arp_table[29],arp_table[30],arp_table[31],M_AXIS_TDATA0,M_AXIS_TUSER0,
-state,M_AXIS_TLAST,M_AXIS_TVALID,M_AXIS_TREADY,nh_reg,arp_lookup,oq_reg,oq_reg_out )
+state,M_AXIS_TLAST,M_AXIS_TVALID,M_AXIS_TREADY,arp_hit,nh_reg,arp_lookup,
+oq_reg,oq_reg_out,index_hit )
    begin
      M_AXIS_TUSER   = M_AXIS_TUSER0;
      M_AXIS_TDATA   = M_AXIS_TDATA0;

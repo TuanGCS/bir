@@ -24,7 +24,7 @@ module dest_ip1
     // Master Stream Ports (interface to data path)
     output [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA,
     output [((C_M_AXIS_DATA_WIDTH/8))-1:0]M_AXIS_TSTRB,
-    output reg [C_M_AXIS_TUSER_WIDTH-1:0]M_AXIS_TUSER,
+    output [C_M_AXIS_TUSER_WIDTH-1:0]M_AXIS_TUSER,
     output 				M_AXIS_TVALID,
     input  				M_AXIS_TREADY,
     output 				M_AXIS_TLAST,
@@ -97,7 +97,7 @@ module dest_ip1
            .MAX_DEPTH_BITS(2))
       input_fifo
         (// Outputs
-         .dout                           ({M_AXIS_TLAST, M_AXIS_TUSER0, M_AXIS_TSTRB, M_AXIS_TDATA}),
+         .dout                           ({M_AXIS_TLAST, M_AXIS_TUSER, M_AXIS_TSTRB, M_AXIS_TDATA}),
          .full                           (),
          .nearly_full                    (in_fifo_nearly_full),
          .prog_full                      (),
@@ -129,7 +129,7 @@ dest_ip_table[15],dest_ip_table[16],dest_ip_table[17],dest_ip_table[18],dest_ip_
 dest_ip_table[20],dest_ip_table[21],dest_ip_table[22],dest_ip_table[23],dest_ip_table[24],
 dest_ip_table[25],dest_ip_table[26],dest_ip_table[27],dest_ip_table[28],dest_ip_table[29],
 dest_ip_table[30],dest_ip_table[31],
-destip_addr,cpu_hit_array,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_count,M_AXIS_TUSER0,M_AXIS_TDATA,M_AXIS_TLAST,M_AXIS_TVALID
+destip_addr,cpu_hit_array,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_count,M_AXIS_TDATA,M_AXIS_TLAST,M_AXIS_TVALID
 
 )
   begin
@@ -139,7 +139,7 @@ destip_addr,cpu_hit_array,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_c
 	  bad_ttl_next = bad_ttl_count;
 	  non_ip_next = non_ip_count;
 	  dest_hit_next = dest_hit_count;
-     M_AXIS_TUSER = M_AXIS_TUSER0;
+	// M_AXIS_TUSER = M_AXIS_TUSER0;
 	  ip_data_check = destip_addr;
 	  cpu_hit = 0;
 	  dest_ip_hit = 0;
@@ -147,6 +147,7 @@ destip_addr,cpu_hit_array,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_c
      if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST) 
      begin//{
 	header_next = 1;
+	cpu_hit_array_next = 0;
 	if(!pkt_is_from_cpu)
 	begin //{
 	if(M_AXIS_TDATA[79:72] < 1) // Check TTL
@@ -177,7 +178,7 @@ destip_addr,cpu_hit_array,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_c
 	  if(dest_ip_hit)
 	  begin
 	     cpu_hit_array_next[3] = 1;
-	    dest_hit_next = dest_hit_next + 1;
+	     dest_hit_next = dest_hit_next + 1;
 	  end
 	end//}
 	end//}
@@ -185,7 +186,7 @@ destip_addr,cpu_hit_array,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_c
    else if(header == 1 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY )
    begin
       header_next = 0;
-      cpu_hit_array_next = 5'd0;
+      //cpu_hit_array_next = 5'd0;
    end
  end
 

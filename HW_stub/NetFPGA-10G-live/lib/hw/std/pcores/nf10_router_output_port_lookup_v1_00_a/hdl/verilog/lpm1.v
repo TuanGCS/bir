@@ -23,7 +23,7 @@ module lpm1
     // Master Stream Ports (interface to data path)
     output [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA,
     output [((C_M_AXIS_DATA_WIDTH/8))-1:0]M_AXIS_TSTRB,
-    output reg [C_M_AXIS_TUSER_WIDTH-1:0]M_AXIS_TUSER,
+    output [C_M_AXIS_TUSER_WIDTH-1:0]M_AXIS_TUSER,
     output 				M_AXIS_TVALID,
     input  				M_AXIS_TREADY,
     output				M_AXIS_TLAST,
@@ -135,7 +135,7 @@ lpm_result24, lpm_result25, lpm_result26, lpm_result27, lpm_result28, lpm_result
            .MAX_DEPTH_BITS(2))
       input_fifo
         (// Outputs
-         .dout                           ({M_AXIS_TLAST, M_AXIS_TUSER0, M_AXIS_TSTRB, M_AXIS_TDATA}),
+         .dout                           ({M_AXIS_TLAST, M_AXIS_TUSER, M_AXIS_TSTRB, M_AXIS_TDATA}),
          .full                           (),
          .nearly_full                    (in_fifo_nearly_full),
          .prog_full                      (),
@@ -171,16 +171,11 @@ lpm_table[6],lpm_table[7],lpm_table[8],lpm_table[9],lpm_table[10],lpm_table[11],
 lpm_table[13],lpm_table[14],lpm_table[15],lpm_table[16],lpm_table[17],lpm_table[18],lpm_table[19],
 lpm_table[20],lpm_table[21],lpm_table[22],lpm_table[23],lpm_table[24],lpm_table[25],lpm_table[26],
 lpm_table[27],lpm_table[28],lpm_table[29],lpm_table[30],lpm_table[31],ip_addr,M_AXIS_TREADY,
-M_AXIS_TVALID,header,M_AXIS_TUSER0,M_AXIS_TLAST, index_hit,lpm_hit )
+M_AXIS_TVALID,header,M_AXIS_TUSER, M_AXIS_TLAST, index_hit,lpm_hit )
    begin
      header_next = header;
-     M_AXIS_TUSER   = M_AXIS_TUSER0;
-//	  lpm_miss_next = lpm_miss_count;
-//	arp_lnext = arp_lookup;
-//	nh_next = nh_reg;
-//	oq_next = oq_reg;
+//     M_AXIS_TUSER   = M_AXIS_TUSER0;
 	lpm_hit_next = lpm_hit;
-//	lpm_p_next = lpm_p;
 	index_next = index_hit;
      if(header == 2'd0 & M_AXIS_TVALID & !M_AXIS_TLAST )
      begin
@@ -240,6 +235,11 @@ M_AXIS_TVALID,header,M_AXIS_TUSER0,M_AXIS_TLAST, index_hit,lpm_hit )
 
 endmodule
 
+//	  lpm_miss_next = lpm_miss_count;
+//	arp_lnext = arp_lookup;
+//	nh_next = nh_reg;
+//	oq_next = oq_reg;
+//	lpm_p_next = lpm_p;
 /*
        else if(	state == 2 & M_AXIS_TREADY & M_AXIS_TVALID0) 
        begin	
