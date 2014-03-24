@@ -764,7 +764,7 @@ void pwospf_thread(void *arg) {
 									quick_ip_to_string(entry->neighbour_ip));
 
 						// release database
-						free(entry->lsu_lastcontents);
+						free(entry->lsu_lastcontents); // TODO! TUK!
 
 						changed = 1;
 

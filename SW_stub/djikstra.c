@@ -115,10 +115,23 @@ int cmpfunc(const void * a, const void * b) {
 	}
 }
 
+void djikstra_lock_router(router_t * router) {
+	int i;
+	for (i = 0; i < router->num_interfaces; i++)
+		queue_lockall(&router->interface[i].neighbours);
+}
+
+void djikstra_unlock_router(router_t * router) {
+	int i;
+	for (i = 0; i < router->num_interfaces; i++)
+		queue_unlockall(&router->interface[i].neighbours);
+}
+
 static pthread_mutex_t djkstra_locker = PTHREAD_MUTEX_INITIALIZER;
 void djikstra_recompute(router_t * router) {
 
 	pthread_mutex_lock( &djkstra_locker );
+	djikstra_lock_router( router );
 
 	debug_println("--- Djikstra running! ---");
 
@@ -166,7 +179,7 @@ void djikstra_recompute(router_t * router) {
 			pwospf_list_entry_t * entry;
 			int entry_size;
 
-			if (queue_getidandlock(neighbours, n, (void **) &entry,
+			if (queue_getidunsafe(neighbours, n, (void **) &entry,
 					&entry_size)) {
 
 				assert(entry_size == sizeof(pwospf_list_entry_t));
@@ -198,8 +211,6 @@ void djikstra_recompute(router_t * router) {
 
 				} // else there is no LSU information available for that router yet
 
-				queue_unlockid(neighbours, n);
-				// entry is invalid from here on, whatever you do, do it inside
 			}
 
 		}
@@ -395,11 +406,14 @@ void djikstra_recompute(router_t * router) {
 		}
 	}
 
+	// LOCK
+	queue_lockall(rtable);
+
 	for (q = 0; q < queue_getcurrentsize(rtable); q++) {
 
 		rtable_entry_t * entry_old;
 		int entry_size_old;
-		if (queue_getidandlock(rtable, q, (void **) &entry_old,
+		if (queue_getidunsafe(rtable, q, (void **) &entry_old,
 				&entry_size_old)) {
 
 			assert(entry_size_old == sizeof(rtable_entry_t));
@@ -420,14 +434,11 @@ void djikstra_recompute(router_t * router) {
 
 			}
 
-			queue_unlockid(rtable, q);
 		}
 	}
 
 	qsort(entries, entries_size, sizeof(rtable_entry_t), cmpfunc);
 
-	// LOCK
-	queue_lockall(rtable);
 	queue_purge_unsafe(rtable);
 	//queue_purge(rtable);
 
@@ -456,6 +467,7 @@ void djikstra_recompute(router_t * router) {
 	update_hardwarearp(router, &router->ip_table);
 #endif
 
+	djikstra_unlock_router( router );
 	pthread_mutex_unlock( &djkstra_locker );
 }
 
