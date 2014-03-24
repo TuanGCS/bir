@@ -23,7 +23,7 @@ module lpm2
     // Master Stream Ports (interface to data path)
     output [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA,
     output [((C_M_AXIS_DATA_WIDTH/8))-1:0]M_AXIS_TSTRB,
-    output reg[C_M_AXIS_TUSER_WIDTH-1:0]M_AXIS_TUSER,
+    output [C_M_AXIS_TUSER_WIDTH-1:0]M_AXIS_TUSER,
     output 				M_AXIS_TVALID,
     input  				M_AXIS_TREADY,
     output				M_AXIS_TLAST,
@@ -36,55 +36,55 @@ module lpm2
     output 				S_AXIS_TREADY,
     input  				S_AXIS_TLAST,
 //    input [C_S_AXI_DATA_WIDTH-1:0]	ip_addr,
-    input [C_S_AXI_DATA_WIDTH-1:0]	reset,
-    output reg [C_S_AXI_DATA_WIDTH-1:0] lpm_miss_count,
-    input [31:0] nh_reg_in,
-    input [31:0] oq_reg_in,
-    input lpm_hit,
-/*
-    input tbl_rd_req,       // Request a read
-    input tbl_wr_req,       // Request a write
-    input 	[4:0] tbl_rd_addr,      // Address in table to read
-    input	[4:0] tbl_wr_addr,      // Address in table to write
-    input	[C_S_AXI_DATA_WIDTH*4-1:0] tbl_wr_data,      // Value to write to table
-    output reg 	[C_S_AXI_DATA_WIDTH*4-1:0] tbl_rd_data,      // Value in table
-    output reg tbl_wr_ack,       // Pulses hi on ACK
-    output reg tbl_rd_ack,      // Pulses hi on ACK
-*/
-    output reg arp_lookup,
+//    input [C_S_AXI_DATA_WIDTH-1:0]	reset,
+//    output reg [C_S_AXI_DATA_WIDTH-1:0] lpm_miss_count,
+    output reg lpm_hit,
+//    output reg arp_lookup,
     output reg [31:0] nh_reg,
-    output reg [31:0] oq_reg
+    output reg [31:0] oq_reg,
+    input lpm_hit_in,
+    input [4:0] index_hit_in,
+    input [63:0] lpm_result0, lpm_result1, lpm_result2, lpm_result3, lpm_result4, lpm_result5, lpm_result6, lpm_result7, 
+lpm_result8, lpm_result9, lpm_result10, lpm_result11, lpm_result12, lpm_result13, lpm_result14, lpm_result15, 
+lpm_result16, lpm_result17, lpm_result18, lpm_result19, lpm_result20, lpm_result21, lpm_result22, lpm_result23, 
+lpm_result24, lpm_result25, lpm_result26, lpm_result27, lpm_result28, lpm_result29, lpm_result30, lpm_result31
 );
-/*
-    reg	[C_S_AXI_DATA_WIDTH*4-1:0] lpm_table [0:31];      // Value in table
 
-   integer i,j,k;
+    wire [C_S_AXI_DATA_WIDTH*2-1:0] lpm_result [0:31];      // Value in table
 
-  always@(posedge AXI_ACLK)
-  begin
-    if(~AXI_RESETN)
-    begin
-	for(i=0; i < 32; i=i+1) lpm_table[i] <= 128'hFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
-    end
-    else if(tbl_wr_req)
-    begin
-      tbl_wr_ack <= 1;
-      lpm_table[tbl_wr_addr] <= tbl_wr_data;
-    end
-    else tbl_wr_ack <= 0; 
-  end
+    assign lpm_result[0] = lpm_result0;
+    assign lpm_result[1] = lpm_result1;
+    assign lpm_result[2] = lpm_result2;
+    assign lpm_result[3] = lpm_result3;
+    assign lpm_result[4] = lpm_result4;
+    assign lpm_result[5] = lpm_result5;
+    assign lpm_result[6] = lpm_result6;
+    assign lpm_result[7] = lpm_result7;
+    assign lpm_result[8] = lpm_result8;
+    assign lpm_result[9] = lpm_result9;
+    assign lpm_result[10] = lpm_result10;
+    assign lpm_result[11] = lpm_result11;
+    assign lpm_result[12] = lpm_result12;
+    assign lpm_result[13] = lpm_result13;
+    assign lpm_result[14] = lpm_result14;
+    assign lpm_result[15] = lpm_result15;
+    assign lpm_result[16] = lpm_result16;
+    assign lpm_result[17] = lpm_result17;
+    assign lpm_result[18] = lpm_result18;
+    assign lpm_result[19] = lpm_result19;
+    assign lpm_result[20] = lpm_result20;
+    assign lpm_result[21] = lpm_result21;
+    assign lpm_result[22] = lpm_result22;
+    assign lpm_result[23] = lpm_result23;
+    assign lpm_result[24] = lpm_result24;
+    assign lpm_result[25] = lpm_result25;
+    assign lpm_result[26] = lpm_result26;
+    assign lpm_result[27] = lpm_result27;
+    assign lpm_result[28] = lpm_result28;
+    assign lpm_result[29] = lpm_result29;
+    assign lpm_result[30] = lpm_result30;
+    assign lpm_result[31] = lpm_result31;
 
-
-  always@(posedge AXI_ACLK)
-  begin
-    if(tbl_rd_req)
-    begin
-      tbl_rd_ack <= 1;
-      tbl_rd_data <= lpm_table[tbl_rd_addr];
-    end
-    else tbl_rd_ack <= 0; 
-  end
-*/
 
   wire [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA0;
   wire [((C_M_AXIS_DATA_WIDTH/8))-1:0] M_AXIS_TSTRB0;
@@ -98,7 +98,7 @@ module lpm2
            .MAX_DEPTH_BITS(2))
       input_fifo
         (// Outputs
-         .dout                           ({M_AXIS_TLAST, M_AXIS_TUSER0, M_AXIS_TSTRB, M_AXIS_TDATA}),
+         .dout                           ({M_AXIS_TLAST, M_AXIS_TUSER, M_AXIS_TSTRB, M_AXIS_TDATA}),
          .full                           (),
          .nearly_full                    (in_fifo_nearly_full),
          .prog_full                      (),
@@ -114,92 +114,67 @@ module lpm2
    assign M_AXIS_TVALID = !in_fifo_empty; 
    assign S_AXIS_TREADY = !in_fifo_nearly_full;
 
-//   reg lpm_hit,arp_hit;
+   reg lpm_hit_next,arp_hit,lpm_p,lpm_p_next;
    reg [1:0] state;
    reg [31:0] ip_check,ip_temp,mask_temp,queue,lpm_miss_next;
 	reg [47:0] dest_mac;
    reg [31:0] ip_mask, net_mask, next_hop, oq;
 
-   reg header, header_next;
+   reg [1:0] header, header_next;
    reg [31:0] a , b,wire_queue,wire_nh,result;
    reg [127:0] table_line;
    reg [4:0] index; 
 
    reg arp_lnext;
-   reg [31:0] nh_next,oq_next; 
+   reg [31:0] nh_next,oq_next;
+   reg [4:0] index_next, index_hit; 
 
-//   always@(lpm_table[0],lpm_table[1],lpm_table[2],lpm_table[3],lpm_table[4],lpm_table[5],
-//lpm_table[6],lpm_table[7],lpm_table[8],lpm_table[9],lpm_table[10],lpm_table[11],lpm_table[12],
-//lpm_table[13],lpm_table[14],lpm_table[15],lpm_table[16],lpm_table[17],lpm_table[18],lpm_table[19],
-//lpm_table[20],lpm_table[21],lpm_table[22],lpm_table[23],lpm_table[24],lpm_table[25],lpm_table[26],
-//lpm_table[27],lpm_table[28],lpm_table[29],lpm_table[30],lpm_table[31],ip_addr,M_AXIS_TREADY,M_AXIS_TVALID,lpm_miss_count,header,M_AXIS_TUSER0,M_AXIS_TLAST )
-
-   always@*
+   always@(lpm_result[0],lpm_result[1],lpm_result[2],lpm_result[3],lpm_result[4],lpm_result[5],
+lpm_result[6],lpm_result[7],lpm_result[8],lpm_result[9],lpm_result[10],lpm_result[11],lpm_result[12],
+lpm_result[13],lpm_result[14],lpm_result[15],lpm_result[16],lpm_result[17],lpm_result[18],lpm_result[19],
+lpm_result[20],lpm_result[21],lpm_result[22],lpm_result[23],lpm_result[24],lpm_result[25],lpm_result[26],
+lpm_result[27],lpm_result[28],lpm_result[29],lpm_result[30],lpm_result[31], M_AXIS_TREADY,
+M_AXIS_TVALID, header, M_AXIS_TUSER, M_AXIS_TLAST, lpm_hit, lpm_hit_in, nh_reg, oq_reg )
    begin
      header_next = header;
-     M_AXIS_TUSER   = M_AXIS_TUSER0;
-	  lpm_miss_next = lpm_miss_count;
-	arp_lnext = arp_lookup;
+//     M_AXIS_TUSER   = M_AXIS_TUSER0;
 	nh_next = nh_reg;
 	oq_next = oq_reg;
-
-     if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST )
+	lpm_hit_next = lpm_hit;
+     if(header == 2'd0 & M_AXIS_TVALID & !M_AXIS_TLAST )
      begin
-       header_next = 1; 
-       if( !(M_AXIS_TUSER0[DST_PORT_POS+1] || M_AXIS_TUSER0[DST_PORT_POS+3] || M_AXIS_TUSER0[DST_PORT_POS+5] || M_AXIS_TUSER0[DST_PORT_POS+7]) )
+       header_next = 2'd1; 
+       if( !(M_AXIS_TUSER[DST_PORT_POS+1] || M_AXIS_TUSER[DST_PORT_POS+3] || M_AXIS_TUSER[DST_PORT_POS+5] || M_AXIS_TUSER[DST_PORT_POS+7]) )
        begin
-	if(!lpm_hit)
-	begin
-	  lpm_miss_next = lpm_miss_next + 1;
-          if(M_AXIS_TUSER0[SRC_PORT_POS])   M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000010;
-          if(M_AXIS_TUSER0[SRC_PORT_POS+2]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00001000;
-          if(M_AXIS_TUSER0[SRC_PORT_POS+4]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00100000;
-          if(M_AXIS_TUSER0[SRC_PORT_POS+6]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000000;
+	  if(lpm_hit_in)
+	  begin 
+	     oq_next = lpm_result[index_hit_in][63:32];
+	     nh_next = lpm_result[index_hit_in][31:0];
+	  end
+	  lpm_hit_next = lpm_hit_in;
 	end
-	else
-	begin
- 	  oq_next = oq_reg_in;	
-	  nh_next = nh_reg_in;
-	  arp_lnext = lpm_hit;
-	end
-       end
-       end
-       else if( header == 1 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
-       begin
+      end
+      else if( header == 2'd1 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
+      begin
 	header_next = 0;
-	arp_lnext = 0;
-	nh_next = 0;
-	oq_next = 0;
-       end
+      end
    end
-
-
 
    always@(posedge AXI_ACLK)
    begin
    if(~AXI_RESETN)
    begin
-     header <= 0;
-     lpm_miss_count <= 0;
-     arp_lookup <= 0;
+     header <= 2'd0;
      nh_reg <= 0;
      oq_reg <= 0;
-   end
-   else if(reset == 32'd1)
-   begin
-     lpm_miss_count <= 0;
-     header <= header_next;
-     arp_lookup <= arp_lnext;
-     nh_reg <= nh_next;
-     oq_reg <= oq_next;
+     lpm_hit <= 0;
    end
    else 
    begin
-     lpm_miss_count <= lpm_miss_next;
      header <= header_next;
-     arp_lookup <= arp_lnext;
      nh_reg <= nh_next;
      oq_reg <= oq_next;
+     lpm_hit <= lpm_hit_next;
    end
 
    end

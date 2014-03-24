@@ -59,7 +59,7 @@ for i in range(30):
 	DA = routerMAC[0]
 	sent_pkt = make_IP_pkt(dst_MAC=DA, src_MAC=SA,
                                dst_IP=DST_IP, src_IP=SRC_IP,
-                               pkt_len=random.randint(60,1514))
+                               pkt_len=60) #random.randint(60,1514))
         sent_pkt.ttl = TTL
 	sent_pkt.time = (i*(1e-8))
     	sent_pkts.append(sent_pkt)

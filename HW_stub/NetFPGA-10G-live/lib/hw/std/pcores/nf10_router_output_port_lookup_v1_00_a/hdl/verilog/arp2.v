@@ -128,13 +128,13 @@ dest_mac_table20, dest_mac_table21, dest_mac_table22, dest_mac_table23, dest_mac
 dest_mac_table[6],dest_mac_table[7],dest_mac_table[8],dest_mac_table[9],dest_mac_table[10],dest_mac_table[11],dest_mac_table[12],
 dest_mac_table[13],dest_mac_table[14],dest_mac_table[15],dest_mac_table[16],dest_mac_table[17],dest_mac_table[18],dest_mac_table[19],
 dest_mac_table[20],dest_mac_table[21],dest_mac_table[22],dest_mac_table[23],dest_mac_table[24],dest_mac_table[26],dest_mac_table[27],
-dest_mac_table[28],dest_mac_table[29],dest_mac_table[30],dest_mac_table[31],M_AXIS_TDATA0,M_AXIS_TUSER0,
-state,M_AXIS_TLAST,M_AXIS_TVALID,M_AXIS_TREADY,arp_lookup,oq_reg,oq_reg_out )
+dest_mac_table[28],dest_mac_table[29],dest_mac_table[30],dest_mac_table[31],M_AXIS_TDATA0,
+M_AXIS_TUSER0, state, M_AXIS_TLAST, M_AXIS_TVALID, M_AXIS_TREADY, 
+dest_mac, arp_hit, arp_lookup, oq_reg, oq_reg_out )
    begin
      M_AXIS_TUSER   = M_AXIS_TUSER0;
      M_AXIS_TDATA   = M_AXIS_TDATA0;
 	  state_next = state;
-	index = 0;
 	dmac_next = dest_mac;
 	arp_hit_next = arp_hit;
 	oq_next = oq_reg_out;

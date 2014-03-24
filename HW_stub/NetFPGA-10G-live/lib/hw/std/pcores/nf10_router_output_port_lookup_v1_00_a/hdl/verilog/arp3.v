@@ -99,7 +99,7 @@ module arp3
 	  forwarded_next = forwarded_count;
        if( (state == 2'd0) & M_AXIS_TVALID & !M_AXIS_TLAST ) 
        begin//{	
-	    state_next = 2'd1;
+	    state_next = 2'd2;
 	if( M_AXIS_TUSER0[DST_PORT_POS+7:DST_PORT_POS] == 8'd0)
 	begin//{
 

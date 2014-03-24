@@ -23,7 +23,7 @@ module drop_packets2
     // Master Stream Ports (interface to data path)
     output [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA,
     output [((C_M_AXIS_DATA_WIDTH/8))-1:0]M_AXIS_TSTRB,
-    output [C_M_AXIS_TUSER_WIDTH-1:0]M_AXIS_TUSER,
+    output [C_M_AXIS_TUSER_WIDTH-1:0]   M_AXIS_TUSER,
     output 				M_AXIS_TVALID,
     input  				M_AXIS_TREADY,
     output				M_AXIS_TLAST,
