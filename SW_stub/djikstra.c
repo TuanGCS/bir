@@ -3,6 +3,7 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 
 #include "packets.h"
 #include "sr_router.h"
@@ -114,7 +115,10 @@ int cmpfunc(const void * a, const void * b) {
 	}
 }
 
+static pthread_mutex_t djkstra_locker = PTHREAD_MUTEX_INITIALIZER;
 void djikstra_recompute(router_t * router) {
+
+	pthread_mutex_lock( &djkstra_locker );
 
 	debug_println("--- Djikstra running! ---");
 
@@ -180,14 +184,14 @@ void djikstra_recompute(router_t * router) {
 						}
 						if (queue_existsunsafe(topology, &lsa_entry_dj) == -1) {
 							queue_add(topology, &lsa_entry_dj,
-									sizeof(pwospf_lsa_dj_t));
+									sizeof(pwospf_lsa_dj_t)); //TODO
 						}
 
 						d_link_t subnet;
 						subnet.subnet = lsa_entry->subnet;
 						subnet.netmask = lsa_entry->netmask;
 						if (queue_existsunsafe(subnets, &subnet) == -1) {
-							queue_add(subnets, &subnet, sizeof(d_link_t));
+							queue_add(subnets, &subnet, sizeof(d_link_t)); //TODO
 						}
 
 					}
@@ -244,10 +248,14 @@ void djikstra_recompute(router_t * router) {
 						link1.subnet = entry->lsa.subnet;
 						int id1 = queue_existsunsafe(subnets, &link1);
 
+						assert(id1 != -1);
+
 						d_link_t link2;
 						link2.netmask = entry_t->lsa.netmask;
 						link2.subnet = entry_t->lsa.subnet;
 						int id2 = queue_existsunsafe(subnets, &link2);
+
+						assert(id2 != -1);
 
 						graph[id1][id2] = 1;
 						graph[id2][id1] = 1;
@@ -284,6 +292,8 @@ void djikstra_recompute(router_t * router) {
 		subnet.subnet = router->interface[i].subnet_mask
 				& router->interface[i].ip;
 		int id = queue_existsunsafe(subnets, &subnet);
+
+		assert(id != -1);
 
 		dist[id] = 0;
 
@@ -365,7 +375,7 @@ void djikstra_recompute(router_t * router) {
 								sizeof(rtable_entry_t));
 					} else {
 						entries_size++;
-						entries = (rtable_entry_t *) realloc(entries,
+						entries = (rtable_entry_t *) realloc(entries, //tuk!!!1TODO
 								sizeof(rtable_entry_t) * (entries_size));
 					}
 
@@ -423,7 +433,7 @@ void djikstra_recompute(router_t * router) {
 
 	for (q = 0; q < entries_size; q++) {
 		if (queue_existsunsafe(rtable, &entries[q]) == -1) {
-			queue_add_unsafe(rtable, &entries[q], sizeof(rtable_entry_t));
+			queue_add_unsafe(rtable, &entries[q], sizeof(rtable_entry_t)); //todo
 		}
 	}
 //		ip_putintable(rtable, entries[q].subnet, entries[q].interface,
@@ -445,5 +455,7 @@ void djikstra_recompute(router_t * router) {
 #ifdef _CPUMODE_
 	update_hardwarearp(router, &router->ip_table);
 #endif
+
+	pthread_mutex_unlock( &djkstra_locker );
 }
 
