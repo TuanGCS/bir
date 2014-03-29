@@ -143,7 +143,7 @@ module lpm3
 	nh_next = nh_reg;
 	oq_next = oq_reg;
 
-     if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST )
+     if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY)
      begin
        header_next = 1; 
        if( !(M_AXIS_TUSER0[DST_PORT_POS+1] || M_AXIS_TUSER0[DST_PORT_POS+3] || M_AXIS_TUSER0[DST_PORT_POS+5] || M_AXIS_TUSER0[DST_PORT_POS+7]) )

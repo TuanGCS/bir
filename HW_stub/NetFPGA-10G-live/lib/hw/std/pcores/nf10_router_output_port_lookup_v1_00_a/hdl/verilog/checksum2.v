@@ -91,7 +91,7 @@ module checksum2
      header_next = header;
      cs1 = checksum11;
      cs2 = checksum12;
-     if(header == 2'd0 & M_AXIS_TVALID & !M_AXIS_TLAST) begin
+     if(header == 2'd0 & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY) begin
 	header_next = 2'd1;
 	cs1 = checksum01 + checksum02;
 	cs2 = checksum03 + checksum04;

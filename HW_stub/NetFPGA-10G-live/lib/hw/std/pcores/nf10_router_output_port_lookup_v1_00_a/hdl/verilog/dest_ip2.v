@@ -82,7 +82,7 @@ module dest_ip2
   begin
      header_next = header;
      M_AXIS_TUSER = M_AXIS_TUSER0;
-     if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST) 
+     if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY) 
      begin//{
       header_next = 1;
       if(!pkt_is_from_cpu)

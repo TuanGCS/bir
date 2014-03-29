@@ -99,7 +99,7 @@ module drop_packets1
      dropped_count_next = dropped_count;
      destip_next = destip_addr;
      drop_array_next = drop_array;
-     if(header == 0 & M_AXIS_TVALID &  !M_AXIS_TLAST ) begin
+     if(header == 0 & M_AXIS_TVALID &  !M_AXIS_TLAST & M_AXIS_TREADY ) begin
 	header_next = 1; 
 	drop_array_next = 5'd0;
 	if(M_AXIS_TUSER[SRC_PORT_POS] || M_AXIS_TUSER[SRC_PORT_POS+2] || M_AXIS_TUSER[SRC_PORT_POS+4] || M_AXIS_TUSER[SRC_PORT_POS+6] )

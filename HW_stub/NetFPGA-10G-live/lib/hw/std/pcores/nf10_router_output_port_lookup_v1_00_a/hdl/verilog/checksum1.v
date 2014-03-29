@@ -91,7 +91,7 @@ module checksum1
      cs3 = checksum03;
      cs4 = checksum04;
 
-     if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST) begin
+     if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY) begin
 	    header_next = 1;
 //	    checksum_next = M_AXIS_TDATA[143:128] + M_AXIS_TDATA[127:112] + M_AXIS_TDATA[111:96] + M_AXIS_TDATA[95:80] + M_AXIS_TDATA[79:64] + M_AXIS_TDATA[47:32] +  M_AXIS_TDATA[31:16]; //+ M_AXIS_TDATA[15:0];
 

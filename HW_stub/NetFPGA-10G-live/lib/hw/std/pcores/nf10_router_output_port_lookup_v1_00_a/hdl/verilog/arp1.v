@@ -187,7 +187,7 @@ oq_reg,oq_reg_out,index_hit )
 	arp_hit_next = arp_hit;
 	oq_next = oq_reg_out;
 	index_hit_next = index_hit;
-       if( (state == 2'd0) & M_AXIS_TVALID & !M_AXIS_TLAST ) 
+       if( (state == 2'd0) & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY) 
        begin	
 	    state_next = 2'd1;
 	if( M_AXIS_TUSER0[DST_PORT_POS+7:DST_PORT_POS] == 8'd0)

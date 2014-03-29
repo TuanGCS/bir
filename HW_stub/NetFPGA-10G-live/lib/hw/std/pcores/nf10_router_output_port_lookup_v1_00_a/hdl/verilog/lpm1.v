@@ -177,7 +177,7 @@ M_AXIS_TVALID,header,M_AXIS_TUSER, M_AXIS_TLAST, index_hit,lpm_hit )
 //     M_AXIS_TUSER   = M_AXIS_TUSER0;
 	lpm_hit_next = lpm_hit;
 	index_next = index_hit;
-     if(header == 2'd0 & M_AXIS_TVALID & !M_AXIS_TLAST )
+     if(header == 2'd0 & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY )
      begin
        header_next = 2'd1; 
        if( !(M_AXIS_TUSER[DST_PORT_POS+1] || M_AXIS_TUSER[DST_PORT_POS+3] || M_AXIS_TUSER[DST_PORT_POS+5] || M_AXIS_TUSER[DST_PORT_POS+7]) )

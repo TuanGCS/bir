@@ -90,7 +90,7 @@ module ip_addr_checksum_delay
      header_next = header;
      cs = checksum_out;
      ip_next = low_ip_addr;
-     if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST) begin
+     if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY) begin
 	    header_next = 1;
 
 	cs = ~(checksum_in[15:0] + checksum_in[19:16]);

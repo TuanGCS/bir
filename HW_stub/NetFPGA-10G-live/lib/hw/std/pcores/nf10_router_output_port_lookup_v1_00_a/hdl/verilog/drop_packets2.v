@@ -78,7 +78,7 @@ module drop_packets2
   begin
      header_next = header;
      destip_next = destip_addr;
-     if(header == 0 & M_AXIS_TVALID0 &  !M_AXIS_TLAST ) begin
+     if(header == 0 & M_AXIS_TVALID0 &  !M_AXIS_TLAST & M_AXIS_TREADY ) begin
 	destip_next = destip_in;
      end
      else if(header == 1 & M_AXIS_TVALID0 & M_AXIS_TLAST & M_AXIS_TREADY )

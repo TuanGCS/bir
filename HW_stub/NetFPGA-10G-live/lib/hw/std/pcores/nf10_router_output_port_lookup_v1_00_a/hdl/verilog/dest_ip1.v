@@ -129,7 +129,7 @@ dest_ip_table[15],dest_ip_table[16],dest_ip_table[17],dest_ip_table[18],dest_ip_
 dest_ip_table[20],dest_ip_table[21],dest_ip_table[22],dest_ip_table[23],dest_ip_table[24],
 dest_ip_table[25],dest_ip_table[26],dest_ip_table[27],dest_ip_table[28],dest_ip_table[29],
 dest_ip_table[30],dest_ip_table[31],
-destip_addr,cpu_hit_array,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_count,M_AXIS_TDATA,M_AXIS_TLAST,M_AXIS_TVALID
+destip_addr,cpu_hit_array,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_count,M_AXIS_TDATA,M_AXIS_TLAST,M_AXIS_TVALID,M_AXIS_TREADY
 
 )
   begin
@@ -144,7 +144,7 @@ destip_addr,cpu_hit_array,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_c
 	  cpu_hit = 0;
 	  dest_ip_hit = 0;
 	  cpu_hit_array_next = cpu_hit_array;
-     if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST) 
+     if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY ) 
      begin//{
 	header_next = 1;
 	cpu_hit_array_next = 0;

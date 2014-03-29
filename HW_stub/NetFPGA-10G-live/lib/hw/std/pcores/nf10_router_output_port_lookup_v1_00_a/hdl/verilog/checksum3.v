@@ -85,7 +85,7 @@ module checksum3
      header_next = header;
      csf = checksum_final;
      low_ip_next = low_ip_addr_out;
-     if(header == 2'd0 & M_AXIS_TVALID & !M_AXIS_TLAST) begin
+     if(header == 2'd0 & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY) begin
 	    header_next = 1;
 
 	csf = checksum11 + checksum12 + low_ip_addr_in;
