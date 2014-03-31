@@ -136,13 +136,12 @@ module lpm3
 
    always@*
    begin
-     header_next = header;
-     M_AXIS_TUSER   = M_AXIS_TUSER0;
-	  lpm_miss_next = lpm_miss_count;
+	header_next = header;
+	M_AXIS_TUSER   = M_AXIS_TUSER0;
+	lpm_miss_next = lpm_miss_count;
 	arp_lnext = arp_lookup;
 	nh_next = nh_reg;
 	oq_next = oq_reg;
-
      if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY)
      begin
        header_next = 1; 
@@ -150,11 +149,11 @@ module lpm3
        begin
 	if(!lpm_hit)
 	begin
-	  lpm_miss_next = lpm_miss_next + 1;
-          if(M_AXIS_TUSER0[SRC_PORT_POS])   M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000010;
-          if(M_AXIS_TUSER0[SRC_PORT_POS+2]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00001000;
-          if(M_AXIS_TUSER0[SRC_PORT_POS+4]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00100000;
-          if(M_AXIS_TUSER0[SRC_PORT_POS+6]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000000;
+	 lpm_miss_next = lpm_miss_next + 1;
+        if(M_AXIS_TUSER0[SRC_PORT_POS])   M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00000010;
+        if(M_AXIS_TUSER0[SRC_PORT_POS+2]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00001000;
+        if(M_AXIS_TUSER0[SRC_PORT_POS+4]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00100000;
+        if(M_AXIS_TUSER0[SRC_PORT_POS+6]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000000;
 	end
 	else
 	begin
@@ -163,14 +162,14 @@ module lpm3
 	  arp_lnext = lpm_hit;
 	end
        end
-       end
-       else if( header == 1 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
-       begin
-	header_next = 0;
-	arp_lnext = 0;
-	nh_next = 0;
-	oq_next = 0;
-       end
+     end
+     else if( header == 1 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
+     begin
+       header_next = 0;
+//       arp_lnext = 0;
+//       nh_next = 0;
+//       oq_next = 0;
+     end
    end
 
 

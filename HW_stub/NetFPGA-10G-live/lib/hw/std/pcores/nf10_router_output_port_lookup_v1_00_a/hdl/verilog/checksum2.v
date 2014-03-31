@@ -99,10 +99,17 @@ module checksum2
 
      else if(header == 2'd1 & M_AXIS_TVALID & M_AXIS_TREADY)
      begin
+//		header_next = 2'd2;
+		if(M_AXIS_TLAST) 
+		begin
+		header_next = 2'd0;
+		end
+		else 
+		begin
 		header_next = 2'd2;
+		end
 		low_ip_addr = M_AXIS_TDATA[255:240];
      end
-
      else if(header == 2'd2 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
      begin
         header_next = 2'd0;

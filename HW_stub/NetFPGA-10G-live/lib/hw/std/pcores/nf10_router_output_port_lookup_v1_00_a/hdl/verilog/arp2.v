@@ -14,7 +14,7 @@ module arp2
     parameter C_S_AXIS_TUSER_WIDTH=128,
     parameter SRC_PORT_POS=16,
     parameter DST_PORT_POS=24
-)
+//)
 (
     // Global Ports
     input 				AXI_ACLK,
@@ -155,7 +155,7 @@ dest_mac, arp_hit, arp_lookup, oq_reg, oq_reg_out )
        else if( (state == 2'd1) & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
        begin
 	state_next = 2'd0;
-	arp_hit_next = 0;
+//	arp_hit_next = 0;
        end
    end
 

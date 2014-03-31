@@ -213,7 +213,7 @@ oq_reg,oq_reg_out,index_hit )
        else if( (state == 2'd1) & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
        begin
 	state_next = 2'd0;
-	arp_hit_next = 0;
+//	arp_hit_next = 0;
        end
    end
 

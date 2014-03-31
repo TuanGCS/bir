@@ -1,5 +1,4 @@
 
-
 module arp3
 #(
     parameter C_S_AXI_DATA_WIDTH = 32,
@@ -99,7 +98,7 @@ module arp3
 	  forwarded_next = forwarded_count;
        if( (state == 2'd0) & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY) 
        begin//{	
-	    state_next = 2'd2;
+	    state_next = 2'd1;
 	if( M_AXIS_TUSER0[DST_PORT_POS+7:DST_PORT_POS] == 8'd0)
 	begin//{
 
@@ -121,7 +120,7 @@ module arp3
 	else 
 	begin//{
 	  arp_miss_next = arp_miss_next + 1;
-          if(M_AXIS_TUSER0[SRC_PORT_POS])   M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] =   8'b00000010;
+          if(M_AXIS_TUSER0[SRC_PORT_POS])   M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00000010;
           if(M_AXIS_TUSER0[SRC_PORT_POS+2]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00001000;
           if(M_AXIS_TUSER0[SRC_PORT_POS+4]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b00100000;
           if(M_AXIS_TUSER0[SRC_PORT_POS+6]) M_AXIS_TUSER[DST_PORT_POS+7:DST_PORT_POS] = 8'b10000000;
@@ -129,12 +128,14 @@ module arp3
 	end//}
 //	          tdata = M_AXIS_TDATA;
        end//}
+/*
        else if( (state == 2'd1) & !M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
        begin
 	M_AXIS_TDATA = tdata;
 	state_next = 2'd2;
        end  
-       else if( (state == 2'd2) & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
+ */
+      else if( (state == 2'd1) & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
        begin
 	state_next = 2'd0;
        end
@@ -143,7 +144,7 @@ module arp3
 
   always@(posedge AXI_ACLK)
   begin
-	tdata <= M_AXIS_TDATA;
+//	tdata <= M_AXIS_TDATA;
       if(~AXI_RESETN)
       begin
         state <= 0;
