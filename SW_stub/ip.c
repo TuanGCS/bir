@@ -12,6 +12,7 @@
 #include "pwospf.h"
 #include "cli/cli_ping.h"
 #include "cli/cli_trace.h"
+#include "dns.h"
 
 #include <string.h>
 
@@ -388,8 +389,39 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 					fprintf(stderr, "Invalid PWOSPF packet was sent to us!\n");
 				return;
 			} else if (ipv4->protocol == IP_TYPE_UDP) {
-				fprintf(stderr, "No UDP ports are used on the router\n");
-				icmp_send(pi, ipv4, pi->router->interface[i].ip, ICMP_TYPE_DST_UNREACH, ICMP_CODE_PORT_UNREACH);
+
+				if (PACKET_CAN_MARSHALL(packet_udp_t,
+						sizeof(packet_ethernet_t)+sizeof(packet_ip4_t),
+						pi->len)) {
+					packet_udp_t * udp = PACKET_MARSHALL(packet_udp_t,  pi->packet, sizeof(packet_ethernet_t) + sizeof(packet_ip4_t));
+
+//					if (generatechecksum((unsigned short*) udp,
+//							sizeof(packet_udp_t))
+//							!= (0)) {
+//						fprintf(stderr, "UDP Header Checksum Error. Dropping...\n");
+//						icmp_send(pi, ipv4, pi->router->interface[i].ip, ICMP_TYPE_DST_UNREACH, ICMP_CODE_PORT_UNREACH);
+//						return;
+//					}
+
+					if (ntohs(udp->destination_port) == PORT_DNS) {
+						if (PACKET_CAN_MARSHALL(packet_dns_t, sizeof(packet_ethernet_t)+sizeof(packet_ip4_t)+sizeof(packet_udp_t),pi->len)) {
+							packet_dns_t * dns = PACKET_MARSHALL(packet_dns_t,  pi->packet, sizeof(packet_ethernet_t) + sizeof(packet_ip4_t)+sizeof(packet_udp_t));
+							dns_onreceive(pi, udp, dns);
+						} else {
+							fprintf(stderr, "Corrupted DNS packet!\n");
+						}
+					} else {
+						fprintf(stderr, "UDP port %d not in use!\n", ntohs(udp->destination_port));
+						icmp_send(pi, ipv4, pi->router->interface[i].ip, ICMP_TYPE_DST_UNREACH, ICMP_CODE_PORT_UNREACH);
+					}
+
+
+				} else {
+					fprintf(stderr, "Invalid UDP packet was sent to us!\n");
+					//fprintf(stderr, "Unsupported IP packet type %d (0x%x)\n",ipv4->protocol, ipv4->protocol);
+					icmp_send(pi, ipv4, pi->router->interface[i].ip, ICMP_TYPE_DST_UNREACH, ICMP_CODE_PORT_UNREACH);
+				}
+				//icmp_type_dst_unreach(pi, ipv4, ICMP_CODE_PROT_UNREACH);
 
 				return;
 			} else {

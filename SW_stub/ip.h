@@ -9,6 +9,8 @@
 #define IP_TYPE_UDP (17)
 #define IP_TYPE_OSPF (89)
 
+#define PORT_DNS (53)
+
 #define IP_CONVERT(a,b,c,d) (a | (b << 8) | (c << 16) | (d << 24))
 
 void ip_print_table(dataqueue_t * table);
