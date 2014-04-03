@@ -18,6 +18,7 @@ dns_query_ho_t * dns_mallocandparse_query_array(byte * address, int size) {
 
 		uint8_t char_size;
 		while ((char_size = *(address++))!=0) {
+
 			char * string = (char *) malloc(char_size+1);
 			string[char_size] = 0;
 			memcpy(string, address, char_size);
@@ -57,6 +58,10 @@ void dns_onreceive(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns) {
 	if (!dns->QR) {
 
 		dns_query_ho_t * questions = dns_mallocandparse_query_array((byte *) ((byte *) dns + sizeof(packet_dns_t)), totalquestions);
+		if (questions == NULL) {
+			fprintf(stderr, "The DNS question cannot be parsed!");
+			return;
+		}
 
 		int i;
 		for (i = 0; i < totalquestions; i++) {
@@ -66,10 +71,10 @@ void dns_onreceive(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns) {
 			printf("type %d, class %d\n", questions[i].qtype, questions[i].qclass);
 		}
 
+		dns_free_query_array(questions, totalquestions);
+
 	} else {
 		// TODO
 	}
-
-	dns_free_query_array(questions, totalquestions);
 }
 
