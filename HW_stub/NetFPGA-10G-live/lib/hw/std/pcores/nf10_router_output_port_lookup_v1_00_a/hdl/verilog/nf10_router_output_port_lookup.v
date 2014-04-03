@@ -126,7 +126,7 @@ module nf10_router_output_port_lookup
    localparam IN_PACKET     = 1;
    localparam NUM_WO_REGS	= 1;
    localparam NUM_RW_REGS       = 8;
-   localparam NUM_RO_REGS       = 10;
+   localparam NUM_RO_REGS       = 12;
 
 
    //------------- Wires ------------------
@@ -402,8 +402,10 @@ module nf10_router_output_port_lookup
   wire [C_S_AXI_DATA_WIDTH-1:0] bad_ttl_count;
   wire [C_S_AXI_DATA_WIDTH-1:0] ver_count;
   wire [C_S_AXI_DATA_WIDTH-1:0] cpu_count;
+  wire [C_S_AXI_DATA_WIDTH-1:0] debugA;
+  wire [C_S_AXI_DATA_WIDTH-1:0] debugE;
 
-   assign ro_regs = {cpu_count, ver_count, bad_ttl_count, dest_hit_count, forwarded_count, dropped_count, non_ip_count, arp_miss_count, lpm_miss_count, wrong_mac_count};
+   assign ro_regs = {debugA,debugE,cpu_count, ver_count, bad_ttl_count, dest_hit_count, forwarded_count, dropped_count, non_ip_count, arp_miss_count, lpm_miss_count, wrong_mac_count};
    //assign {mac3_high, mac3_low, mac2_high, mac2_low, mac1_high, mac1_low, mac0_high, mac0_low} = rw_regs;
    assign mac0_low = rw_regs[C_S_AXI_DATA_WIDTH-1:0];
    assign mac0_high = rw_regs[(2*C_S_AXI_DATA_WIDTH)-1:C_S_AXI_DATA_WIDTH];
@@ -743,7 +745,9 @@ module nf10_router_output_port_lookup
 	.wrong_mac_count(wrong_mac_count),
 	.dropped_count(dropped_count),
 	.destip_addr(destip_addr1),
-	.drop_array(drop_array)
+	.drop_array(drop_array),
+	.debug_checksum_expected(debugE),
+	.debug_checksum_actual(debugA)
    );
 
 

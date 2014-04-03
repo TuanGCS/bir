@@ -48,7 +48,7 @@
    parameter C_S_AXI_ADDR_WIDTH = 32,   
    parameter NUM_WO_REGS = 1, // Number of registers written by software and read by hardware only
    parameter NUM_RW_REGS = 8, // Number of registers written by software and read by both hardware and software
-   parameter NUM_RO_REGS = 10  // Number of registers written by hardware and read by software only
+   parameter NUM_RO_REGS = 12  // Number of registers written by hardware and read by software only
    // Address Mapping
    //  ------  = base_address
    // |  WO  |         

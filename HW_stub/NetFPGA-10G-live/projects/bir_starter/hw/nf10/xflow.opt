@@ -67,11 +67,11 @@ Program map
 -xe n;
 -ol high;
 #-cm speed;
--t 24;
--register_duplication on;
--logic_opt on;
--timing;
--detail;
+-t 2;
+#-register_duplication on;
+#-logic_opt on;
+#-timing;
+#-detail;
 <inputdir><design>.ngd;  # Input NGD file
 <inputdir><design>.pcf;  # Physical constraints file
 END Program map

@@ -48,6 +48,8 @@ module drop_packets1
     input 	[15:0] checksum,
     output reg [31:0] destip_addr,
     output reg [31:0] wrong_mac_count, 
+    output reg [31:0] debug_checksum_expected, 
+    output reg [31:0] debug_checksum_actual, 
     output reg [31:0] dropped_count,
     output reg [4:0] drop_array
 );
@@ -84,7 +86,7 @@ module drop_packets1
   reg [15:0] temp_checksum, checksum_final; 
   reg drop,drop_next;
   reg [4:0] drop_array_next;
-  reg [31:0] destip_next,dropped_count_next, wrong_mac_count_next;
+  reg [31:0] destip_next,dropped_count_next, wrong_mac_count_next,debugE,debugA;
 
 
 
@@ -99,6 +101,8 @@ module drop_packets1
      dropped_count_next = dropped_count;
      destip_next = destip_addr;
      drop_array_next = drop_array;
+     debugE = debug_checksum_expected;
+     debugA = debug_checksum_actual;
      if(header == 0 & M_AXIS_TVALID &  !M_AXIS_TLAST & M_AXIS_TREADY ) begin
 	header_next = 1; 
 	drop_array_next = 5'd0;
@@ -109,6 +113,8 @@ module drop_packets1
 	begin
 	  drop_array_next[0] = 1;
 	  dropped_count_next = dropped_count_next + 1;
+	  debugA = {16'd0,checksum};
+	  debugE = {16'd0,M_AXIS_TDATA[63:48]};
 	end
 	else 
 	begin
@@ -158,6 +164,8 @@ module drop_packets1
 	wrong_mac_count <= 0;
 	drop_array <= 0;
 	destip_addr <= 0;
+	debug_checksum_expected <= 0;
+	debug_checksum_actual <= 0;
      end
      else if(reset == 32'd1)
      begin
@@ -166,6 +174,8 @@ module drop_packets1
 	header <= header_next;
 	drop_array <= drop_array_next;
 	destip_addr <= destip_next;
+	debug_checksum_expected <= 0;
+	debug_checksum_actual <= 0;
      end 
      else 
      begin
@@ -174,6 +184,8 @@ module drop_packets1
 	header <= header_next;
 	drop_array <= drop_array_next;
 	destip_addr <= destip_next;
+	debug_checksum_expected <= debugE;
+	debug_checksum_actual <= debugA;
      end
   end
 

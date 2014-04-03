@@ -4,7 +4,7 @@ from NFTest import *
 import random
 from RegressRouterLib import *
 import os
-
+import sys
 from scapy.layers.all import Ether, IP, TCP
 from reg_defines_reference_router import *
 
@@ -39,17 +39,28 @@ nextHopMAC = "dd:55:dd:66:dd:77"
 # Non IP option or ip_ver not 4
 VERSION = 5
 sent_pkts = []
-
+pkts = []
+send_pkt = []
 nftest_barrier() 
 
 # loop for 30 packets
+
+
+spkt = make_IP_pkt(dst_MAC=routerMAC[1], src_MAC=SA, src_IP=SRC_IP,
+                       dst_IP=DST_IP, pkt_len=1024)#random.randint(60,1514))
+spkt.version = VERSION
+
+spkt.show2()
+
 for i in range(30):
     if isHW():
 	for port in range(2):
 	    DA = routerMAC[port]
             sent_pkt = make_IP_pkt(dst_MAC=DA, src_MAC=SA, src_IP=SRC_IP,
-                               dst_IP=DST_IP, pkt_len=random.randint(60,1514))
+                               dst_IP=DST_IP, pkt_len=1024)#random.randint(60,1514))
             sent_pkt.version = VERSION
+	    #send_pkt.show()
+	    #pkts.append(send_pkt)
             nftest_send_phy('nf%d'%port, sent_pkt)
             nftest_expect_dma('nf%d'%port, sent_pkt)
     else:
@@ -64,11 +75,16 @@ if not isHW():
     nftest_send_phy('nf0', sent_pkts)
     nftest_expect_dma('nf0', sent_pkts)
 
+
+#pkts.show2()
 nftest_barrier() 
 
 # Read the counters
 if isHW():
     rres1=nftest_regread_expect(XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_PKT_SENT_CPU_OPTION_VER(), 60)	
+    rres1=nftest_regread_expect(XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_PKT_DROPPED_CHECKSUM(), 0)
+    rres1=nftest_regread_expect(0x7680004c, 0)
+    rres1=nftest_regread_expect(0x76800050, 0)
     mres=[rres1]
 else:
     nftest_regread_expect(XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_PKT_SENT_CPU_OPTION_VER(), 30)	
