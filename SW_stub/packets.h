@@ -68,6 +68,31 @@ typedef struct PACKED packet_tcp {
 	uint16_t urgent_pointer;
 } packet_tcp_t;
 
+typedef struct PACKED packet_udp {
+	uint16_t source_port;
+	uint16_t destination_port;
+	uint16_t length;
+	uint16_t checksum;
+} packet_udp_t;
+
+typedef struct PACKED packet_dns {
+	uint16_t id;
+	unsigned QR:1;
+	unsigned Opcode:4;
+	unsigned AA:1;
+	unsigned TC:1;
+	unsigned RD:1;
+	unsigned RA:1;
+	unsigned Z:1;
+	unsigned AD:1;
+	unsigned CD:1;
+	unsigned Rcode:4;
+	uint16_t totalquestions;
+	uint16_t totalanswerrrs;
+	uint16_t totalauthorityrrs;
+	uint16_t totaladditionalrrs;
+} packet_dns_t;
+
 typedef struct arp_cache_entry {
 	addr_ip_t ip;
 	addr_mac_t mac;
