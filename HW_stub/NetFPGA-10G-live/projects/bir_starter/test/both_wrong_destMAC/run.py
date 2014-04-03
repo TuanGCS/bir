@@ -72,6 +72,7 @@ if not isHW():
 # Read the counters
 if isHW():
     rres1=nftest_regread_expect(XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_PKT_DROPPED_WRONG_DST_MAC(), 60)
+    rres1=nftest_regread_expect(XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_PKT_DROPPED_CHECKSUM(), 0)
     mres=[rres1]
 else:
     nftest_regread_expect(XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_PKT_DROPPED_WRONG_DST_MAC(), 30)

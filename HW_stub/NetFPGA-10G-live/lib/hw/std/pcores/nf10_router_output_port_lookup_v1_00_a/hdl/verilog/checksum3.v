@@ -76,7 +76,7 @@ module checksum3
 
 //   assign low_ip_addr = M_AXIS_TDATA[255:240];
 
-  reg [1:0] header , header_next;
+  reg header , header_next;
   reg [31:0] csf;
   reg [15:0] low_ip_next;
   
@@ -85,9 +85,8 @@ module checksum3
      header_next = header;
      csf = checksum_final;
      low_ip_next = low_ip_addr_out;
-     if(header == 2'd0 & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY) begin
-	    header_next = 1;
-
+     if(header == 0 & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY) begin
+	header_next = 1;
 	csf = checksum11 + checksum12 + low_ip_addr_in;
 	low_ip_next = low_ip_addr_in;
 /*
@@ -100,7 +99,7 @@ module checksum3
 	end 
 */
      end
-     else if(header == 2'd1 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
+     else if(header == 1 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
      begin
         header_next = 0;
 //	checksum_next1 = 0;

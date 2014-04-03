@@ -143,7 +143,8 @@ M_AXIS_TVALID, header, M_AXIS_TUSER, M_AXIS_TLAST, lpm_hit, lpm_hit_in, nh_reg, 
 	lpm_hit_next = lpm_hit;
      if(header == 2'd0 & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY)
      begin
-       header_next = 2'd1; 
+	header_next = 2'd1; 
+	lpm_hit_next = lpm_hit_in;
        if( !(M_AXIS_TUSER[DST_PORT_POS+1] || M_AXIS_TUSER[DST_PORT_POS+3] || M_AXIS_TUSER[DST_PORT_POS+5] || M_AXIS_TUSER[DST_PORT_POS+7]) )
        begin
 	  if(lpm_hit_in)
@@ -151,7 +152,6 @@ M_AXIS_TVALID, header, M_AXIS_TUSER, M_AXIS_TLAST, lpm_hit, lpm_hit_in, nh_reg, 
 	     oq_next = lpm_result[index_hit_in][63:32];
 	     nh_next = lpm_result[index_hit_in][31:0];
 	  end
-	  lpm_hit_next = lpm_hit_in;
 	end
       end
       else if( header == 2'd1 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY)
