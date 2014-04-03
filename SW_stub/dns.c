@@ -40,6 +40,41 @@ dns_query_ho_t * dns_mallocandparse_query_array(byte * address, int size) {
 	return array;
 }
 
+dns_query_ho_t * dns_mallocandparse_other_array(byte * address, int size) {
+	dns_cache_entry_t * array = (dns_cache_entry_t *) malloc(size * sizeof(dns_cache_entry_t));
+	int id;
+	for (id = 0; id < size; id++) {
+		dns_cache_entry_t * curr = &array[id];
+		curr->count = 0;
+		curr->query_names = NULL;
+
+		uint8_t char_size;
+		while ((char_size = *(address++))!=0) {
+
+			char * string = (char *) malloc(char_size+1);
+			string[char_size] = 0;
+			memcpy(string, address, char_size);
+			curr->count++;
+
+			if (curr->query_names == NULL)
+				curr->query_names = (char **) malloc(sizeof(char *)*curr->count);
+			else
+				curr->query_names = (char **) realloc((void *) curr->query_names , sizeof(char *)*curr->count);
+
+			curr->query_names[curr->count-1] = string;
+
+			address+=char_size;
+		}
+
+		curr->type = ntohs(*( (uint16_t *)  address ) ); address += 2;
+		curr->class = ntohs(*( (uint16_t *)  address ) ); address += 2;
+		curr->ttl = ntohs(*( (uint16_t *) address ) ); address += 4;
+		curr->length = ntohs(*( (uint16_t *) address ) ); address += 2;
+		curr->addr_ip = ntohs(*( (uint16_t *) address ) ); address += 4;
+	}
+	return array;
+}
+
 void dns_free_query_array(dns_query_ho_t * questions, int size) {
 	int i;
 	for (i = 0; i < size; i++) {
@@ -74,7 +109,14 @@ void dns_onreceive(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns) {
 		dns_free_query_array(questions, totalquestions);
 
 	} else {
-		// TODO
+
+		// Populate database
+
+		dns_query_ho_t * questions = dns_mallocandparse_query_array((byte *) ((byte *) dns + sizeof(packet_dns_t)), totalquestions);
+		dns_cache_entry_t * answers = dns_mallocandparse_query_array((byte *) ((byte *) dns + sizeof(packet_dns_t)), ntohs(dns->totalanswerrrs));
+		dns_cache_entry_t * auth_nameservers = dns_mallocandparse_query_array((byte *) ((byte *) dns + sizeof(packet_dns_t)), ntohs(dns->totalauthorityrrs));
+		dns_cache_entry_t * additional_records = dns_mallocandparse_query_array((byte *) ((byte *) dns + sizeof(packet_dns_t)), ntohs(dns->totaladditionalrrs));
+
 	}
 }
 

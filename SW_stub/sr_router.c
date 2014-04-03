@@ -114,6 +114,7 @@ void router_init(router_t* router) {
 	queue_init(&router->arp_cache);
 	queue_init(&router->ip_table);
 	queue_init(&router->iparp_buffer);
+	queue_init(&router->dns_cache);
 
 	gettimeofday(&router->last_lsu, NULL);
 
