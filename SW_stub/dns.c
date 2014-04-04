@@ -156,7 +156,7 @@ void dns_answer_add_query_to_end(dns_answer_proto_packet_t * answer, dns_query_h
 	assert(answerstartpos == answer->packet + answer->totalsize);
 }
 
-void dns_answer_add_PTR_answer_to_end(dns_answer_proto_packet_t * answer, char ** name, int name_count, char ** answer_name, int answer_name_count, uint32_t ttlseconds) {
+byte * dns_answer_add_generic_answer_to_end(dns_answer_proto_packet_t * answer, char ** name, int name_count, uint32_t ttlseconds, uint16_t type, uint16_t class, uint16_t additional_data_size) {
 	assert(answer->adding <= 0); // if this triggers order of adding Rdata is wrong
 	answer->adding = 0;
 
@@ -167,7 +167,7 @@ void dns_answer_add_PTR_answer_to_end(dns_answer_proto_packet_t * answer, char *
 		uint16_t length;
 	} dns_resource_basic_final_entry_t;
 
-	const int totalsize = calctotalsizeofencoding(name, name_count) + sizeof(dns_resource_basic_final_entry_t) + calctotalsizeofencoding(answer_name, answer_name_count);
+	const int totalsize = calctotalsizeofencoding(name, name_count) + sizeof(dns_resource_basic_final_entry_t) + additional_data_size;;
 
 	answer->totalsize += totalsize;
 	answer->packet = realloc(answer->packet, answer->totalsize);
@@ -180,48 +180,28 @@ void dns_answer_add_PTR_answer_to_end(dns_answer_proto_packet_t * answer, char *
 	dns_resource_basic_final_entry_t * middle_entry = (dns_resource_basic_final_entry_t *) answerstartpos;
 	answerstartpos+=sizeof(dns_resource_basic_final_entry_t);
 
-	middle_entry->class = htons(DNS_CLASS_IN);
-	middle_entry->length = htons(sizeof(addr_ip_t));
+	middle_entry->class = htons(class);
+	middle_entry->length = htons(additional_data_size);
 	middle_entry->ttl = htonl(ttlseconds);
-	middle_entry->type = htons(DNS_TYPE_PTR);
+	middle_entry->type = htons(type);
 
-	encode_dns_string(&answerstartpos, answer_name, answer_name_count);
+	return answerstartpos;
+}
 
-	assert(answerstartpos == answer->packet + answer->totalsize);
+void dns_answer_add_PTR_answer_to_end(dns_answer_proto_packet_t * answer, char ** name, int name_count, char ** answer_name, int answer_name_count, uint32_t ttlseconds) {
+	byte * ptr_to_end = dns_answer_add_generic_answer_to_end(answer, name, name_count, ttlseconds, DNS_TYPE_PTR, DNS_CLASS_IN, calctotalsizeofencoding(answer_name, answer_name_count));
+
+	encode_dns_string(&ptr_to_end, answer_name, answer_name_count);
+
+	assert(ptr_to_end == answer->packet + answer->totalsize);
 }
 
 void dns_answer_add_A_answer_to_end(dns_answer_proto_packet_t * answer, char ** name, int name_count, addr_ip_t ip, uint32_t ttlseconds) {
-	assert(answer->adding <= 0); // if this triggers order of adding Rdata is wrong
-	answer->adding = 0;
+	byte * ptr_to_end = dns_answer_add_generic_answer_to_end(answer, name, name_count, ttlseconds, DNS_TYPE_A, DNS_CLASS_IN, sizeof(addr_ip_t));
 
-	typedef struct PACKED {
-		uint16_t type;
-		uint16_t class;
-		uint32_t ttl;
-		uint16_t length;
-		addr_ip_t ip;
-	} dns_resource_final_entry_t;
+	*((addr_ip_t *)ptr_to_end) = ip; ptr_to_end+=sizeof(addr_ip_t);
 
-	const int totalsize = calctotalsizeofencoding(name, name_count) + sizeof(dns_resource_final_entry_t);
-
-	answer->totalsize += totalsize;
-	answer->packet = realloc(answer->packet, answer->totalsize);
-	byte * answerstartpos =  answer->packet + answer->totalsize - totalsize;
-	packet_dns_t * dns = (packet_dns_t *) answer->packet;
-	dns->totalanswerrrs = htons(ntohs(dns->totalanswerrrs) + 1);
-
-	encode_dns_string(&answerstartpos, name, name_count);
-
-	dns_resource_final_entry_t * middle_entry = (dns_resource_final_entry_t *) answerstartpos;
-	answerstartpos+=sizeof(dns_resource_final_entry_t);
-
-	middle_entry->class = htons(DNS_CLASS_IN);
-	middle_entry->length = htons(sizeof(addr_ip_t));
-	middle_entry->ttl = htonl(ttlseconds);
-	middle_entry->type = htons(DNS_TYPE_A);
-	middle_entry->ip = ip;
-
-	assert(answerstartpos == answer->packet + answer->totalsize);
+	assert(ptr_to_end == answer->packet + answer->totalsize);
 }
 
 void send_dns_proto_response(packet_info_t * incoming_pi, dns_answer_proto_packet_t * answer, packet_udp_t * original, uint8_t dns_err_code) {
