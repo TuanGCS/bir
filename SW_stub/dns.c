@@ -93,6 +93,7 @@ void dns_free_query_array(dns_query_ho_t * questions, int size) {
 
 dns_answer_proto_packet_t * dns_malloc_answer(uint16_t transact_id_networkorder) {
 	dns_answer_proto_packet_t * answer = (dns_answer_proto_packet_t *) malloc(sizeof(dns_answer_proto_packet_t));
+	answer->adding = 0;
 	answer->totalsize = sizeof(packet_dns_t);
 	answer->packet = malloc(answer->totalsize);
 	memset(answer->packet, 0, answer->totalsize);
@@ -116,7 +117,45 @@ int calctotalsizeofencoding(char ** name, int name_count) {
 	return total + 1;
 }
 
+void dns_answer_add_A_query_to_end(dns_answer_proto_packet_t * answer, char ** name, int name_count) {
+	assert(answer->adding <= 0); // if this triggers order of adding Rdata is wrong
+	answer->adding = 0;
+
+	typedef struct PACKED {
+		uint16_t type;
+		uint16_t class;
+	} dns_query_final_entry_t;
+
+	const int totalsize = calctotalsizeofencoding(name, name_count) + sizeof(dns_query_final_entry_t);
+
+	answer->totalsize += totalsize;
+	answer->packet = realloc(answer->packet, answer->totalsize);
+	byte * answerstartpos =  answer->packet + answer->totalsize - totalsize;
+	packet_dns_t * dns = (packet_dns_t *) answer->packet;
+	dns->totalquestions = htons(ntohs(dns->totalquestions) + 1);
+
+	int i;
+	for (i = 0; i < name_count; i++) {
+		const int len_name = strlen(name[i]);
+		*(answerstartpos++) = len_name;
+		memcpy(answerstartpos, name[i], len_name);
+		answerstartpos+=len_name;
+	}
+	*(answerstartpos++) = 0;
+
+	dns_query_final_entry_t * middle_entry = (dns_query_final_entry_t *) answerstartpos;
+	answerstartpos+=sizeof(dns_query_final_entry_t);
+
+	middle_entry->class = htons(DNS_CLASS_IN);
+	middle_entry->type = htons(DNS_TYPE_A);
+
+	assert(answerstartpos == answer->packet + answer->totalsize);
+}
+
 void dns_answer_add_A_answer_to_end(dns_answer_proto_packet_t * answer, char ** name, int name_count, addr_ip_t ip, uint32_t ttlseconds) {
+	assert(answer->adding <= 0); // if this triggers order of adding Rdata is wrong
+	answer->adding = 0;
+
 	typedef struct PACKED {
 		uint16_t type;
 		uint16_t class;
@@ -153,6 +192,64 @@ void dns_answer_add_A_answer_to_end(dns_answer_proto_packet_t * answer, char ** 
 	middle_entry->ip = ip;
 
 	assert(answerstartpos == answer->packet + answer->totalsize);
+}
+
+void send_dns_error(packet_info_t* incoming_pi, uint8_t code, packet_udp_t * original, int transact_id_networkorder) {
+	router_t * router = incoming_pi->router;
+
+	packet_info_t* pi = (packet_info_t *) malloc(sizeof(packet_info_t));
+
+	pi->len = sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(packet_udp_t) + sizeof(packet_dns_t);
+	pi->packet = (byte *) malloc(pi->len);
+	memset(pi->packet, 0, pi->len);
+	pi->router = router;
+
+	packet_ip4_t* ipv4 = (packet_ip4_t *) &pi->packet[sizeof(packet_ethernet_t)];
+	packet_ip4_t* original_ipv4 = (packet_ip4_t *) &incoming_pi->packet[sizeof(packet_ethernet_t)];
+	packet_ethernet_t * original_ethernet = (packet_ethernet_t *) incoming_pi->packet;
+
+	packet_dns_t * dns =  (packet_udp_t *) &pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(packet_udp_t)];
+
+	dns->totaladditionalrrs = 0;
+	dns->totalanswerrrs = 0;
+	dns->totalauthorityrrs = 0;
+	dns->totalquestions = 0;
+	dns->id = transact_id_networkorder;
+	dns->QR = 1;
+	dns->Rcode = code;
+
+	packet_udp_t * udp = (packet_udp_t *) &pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t)];
+
+	udp->length = htons(sizeof(packet_udp_t) + sizeof(packet_dns_t));
+	udp->destination_port = original->source_port;
+	udp->source_port = original->destination_port;
+	udp->checksum = 0;
+
+	// deal with updating the ip and ethernet and sending below
+
+	pi->interface = incoming_pi->interface;
+
+	generate_ipv4_header(pi->interface->ip, sizeof(packet_udp_t) + sizeof(packet_dns_t), ipv4, IP_TYPE_UDP, original_ipv4->src_ip);
+
+	ipv4->header_checksum = 0;
+	ipv4->header_checksum = generatechecksum((unsigned short*) ipv4, sizeof(packet_ip4_t));
+
+	int pseudodatasize;
+	byte * pseudo_udp_data = malloc_udp_pseudo_header(udp, ipv4, &pseudodatasize);
+	udp->checksum = generatechecksum((unsigned short*) pseudo_udp_data, pseudodatasize);
+	free (pseudo_udp_data);
+
+	if (ipv4->ttl < 1)
+		return;
+
+	if (ethernet_packet_send(get_sr(), pi->interface, original_ethernet->source_mac, pi->interface->mac,
+			htons(ETH_IP_TYPE), pi) == -1)
+		fprintf(stderr, "Cannot send PWOSPF LUS packet on interface %s\n",
+				pi->interface->name);
+
+
+	free(pi->packet);
+	free(pi);
 }
 
 void send_dns_proto_response(packet_info_t * incoming_pi, dns_answer_proto_packet_t * answer, packet_udp_t * original) {
@@ -256,12 +353,29 @@ void dns_onreceive(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns) {
 			printf("type %d, class %d\n", questions[i].qtype, questions[i].qclass);
 		}
 
+		// a hardcoded answer to the first query that always returns 10.0.1.1 for testing purposes
+		if (questions[0].qtype != DNS_TYPE_A || questions[0].qclass != DNS_CLASS_IN) {
+			fprintf(stderr, "Only A type class IN DNS queries are supported for now\n");
+			send_dns_error(pi, DNS_ERROR_NOTIMPLEMENTED, udp, dns->id);
+			return;
+		}
+
 		dns_answer_proto_packet_t * answer = dns_malloc_answer(dns->id);
 
 		//const int sargs = 2;
 		//char ** sarray = string_array_malloc(sargs, "abv", "bg");
 
+		// ATTENTION! data should be added in the FOLLOWING ORDER to Rdata
+
+		// ADD QUERIES
+		dns_answer_add_A_query_to_end(answer, questions[0].query_names, questions[0].count);
+
+		// ADD ANSWERS
 		dns_answer_add_A_answer_to_end(answer, questions[0].query_names, questions[0].count, IP_CONVERT(10, 0, 1, 1), 60*60*24);
+
+		// ADD AUTHORITES
+
+		// ADD ADDITIONALS
 
 		send_dns_proto_response(pi, answer, udp);
 

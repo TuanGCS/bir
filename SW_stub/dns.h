@@ -7,6 +7,9 @@
 
 #define DNS_CLASS_IN (1)
 
+#define DNS_ERROR_NAMEERROR (3)
+#define DNS_ERROR_NOTIMPLEMENTED (4)
+
 typedef struct dns_query_ho {
 	char ** query_names;
 	int count;
@@ -36,6 +39,7 @@ typedef struct dns_db_entry {
 typedef struct dns_r_proto_packet {
 	byte * packet;
 	int totalsize;
+	int adding;
 } dns_answer_proto_packet_t;
 
 
