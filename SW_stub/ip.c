@@ -251,7 +251,7 @@ void update_ip_packet_response(packet_info_t* pi, addr_ip_t dst_ip,
 }
 
 void generate_ipv4_header(addr_ip_t src_ip, int datagram_size,
-		packet_ip4_t* ipv4) {
+		packet_ip4_t* ipv4, uint8_t protocol, addr_ip_t dest) {
 
 	ipv4->version = 4;
 	ipv4->ihl = 5;
@@ -260,10 +260,10 @@ void generate_ipv4_header(addr_ip_t src_ip, int datagram_size,
 	ipv4->id = 0;
 	ipv4->flags_fragmentoffset = 0;
 	ipv4->ttl = 65;
-	ipv4->protocol = IP_TYPE_OSPF;
+	ipv4->protocol = protocol;
 	ipv4->header_checksum = 0;
 	ipv4->src_ip = src_ip;
-	ipv4->dst_ip = ALLSPFRouters;
+	ipv4->dst_ip = dest;
 
 	ipv4->header_checksum = generatechecksum((unsigned short*) ipv4,
 			sizeof(packet_ip4_t));
@@ -395,13 +395,16 @@ void ip_onreceive(packet_info_t* pi, packet_ip4_t * ipv4) {
 						pi->len)) {
 					packet_udp_t * udp = PACKET_MARSHALL(packet_udp_t,  pi->packet, sizeof(packet_ethernet_t) + sizeof(packet_ip4_t));
 
-//					if (generatechecksum((unsigned short*) udp,
-//							sizeof(packet_udp_t))
-//							!= (0)) {
-//						fprintf(stderr, "UDP Header Checksum Error. Dropping...\n");
-//						icmp_send(pi, ipv4, pi->router->interface[i].ip, ICMP_TYPE_DST_UNREACH, ICMP_CODE_PORT_UNREACH);
-//						return;
-//					}
+					int pseudodatasize;
+					byte * pseudo_udp_data = malloc_udp_pseudo_header(udp, ipv4, &pseudodatasize);
+
+					if (udp->checksum != 0 && generatechecksum((unsigned short*) pseudo_udp_data, pseudodatasize) != (0)) {
+						free(pseudo_udp_data);
+						fprintf(stderr, "UDP Header Checksum Error (length %d). Dropping...\n", ntohs(udp->length));
+						icmp_send(pi, ipv4, pi->router->interface[i].ip, ICMP_TYPE_DST_UNREACH, ICMP_CODE_PORT_UNREACH);
+						return;
+					}
+					free(pseudo_udp_data);
 
 					if (ntohs(udp->destination_port) == PORT_DNS) {
 						if (PACKET_CAN_MARSHALL(packet_dns_t, sizeof(packet_ethernet_t)+sizeof(packet_ip4_t)+sizeof(packet_udp_t),pi->len)) {

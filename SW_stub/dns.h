@@ -2,8 +2,10 @@
 #ifndef DNS_H_
 #define DNS_H_
 
-#define DNS_TYPE_A (0)
+#define DNS_TYPE_A (1)
 #define DNS_TYPE_NS (1)
+
+#define DNS_CLASS_IN (1)
 
 typedef struct dns_query_ho {
 	char ** query_names;

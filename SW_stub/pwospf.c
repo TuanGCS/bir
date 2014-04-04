@@ -627,7 +627,7 @@ void send_pwospf_lsa_packet(router_t* router) {
 		pi->interface = &router->interface[i];
 
 		generate_ipv4_header(router->interface[i].ip,
-				lsa_packet_length, ipv4);
+				lsa_packet_length, ipv4, IP_TYPE_OSPF, ALLSPFRouters);
 		generate_pwospf_link_header(router->pw_router.router_id, aid,
 				router->interface[i].subnet_mask, topologysize, pw_link,
 				lsa_packet_length);
@@ -673,7 +673,7 @@ void send_pwospf_hello_packet(router_t* router) {
 		pi->interface = &router->interface[i];
 
 		generate_ipv4_header(router->interface[i].ip,
-				sizeof(pwospf_packet_hello_t), ipv4);
+				sizeof(pwospf_packet_hello_t), ipv4, IP_TYPE_OSPF, ALLSPFRouters);
 		generate_pwospf_hello_header(router->pw_router.router_id, aid,
 				router->interface[i].subnet_mask, pw_hello);
 

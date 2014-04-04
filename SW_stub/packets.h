@@ -77,16 +77,19 @@ typedef struct PACKED packet_udp {
 
 typedef struct PACKED packet_dns {
 	uint16_t id;
-	unsigned QR:1;
-	unsigned Opcode:4;
-	unsigned AA:1;
-	unsigned TC:1;
-	unsigned RD:1;
-	unsigned RA:1;
-	unsigned Z:1;
-	unsigned AD:1;
-	unsigned CD:1;
-	unsigned Rcode:4;
+
+	unsigned RD:1;		// 7
+	unsigned TC:1;		// 6
+	unsigned AA:1;		// 5
+	unsigned Opcode:4;  // 1
+	unsigned QR:1; 		// 0
+
+	unsigned Rcode:4;	// 12
+	unsigned CD:1;		// 11
+	unsigned AD:1;		// 10
+	unsigned Z:1;		// 9
+	unsigned RA:1;		// 8
+
 	uint16_t totalquestions;
 	uint16_t totalanswerrrs;
 	uint16_t totalauthorityrrs;

@@ -8,6 +8,10 @@
 #include "packets.h"
 #include "sr_router.h"
 #include "dns.h"
+#include "ip.h"
+#include "globals.h"
+#include "ethernet_packet.h"
+#include <stdarg.h>
 
 dns_query_ho_t * dns_mallocandparse_query_array(byte * address, int size) {
 	dns_query_ho_t * array = (dns_query_ho_t *) malloc(size * sizeof(dns_query_ho_t));
@@ -87,18 +91,19 @@ void dns_free_query_array(dns_query_ho_t * questions, int size) {
 	free (questions);
 }
 
-dns_answer_proto_packet_t * dns_malloc_answer(void) {
+dns_answer_proto_packet_t * dns_malloc_answer(uint16_t transact_id_networkorder) {
 	dns_answer_proto_packet_t * answer = (dns_answer_proto_packet_t *) malloc(sizeof(dns_answer_proto_packet_t));
 	answer->totalsize = sizeof(packet_dns_t);
 	answer->packet = malloc(answer->totalsize);
+	memset(answer->packet, 0, answer->totalsize);
 	packet_dns_t * dns = (packet_dns_t *) answer->packet;
 
-
-	// TODO! populate!
 	dns->totaladditionalrrs = 0;
 	dns->totalanswerrrs = 0;
 	dns->totalauthorityrrs = 0;
 	dns->totalquestions = 0;
+	dns->id = transact_id_networkorder;
+	dns->QR = 1;
 
 	return answer;
 }
@@ -111,49 +116,124 @@ int calctotalsizeofencoding(char ** name, int name_count) {
 	return total + 1;
 }
 
-void dns_answer_add_A_answer_to_end(dns_answer_proto_packet_t * answer, char ** name, int name_count, addr_ip_t ip) {
-	typedef struct dns_resource_middle_entry {
+void dns_answer_add_A_answer_to_end(dns_answer_proto_packet_t * answer, char ** name, int name_count, addr_ip_t ip, uint32_t ttlseconds) {
+	typedef struct PACKED {
 		uint16_t type;
 		uint16_t class;
 		uint32_t ttl;
 		uint16_t length;
-	} dns_resource_middle_entry_t;
+		addr_ip_t ip;
+	} dns_resource_final_entry_t;
 
 
-	const int totalsize = calctotalsizeofencoding(name, name_count) + sizeof(dns_cache_entry_t) + sizeof(addr_ip_t);
-	byte * answerstartpos = answer->packet + answer->totalsize;
+	const int totalsize = calctotalsizeofencoding(name, name_count) + sizeof(dns_resource_final_entry_t);
 
 	answer->totalsize += totalsize;
 	answer->packet = realloc(answer->packet, answer->totalsize);
+	byte * answerstartpos =  answer->packet + answer->totalsize - totalsize;
 	packet_dns_t * dns = (packet_dns_t *) answer->packet;
-	dns->totalanswerrrs++;
+	dns->totalanswerrrs = htons(ntohs(dns->totalanswerrrs) + 1);
 
 	int i;
 	for (i = 0; i < name_count; i++) {
 		const int len_name = strlen(name[i]);
 		*(answerstartpos++) = len_name;
-		memcpy(answerstartpos, name, len_name);
+		memcpy(answerstartpos, name[i], len_name);
 		answerstartpos+=len_name;
 	}
 	*(answerstartpos++) = 0;
 
-	dns_resource_middle_entry_t * middle_entry = (dns_resource_middle_entry_t *) answerstartpos;
-	answerstartpos+=sizeof(answerstartpos);
+	dns_resource_final_entry_t * middle_entry = (dns_resource_final_entry_t *) answerstartpos;
+	answerstartpos+=sizeof(dns_resource_final_entry_t);
 
-	//TODO!
-	//middle_entry->class = htons();
+	middle_entry->class = htons(DNS_CLASS_IN);
 	middle_entry->length = htons(sizeof(addr_ip_t));
-	//middle_entry->ttl = htonl();
+	middle_entry->ttl = htonl(ttlseconds);
 	middle_entry->type = htons(DNS_TYPE_A);
-
-	*((addr_ip_t *) (answerstartpos++)) = ip;
+	middle_entry->ip = ip;
 
 	assert(answerstartpos == answer->packet + answer->totalsize);
+}
+
+void send_dns_proto_response(packet_info_t * incoming_pi, dns_answer_proto_packet_t * answer, packet_udp_t * original) {
+	router_t * router = incoming_pi->router;
+
+	packet_info_t* pi = (packet_info_t *) malloc(sizeof(packet_info_t));
+
+	pi->len = sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(packet_udp_t) + answer->totalsize;
+	pi->packet = (byte *) malloc(pi->len);
+	pi->router = router;
+
+	packet_ip4_t* ipv4 = (packet_ip4_t *) &pi->packet[sizeof(packet_ethernet_t)];
+	packet_ip4_t* original_ipv4 = (packet_ip4_t *) &incoming_pi->packet[sizeof(packet_ethernet_t)];
+	packet_ethernet_t * original_ethernet = (packet_ethernet_t *) incoming_pi->packet;
+
+	packet_udp_t * udp = (packet_udp_t *) &pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t)];
+
+	memcpy(&pi->packet[sizeof(packet_ethernet_t) + sizeof(packet_ip4_t) + sizeof(packet_udp_t)], answer->packet, answer->totalsize);
+
+	udp->length = htons(sizeof(packet_udp_t) + answer->totalsize);
+	udp->destination_port = original->source_port;
+	udp->source_port = original->destination_port;
+	udp->checksum = 0;
+
+
+
+	// deal with updating the ip and ethernet and sending below
+
+	pi->interface = incoming_pi->interface;
+
+	generate_ipv4_header(pi->interface->ip, sizeof(packet_udp_t) + answer->totalsize, ipv4, IP_TYPE_UDP, original_ipv4->src_ip);
+
+	ipv4->header_checksum = 0;
+	ipv4->header_checksum = generatechecksum((unsigned short*) ipv4, sizeof(packet_ip4_t));
+
+	int pseudodatasize;
+	byte * pseudo_udp_data = malloc_udp_pseudo_header(udp, ipv4, &pseudodatasize);
+	udp->checksum = generatechecksum((unsigned short*) pseudo_udp_data, pseudodatasize);
+	free (pseudo_udp_data);
+
+	if (ipv4->ttl < 1)
+		return;
+
+	if (ethernet_packet_send(get_sr(), pi->interface, original_ethernet->source_mac, pi->interface->mac,
+			htons(ETH_IP_TYPE), pi) == -1)
+		fprintf(stderr, "Cannot send PWOSPF LUS packet on interface %s\n",
+				pi->interface->name);
+
+
+	free(pi->packet);
+	free(pi);
 }
 
 void dns_free_answer(dns_answer_proto_packet_t * answer) {
 	free (answer->packet);
 	free (answer);
+}
+
+char ** string_array_malloc(int n_args, ... ) {
+	char ** answer = malloc(n_args * sizeof(char *));
+	va_list ap;
+	va_start(ap, n_args);
+	int i;
+	for (i=0;i<n_args;i++)
+	{
+		char * val=va_arg(ap,char *);
+		const int size = strlen(val);
+
+		answer[i] = malloc((size+1) * sizeof(char *));
+		answer[i][size] = 0;
+		memcpy(answer[i], val, size);
+	}
+	va_end(ap);
+	return answer;
+}
+
+void string_array_free(int n_args, char ** array) {
+	int i;
+	for (i = 0; i < n_args; i++)
+		free (array[i]);
+	free (array);
 }
 
 void dns_onreceive(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns) {
@@ -176,6 +256,17 @@ void dns_onreceive(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns) {
 			printf("type %d, class %d\n", questions[i].qtype, questions[i].qclass);
 		}
 
+		dns_answer_proto_packet_t * answer = dns_malloc_answer(dns->id);
+
+		//const int sargs = 2;
+		//char ** sarray = string_array_malloc(sargs, "abv", "bg");
+
+		dns_answer_add_A_answer_to_end(answer, questions[0].query_names, questions[0].count, IP_CONVERT(10, 0, 1, 1), 60*60*24);
+
+		send_dns_proto_response(pi, answer, udp);
+
+		//string_array_free(sargs, sarray);
+		dns_free_answer(answer);
 		dns_free_query_array(questions, totalquestions);
 
 	} else {

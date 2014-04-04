@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include "icmp_type.h"
+#include "globals.h"
 
 #ifdef _CPUMODE_
 #include "common/nf10util.h"

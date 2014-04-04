@@ -20,6 +20,6 @@ void update_ip_packet_response(packet_info_t* pi, addr_ip_t dst_ip, addr_ip_t sr
 int ip_longestprefixmatch(dataqueue_t * table, addr_ip_t ip, rtable_entry_t * result);
 void ip_initialize_stub_packet(packet_info_t* pi, int protocol);
 void ip_print(packet_ip4_t * packet);
-void generate_ipv4_header(addr_ip_t src_ip, int datagram_size, packet_ip4_t* ipv4);
+void generate_ipv4_header(addr_ip_t src_ip, int datagram_size, packet_ip4_t* ipv4, uint8_t protocol, addr_ip_t dest);
 
 #endif
