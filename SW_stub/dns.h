@@ -7,6 +7,7 @@
 
 #define DNS_CLASS_IN (1)
 
+#define DNS_ERROR_NO_ERROR (0)
 #define DNS_ERROR_NAMEERROR (3)
 #define DNS_ERROR_NOTIMPLEMENTED (4)
 
