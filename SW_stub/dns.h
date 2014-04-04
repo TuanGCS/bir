@@ -3,7 +3,8 @@
 #define DNS_H_
 
 #define DNS_TYPE_A (1)
-#define DNS_TYPE_NS (1)
+#define DNS_TYPE_NS (2)
+#define DNS_TYPE_PTR (12)
 
 #define DNS_CLASS_IN (1)
 

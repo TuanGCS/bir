@@ -13,6 +13,17 @@
 #include "ethernet_packet.h"
 #include <stdarg.h>
 
+void encode_dns_string(byte ** start, char ** names, int size) {
+	int i;
+	for (i = 0; i < size; i++) {
+		const int len_name = strlen(names[i]);
+		*((*start)++) = len_name;
+		memcpy((*start), names[i], len_name);
+		(*start)+=len_name;
+	}
+	*((*start)++) = 0;
+}
+
 dns_query_ho_t * dns_mallocandparse_query_array(byte * address, int size) {
 	dns_query_ho_t * array = (dns_query_ho_t *) malloc(size * sizeof(dns_query_ho_t));
 	int id;
@@ -134,20 +145,47 @@ void dns_answer_add_query_to_end(dns_answer_proto_packet_t * answer, dns_query_h
 	packet_dns_t * dns = (packet_dns_t *) answer->packet;
 	dns->totalquestions = htons(ntohs(dns->totalquestions) + 1);
 
-	int i;
-	for (i = 0; i < question->count; i++) {
-		const int len_name = strlen(question->query_names[i]);
-		*(answerstartpos++) = len_name;
-		memcpy(answerstartpos, question->query_names[i], len_name);
-		answerstartpos+=len_name;
-	}
-	*(answerstartpos++) = 0;
+	encode_dns_string(&answerstartpos, question->query_names, question->count);
 
 	dns_query_final_entry_t * middle_entry = (dns_query_final_entry_t *) answerstartpos;
 	answerstartpos+=sizeof(dns_query_final_entry_t);
 
 	middle_entry->class = htons(question->qclass);
 	middle_entry->type = htons(question->qtype);
+
+	assert(answerstartpos == answer->packet + answer->totalsize);
+}
+
+void dns_answer_add_PTR_answer_to_end(dns_answer_proto_packet_t * answer, char ** name, int name_count, char ** answer_name, int answer_name_count, uint32_t ttlseconds) {
+	assert(answer->adding <= 0); // if this triggers order of adding Rdata is wrong
+	answer->adding = 0;
+
+	typedef struct PACKED {
+		uint16_t type;
+		uint16_t class;
+		uint32_t ttl;
+		uint16_t length;
+	} dns_resource_basic_final_entry_t;
+
+	const int totalsize = calctotalsizeofencoding(name, name_count) + sizeof(dns_resource_basic_final_entry_t) + calctotalsizeofencoding(answer_name, answer_name_count);
+
+	answer->totalsize += totalsize;
+	answer->packet = realloc(answer->packet, answer->totalsize);
+	byte * answerstartpos =  answer->packet + answer->totalsize - totalsize;
+	packet_dns_t * dns = (packet_dns_t *) answer->packet;
+	dns->totalanswerrrs = htons(ntohs(dns->totalanswerrrs) + 1);
+
+	encode_dns_string(&answerstartpos, name, name_count);
+
+	dns_resource_basic_final_entry_t * middle_entry = (dns_resource_basic_final_entry_t *) answerstartpos;
+	answerstartpos+=sizeof(dns_resource_basic_final_entry_t);
+
+	middle_entry->class = htons(DNS_CLASS_IN);
+	middle_entry->length = htons(sizeof(addr_ip_t));
+	middle_entry->ttl = htonl(ttlseconds);
+	middle_entry->type = htons(DNS_TYPE_PTR);
+
+	encode_dns_string(&answerstartpos, answer_name, answer_name_count);
 
 	assert(answerstartpos == answer->packet + answer->totalsize);
 }
@@ -164,7 +202,6 @@ void dns_answer_add_A_answer_to_end(dns_answer_proto_packet_t * answer, char ** 
 		addr_ip_t ip;
 	} dns_resource_final_entry_t;
 
-
 	const int totalsize = calctotalsizeofencoding(name, name_count) + sizeof(dns_resource_final_entry_t);
 
 	answer->totalsize += totalsize;
@@ -173,14 +210,7 @@ void dns_answer_add_A_answer_to_end(dns_answer_proto_packet_t * answer, char ** 
 	packet_dns_t * dns = (packet_dns_t *) answer->packet;
 	dns->totalanswerrrs = htons(ntohs(dns->totalanswerrrs) + 1);
 
-	int i;
-	for (i = 0; i < name_count; i++) {
-		const int len_name = strlen(name[i]);
-		*(answerstartpos++) = len_name;
-		memcpy(answerstartpos, name[i], len_name);
-		answerstartpos+=len_name;
-	}
-	*(answerstartpos++) = 0;
+	encode_dns_string(&answerstartpos, name, name_count);
 
 	dns_resource_final_entry_t * middle_entry = (dns_resource_final_entry_t *) answerstartpos;
 	answerstartpos+=sizeof(dns_resource_final_entry_t);
@@ -277,6 +307,48 @@ void string_array_free(int n_args, char ** array) {
 	free (array);
 }
 
+void handle_question(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns, dns_query_ho_t * question) {
+	// a hardcoded answer that always returns 10.0.1.1 for testing purposes
+
+	dns_answer_proto_packet_t * answer = dns_malloc_answer(dns->id);
+
+	// ATTENTION! data should be added in the CORRECT ORDER to Rdata. First add QUERIES, THEN ANSWERS, THEN AUTHORITIES, THEN ADDITIONALS
+	// If this order is not followed, an assertion will fail
+
+	// ADD QUERIES
+	dns_answer_add_query_to_end(answer, question);
+
+	if (question->qclass != DNS_CLASS_IN) {
+		fprintf(stderr, "Only class IN DNS queries are supported for now!\n");
+		send_dns_proto_response(pi, answer, udp, DNS_ERROR_NOTIMPLEMENTED);
+	}
+	else if (question->qtype == DNS_TYPE_PTR) {
+
+		const int sargs = 3;
+		char ** sarray = string_array_malloc(sargs, "martin", "georgi", "nadesh");
+
+		// ADD ANSWERS
+		dns_answer_add_PTR_answer_to_end(answer, question->query_names, question->count, sarray, sargs, 60*60*24);
+
+		send_dns_proto_response(pi, answer, udp, DNS_ERROR_NO_ERROR);
+
+		string_array_free(sargs, sarray);
+
+	}
+	else if (question->qtype == DNS_TYPE_A) {
+
+		// ADD ANSWERS
+		dns_answer_add_A_answer_to_end(answer, question->query_names, question->count, IP_CONVERT(10, 0, 1, 1), 60*60*24);
+
+		send_dns_proto_response(pi, answer, udp, DNS_ERROR_NO_ERROR);
+	} else {
+		fprintf(stderr, "Unsupported DNS query type!\n");
+		send_dns_proto_response(pi, answer, udp, DNS_ERROR_NOTIMPLEMENTED);
+	}
+
+	dns_free_answer(answer);
+}
+
 void dns_onreceive(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns) {
 	const uint16_t totalquestions = ntohs(dns->totalquestions);
 	printf("Total questions %d\n", totalquestions);
@@ -297,36 +369,9 @@ void dns_onreceive(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns) {
 			printf("type %d, class %d\n", questions[i].qtype, questions[i].qclass);
 		}
 
-		// a hardcoded answer to the first query that always returns 10.0.1.1 for testing purposes
+		// only answer to the first query for now
+		handle_question(pi, udp, dns, &questions[0]);
 
-		dns_answer_proto_packet_t * answer = dns_malloc_answer(dns->id);
-
-		//const int sargs = 2;
-		//char ** sarray = string_array_malloc(sargs, "abv", "bg");
-
-		// ATTENTION! data should be added in the CORRECT ORDER to Rdata. First add QUERIES, THEN ANSWERS, THEN AUTHORITIES, THEN ADDITIONALS
-		// If this order is not followed, an assertion will fail
-
-		// ADD QUERIES
-		dns_answer_add_query_to_end(answer, &questions[0]);
-
-		if (questions[0].qtype != DNS_TYPE_A || questions[0].qclass != DNS_CLASS_IN) {
-			fprintf(stderr, "Only A type class IN DNS queries are supported for now\n");
-			send_dns_proto_response(pi, answer, udp, DNS_ERROR_NOTIMPLEMENTED);
-		} else {
-
-			// ADD ANSWERS
-			dns_answer_add_A_answer_to_end(answer, questions[0].query_names, questions[0].count, IP_CONVERT(10, 0, 1, 1), 60*60*24);
-
-			// ADD AUTHORITES
-
-			// ADD ADDITIONALS
-
-			send_dns_proto_response(pi, answer, udp, DNS_ERROR_NO_ERROR);
-		}
-
-		//string_array_free(sargs, sarray);
-		dns_free_answer(answer);
 		dns_free_query_array(questions, totalquestions);
 
 	} else {
