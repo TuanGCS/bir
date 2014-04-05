@@ -13,8 +13,10 @@
 #-------------------------------------------------------------------------------
 
 netfpga : MODE = -D_CPUMODE_
-
 netfpga : all
+
+netfpganadesh : MODE = -DNETFPGA_NADESH -D_CPUMODE_
+netfpganadesh : all
 
 all : sr
 
