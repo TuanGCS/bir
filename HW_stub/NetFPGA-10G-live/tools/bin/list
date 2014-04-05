@@ -1,0 +1,11 @@
+both_arp_misses
+both_badipchksum_packet
+both_cpu_packet
+both_invalidttl_packet
+both_ipdestfilter_hit
+both_lpm_generic
+both_lpm_misses
+both_lpm_nexthop
+both_nonip_packet
+both_nonipv4_packet
+both_wrong_destMAC
