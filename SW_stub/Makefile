@@ -12,9 +12,13 @@
 #
 #-------------------------------------------------------------------------------
 
-netfpga : MODE = -D_CPUMODE_
+netfpga : MODE += -D_CPUMODE_
+
+netfpganadesh : MODE += -DNETFPGA_NADESH
 
 netfpga : all
+
+netfpganadesh : netfpga
 
 all : sr
 

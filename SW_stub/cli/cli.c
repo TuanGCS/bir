@@ -337,6 +337,8 @@ void cli_show_hw_route() {
 		}
 	}
 
+	cli_send_strf("\n Debug info: Value of XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP is 0x%x\n", XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_LPM_IP);
+
 	cli_send_str( "\n" );
 }
 #endif
