@@ -1,4 +1,5 @@
 #include <string.h>
+#include <inttypes.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -56,7 +57,7 @@ dns_query_ho_t * dns_mallocandparse_query_array(byte * address, int size) {
 	return array;
 }
 
-dns_query_ho_t * dns_mallocandparse_other_array(byte * address, int size) {
+dns_cache_entry_t * dns_mallocandparse_other_array(byte * address, int size) {
 	dns_cache_entry_t * array = (dns_cache_entry_t *) malloc(size * sizeof(dns_cache_entry_t));
 	int id;
 	for (id = 0; id < size; id++) {
@@ -84,10 +85,11 @@ dns_query_ho_t * dns_mallocandparse_other_array(byte * address, int size) {
 
 		curr->type = ntohs(*( (uint16_t *)  address ) ); address += 2;
 		curr->class = ntohs(*( (uint16_t *)  address ) ); address += 2;
-		curr->ttl = ntohs(*( (uint16_t *) address ) ); address += 4;
+		curr->ttl = ntohs(*( (uint32_t *) address ) ); address += 4;
 		curr->length = ntohs(*( (uint16_t *) address ) ); address += 2;
-		//curr->addr_ip = ntohs(*( (uint16_t *) address ) ); address += 4;
+		curr->rdata  = (byte *) address;
 	}
+
 	return array;
 }
 
@@ -329,9 +331,204 @@ void handle_question(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns, 
 	dns_free_answer(answer);
 }
 
+void populate_database() {
+
+	char arra[128][128];
+	char line[128];
+	int size;
+	int counter_lines;
+
+	// Extract data from file
+	static const char filename[] = "dns_database";
+	FILE *file = fopen(filename, "r");
+
+	if (file != NULL) {
+		counter_lines = 0;
+		while(fgets(line, sizeof line, file) != NULL) {
+			strcpy(arra[counter_lines], line);
+			counter_lines++;
+		}
+		fclose(file);
+	} else {
+		perror(filename);
+	}
+
+	int i;
+	for (i = 0; i < counter_lines; i++) {
+
+		dns_db_entry_t db_entry;
+		char * pch;
+		pch = strtok(arra[i], " ");
+
+		// Domain name
+		int k = 0;
+		char * tmp = pch;
+		char domain[128];
+		strcpy(domain, pch);
+
+		while((tmp = strchr(tmp, '.')) != NULL) {
+		    k++;
+		    tmp++;
+		}
+
+		char ** answer = malloc(k+1 * sizeof(char *));
+
+		char * dch;
+		char *saveptr;
+		dch = strtok_r(domain, ".", &saveptr);
+		int c = 0;
+
+		while (dch != NULL) {
+			size = strlen(dch);
+			answer[c] = malloc((size+1) * sizeof(char *));
+			answer[c][size] = 0;
+			memcpy(answer[c], dch, size);
+			c++;
+			dch = strtok_r(NULL, ".", &saveptr);
+		}
+
+		db_entry.names = answer;
+		db_entry.count = k+1;
+		int r;
+		for(r = 0; r < k+1; r++) {
+			printf("Answer: %s \n", answer[r]);
+		}
+		pch = strtok(NULL, " ");
+
+		// Type
+		db_entry.type = (uint16_t) atoi(pch);
+		printf("Type: %d \n", atoi(pch));
+		pch = strtok (NULL, " ");
+
+		// Class
+		db_entry.class = (uint16_t) atoi(pch);
+		printf("Class: %d \n", atoi(pch));
+		pch = strtok (NULL, " ");
+
+		// Address/Data
+		tmp = strchr(pch, '\n');
+		strcpy(tmp, "\0");
+		printf("Address: %s \n", pch);
+
+		tmp = strtok_r(pch, ".", &saveptr);
+		int ip[4];
+		int j = 0;
+		while (tmp != NULL) {
+			ip[j] = atoi(tmp);
+			j++;
+			tmp = strtok_r(NULL, ".", &saveptr);
+		}
+
+		db_entry.rdata = IP_CONVERT(ip[0], ip[1], ip[2], ip[3]);
+
+		queue_add(&get_router()->dns_db, &db_entry, sizeof(db_entry));
+
+		//free(answer);
+	}
+
+}
+
+char * concat_names(char ** names, int count) {
+
+	char name[128];
+	int name_size = 0;
+	int j;
+	for(j = 0; j < count; j++) {
+		strncpy(&name[name_size], names[j], strlen(names[j]));
+		name_size += strlen(names[j]) + 1;
+		if(j != count -1) {
+			name[name_size-1] = '.';
+		}
+
+	}
+
+	char * tmp = malloc(name_size * sizeof(char));
+	strncpy(tmp, name, name_size);
+
+	return tmp;
+
+}
+
+dns_db_entry_t * domainname_to_ip(char * dn) {
+
+	dataqueue_t * dns_db = &get_router()->dns_db;
+
+	int i;
+	for(i = 0; i < queue_getcurrentsize(dns_db); i++) {
+		int entry_size;
+		dns_db_entry_t * entry;
+		assert(queue_getidunsafe(dns_db, i, (void ** ) &entry, &entry_size));
+		assert(entry_size == sizeof(dns_db_entry_t));
+
+		char * name = concat_names(entry->names, entry->count);
+
+		if(*dn == *name) {
+			return entry;
+		}
+	}
+
+	return NULL;
+}
+
+dns_db_entry_t * ip_to_domainname(addr_ip_t ip) {
+
+	dataqueue_t * dns_db = &get_router()->dns_db;
+
+		int i;
+		for(i = 0; i < queue_getcurrentsize(dns_db); i++) {
+			int entry_size;
+			dns_db_entry_t * entry;
+			assert(queue_getidunsafe(dns_db, i, (void ** ) &entry, &entry_size));
+			assert(entry_size == sizeof(dns_db_entry_t));
+
+			if(entry->rdata == ip) {
+				return entry;
+			}
+		}
+
+	return NULL;
+}
+
 void dns_onreceive(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns) {
 	const uint16_t totalquestions = ntohs(dns->totalquestions);
 	printf("Total questions %d\n", totalquestions);
+
+	populate_database();
+
+	int i;
+	printf("\nDNS TABLE\n-------------\n\n");
+	for (i = 0; i < get_router()->dns_db.size; i++) {
+		dns_db_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(&get_router()->dns_db, i, (void **) &entry, &entry_size)) {
+
+			assert(entry_size == sizeof(dns_db_entry_t));
+
+			int j;
+			printf("%d: Answer: ", i+1);
+			for(j = 0; j < entry->count; j++) {
+				printf("%s.", entry->names[j]);
+			}
+			printf("\t Type: %d \t", entry->type);
+			printf("Class: %d \t", entry->class);
+			printf("IP: %s \n", quick_ip_to_string(entry->rdata));
+
+			queue_unlockid(&get_router()->dns_db, i);
+		}
+	}
+
+	printf("\n");
+
+	dns_db_entry_t * en1 = domainname_to_ip("abv.bg");
+	if(en1 != NULL) {
+		printf("Test 1: %s \n", quick_ip_to_string(en1->rdata));
+	}
+
+	dns_db_entry_t * en2 = ip_to_domainname(IP_CONVERT(192,168,0,1));
+	if(en2 != NULL) {
+		char * dn = concat_names(en1->names, en1->count);
+		printf("Test 2: %s \n", dn);
+	}
 
 	if (!dns->QR) {
 
@@ -356,12 +553,11 @@ void dns_onreceive(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns) {
 
 	} else {
 
-		// Populate database
+		//dns_query_ho_t * questions = dns_mallocandparse_query_array((byte *) ((byte *) dns + sizeof(packet_dns_t)), totalquestions);
 
-		dns_query_ho_t * questions = dns_mallocandparse_query_array((byte *) ((byte *) dns + sizeof(packet_dns_t)), totalquestions);
-		dns_cache_entry_t * answers = dns_mallocandparse_query_array((byte *) ((byte *) dns + sizeof(packet_dns_t)), ntohs(dns->totalanswerrrs));
-		dns_cache_entry_t * auth_nameservers = dns_mallocandparse_query_array((byte *) ((byte *) dns + sizeof(packet_dns_t)), ntohs(dns->totalauthorityrrs));
-		dns_cache_entry_t * additional_records = dns_mallocandparse_query_array((byte *) ((byte *) dns + sizeof(packet_dns_t)), ntohs(dns->totaladditionalrrs));
+//		dns_cache_entry_t * answers = dns_mallocandparse_other_array((byte *) ((byte *) dns + sizeof(packet_dns_t)), ntohs(dns->totalanswerrrs));
+//		dns_cache_entry_t * auth_nameservers = dns_mallocandparse_other_array((byte *) ((byte *) dns + sizeof(packet_dns_t)), ntohs(dns->totalauthorityrrs));
+//		dns_cache_entry_t * additional_records = dns_mallocandparse_other_array((byte *) ((byte *) dns + sizeof(packet_dns_t)), ntohs(dns->totaladditionalrrs));
 
 	}
 }

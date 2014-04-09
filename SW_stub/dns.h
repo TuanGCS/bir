@@ -31,11 +31,11 @@ typedef struct dns_cache_entry {
 } dns_cache_entry_t;
 
 typedef struct dns_db_entry {
-	char ** query_names;
+	char ** names;
+	uint8_t count;
 	uint16_t type;
 	uint16_t class;
-	uint16_t length;
-	byte * rdata;
+	uint32_t rdata;
 } dns_db_entry_t;
 
 typedef struct dns_r_proto_packet {

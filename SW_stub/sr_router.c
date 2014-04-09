@@ -114,6 +114,7 @@ void router_init(router_t* router) {
 	queue_init(&router->arp_cache);
 	queue_init(&router->ip_table);
 	queue_init(&router->iparp_buffer);
+	queue_init(&router->dns_db);
 	queue_init(&router->dns_cache);
 
 	gettimeofday(&router->last_lsu, NULL);
@@ -135,6 +136,8 @@ void router_destroy(router_t* router) {
 	queue_free(&router->arp_cache);
 	queue_free(&router->ip_table);
 	queue_free(&router->iparp_buffer);
+	queue_free(&router->dns_cache);
+	queue_free(&router->dns_db);
 
 	int i;
 	for (i = 0; i < router->num_interfaces; i++) {
