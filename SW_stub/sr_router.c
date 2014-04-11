@@ -17,31 +17,38 @@
 #include "ip.h"
 #include "sr_interface.h"
 #include "globals.h"
+#include "dns.h"
 
 #ifdef _CPUMODE_
 #include "reg_defines.h"
 
-void register_ownip(router_t* router, addr_ip_t  ip) {
+void register_ownip(router_t* router, addr_ip_t ip) {
 	static int owniptableid = 0;
 
-	assert (owniptableid < 32);
+	assert(owniptableid < 32);
 
-	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_IP, ntohl(ip));
-	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_WR_ADDR, owniptableid);
+	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_IP,
+			ntohl(ip));
+	writeReg(router->nf.fd,
+			XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_WR_ADDR, owniptableid);
 
 	uint32_t read_ip;
 	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_IP, 0);
-	writeReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_RD_ADDR, owniptableid);
-	readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_IP, &read_ip);
+	writeReg(router->nf.fd,
+			XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_RD_ADDR, owniptableid);
+	readReg(router->nf.fd, XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_FILTER_IP,
+			&read_ip);
 
-	assert (read_ip == ntohl(ip));
+	assert(read_ip == ntohl(ip));
 
 	owniptableid++;
 }
 
-void register_interface(router_t* router, interface_t * iface, int interface_index) {
+void register_interface(router_t* router, interface_t * iface,
+		int interface_index) {
 
-	printf("NETFPGA: Assigning register values for interface %d; MAC: %s", interface_index, quick_mac_to_string(&iface->mac));
+	printf("NETFPGA: Assigning register values for interface %d; MAC: %s",
+			interface_index, quick_mac_to_string(&iface->mac));
 	printf("; IP: %s\n", quick_ip_to_string(iface->ip));
 
 	const uint32_t mac_low = mac_lo(&iface->mac);
@@ -50,7 +57,7 @@ void register_interface(router_t* router, interface_t * iface, int interface_ind
 	uint32_t mac_addr_low;
 	uint32_t mac_addr_high;
 
-	switch(interface_index) {
+	switch (interface_index) {
 	case 0:
 		mac_addr_low = XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_0_LOW;
 		mac_addr_high = XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_MAC_0_HIGH;
@@ -89,19 +96,19 @@ void router_init(router_t* router) {
 #ifdef _CPUMODE_
 	//init_registers(router); TODO! Why is this here?!?
 	router->nf.device_name = "nf10";
-	check_iface( &router->nf );
-	if( openDescriptor( &router->nf ) != 0 )
-	die( "Error: failed to connect to the hardware" );
+	check_iface(&router->nf);
+	if (openDescriptor(&router->nf) != 0)
+		die("Error: failed to connect to the hardware");
 	else {
 		/* wait for the reset to complete */
 		struct timespec pause;
 		pause.tv_sec = 0;
 		pause.tv_nsec = 5000 * 1000; /* 5ms */
-		nanosleep( &pause, NULL );
+		nanosleep(&pause, NULL);
 	}
 
 	// define all IP packet destinations that will be routed to software here
-	register_ownip(router, IP_CONVERT(244,0,0,5));
+	register_ownip(router, IP_CONVERT(244, 0, 0, 5));
 #endif
 
 	router->is_router_running = 1;
@@ -118,6 +125,9 @@ void router_init(router_t* router) {
 	queue_init(&router->dns_cache);
 
 	gettimeofday(&router->last_lsu, NULL);
+
+	// Populate DNS database
+	populate_database(&router->dns_db);
 
 #ifndef _THREAD_PER_PACKET_
 	debug_println("Initializing the router work queue with %u worker threads",
@@ -147,12 +157,13 @@ void router_destroy(router_t* router) {
 		for (n = 0; n < neighbours->size; n++) {
 			pwospf_list_entry_t * entry;
 			int entry_size;
-			if (queue_getidandlock(neighbours, n, (void **) &entry, &entry_size)) {
+			if (queue_getidandlock(neighbours, n, (void **) &entry,
+					&entry_size)) {
 
 				assert(entry_size == sizeof(pwospf_list_entry_t));
 
 				if (entry->lsu_lastcontents != NULL)
-					free (entry->lsu_lastcontents);
+					free(entry->lsu_lastcontents);
 
 				queue_unlockid(neighbours, n);
 			}
@@ -162,7 +173,7 @@ void router_destroy(router_t* router) {
 	}
 
 #ifdef _CPUMODE_
-	closeDescriptor( &router->nf );
+	closeDescriptor(&router->nf);
 #endif
 
 #ifndef _THREAD_PER_PACKET_

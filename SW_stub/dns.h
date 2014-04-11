@@ -45,6 +45,7 @@ typedef struct dns_r_proto_packet {
 } dns_answer_proto_packet_t;
 
 
+void populate_database(dataqueue_t * dns_db);
 void dns_onreceive(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns);
 
 #endif /* DNS_H_ */

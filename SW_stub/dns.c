@@ -331,102 +331,7 @@ void handle_question(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns, 
 	dns_free_answer(answer);
 }
 
-void populate_database() {
 
-	char arra[128][128];
-	char line[128];
-	int size;
-	int counter_lines;
-
-	// Extract data from file
-	static const char filename[] = "dns_database";
-	FILE *file = fopen(filename, "r");
-
-	if (file != NULL) {
-		counter_lines = 0;
-		while(fgets(line, sizeof line, file) != NULL) {
-			strcpy(arra[counter_lines], line);
-			counter_lines++;
-		}
-		fclose(file);
-	} else {
-		perror(filename);
-	}
-
-	int i;
-	for (i = 0; i < counter_lines; i++) {
-
-		dns_db_entry_t db_entry;
-		char * pch;
-		pch = strtok(arra[i], " ");
-
-		// Domain name
-		int k = 0;
-		char * tmp = pch;
-		char domain[128];
-		strcpy(domain, pch);
-
-		while((tmp = strchr(tmp, '.')) != NULL) {
-		    k++;
-		    tmp++;
-		}
-
-		char ** answer = malloc(k+1 * sizeof(char *));
-
-		char * dch;
-		char *saveptr;
-		dch = strtok_r(domain, ".", &saveptr);
-		int c = 0;
-
-		while (dch != NULL) {
-			size = strlen(dch);
-			answer[c] = malloc((size+1) * sizeof(char *));
-			answer[c][size] = 0;
-			memcpy(answer[c], dch, size);
-			c++;
-			dch = strtok_r(NULL, ".", &saveptr);
-		}
-
-		db_entry.names = answer;
-		db_entry.count = k+1;
-		int r;
-		for(r = 0; r < k+1; r++) {
-			printf("Answer: %s \n", answer[r]);
-		}
-		pch = strtok(NULL, " ");
-
-		// Type
-		db_entry.type = (uint16_t) atoi(pch);
-		printf("Type: %d \n", atoi(pch));
-		pch = strtok (NULL, " ");
-
-		// Class
-		db_entry.class = (uint16_t) atoi(pch);
-		printf("Class: %d \n", atoi(pch));
-		pch = strtok (NULL, " ");
-
-		// Address/Data
-		tmp = strchr(pch, '\n');
-		strcpy(tmp, "\0");
-		printf("Address: %s \n", pch);
-
-		tmp = strtok_r(pch, ".", &saveptr);
-		int ip[4];
-		int j = 0;
-		while (tmp != NULL) {
-			ip[j] = atoi(tmp);
-			j++;
-			tmp = strtok_r(NULL, ".", &saveptr);
-		}
-
-		db_entry.rdata = IP_CONVERT(ip[0], ip[1], ip[2], ip[3]);
-
-		queue_add(&get_router()->dns_db, &db_entry, sizeof(db_entry));
-
-		//free(answer);
-	}
-
-}
 
 char * concat_names(char ** names, int count) {
 
@@ -449,7 +354,98 @@ char * concat_names(char ** names, int count) {
 
 }
 
-dns_db_entry_t * domainname_to_ip(char * dn) {
+void populate_database(dataqueue_t * dns_db) {
+
+	char arra[128][128];
+	char line[128];
+	int size;
+	int counter = 0;
+
+	// Extract data from file
+	static const char filename[] = "dns_database";
+	FILE *file = fopen(filename, "r");
+
+	if (file != NULL) {
+		while(fgets(line, sizeof line, file) != NULL) {
+			strcpy(arra[counter], line);
+			counter++;
+		}
+		fclose(file);
+	} else {
+		perror(filename);
+	}
+
+	int i;
+	for (i = 0; i < counter; i++) {
+
+		dns_db_entry_t db_entry;
+		char * pch;
+		pch = strtok(arra[i], " ");
+
+		// Domain name
+		int k = 0;
+		char * tmp = pch;
+		char domain[128];
+		strcpy(domain, pch);
+
+		// Count '.'
+		while((tmp = strchr(tmp, '.')) != NULL) {
+		    k++;
+		    tmp++;
+		}
+
+		char ** answer = malloc(k+1 * sizeof(char *));
+
+		char * dch;
+		char *saveptr;
+		int c = 0;
+		dch = strtok_r(domain, ".", &saveptr);
+
+		while (dch != NULL && c < k+1) {
+			size = strlen(dch);
+			answer[c] = malloc((size+1) * sizeof(char *));
+			answer[c][size] = 0;
+			memcpy(answer[c], dch, size);
+			c++;
+			dch = strtok_r(NULL, ".", &saveptr);
+		}
+
+		db_entry.names = answer;
+		db_entry.count = k+1;
+		pch = strtok(NULL, " ");
+
+		// Type
+		db_entry.type = (uint16_t) atoi(pch);
+		pch = strtok (NULL, " ");
+
+		// Class
+		db_entry.class = (uint16_t) atoi(pch);
+		pch = strtok (NULL, " ");
+
+		// Address/Data
+		tmp = strchr(pch, '\n');
+		strcpy(tmp, "\0");
+
+		tmp = strtok_r(pch, ".", &saveptr);
+		int ip[4];
+		int j = 0;
+		while (tmp != NULL && j < 4) {
+			ip[j] = atoi(tmp);
+			j++;
+			tmp = strtok_r(NULL, ".", &saveptr);
+		}
+
+		db_entry.rdata = IP_CONVERT(ip[0], ip[1], ip[2], ip[3]);
+
+
+		queue_add(dns_db, &db_entry, sizeof(db_entry));
+
+		//free(answer);
+	}
+
+}
+
+dns_db_entry_t * get_by_domainname(char * dn) {
 
 	dataqueue_t * dns_db = &get_router()->dns_db;
 
@@ -470,7 +466,7 @@ dns_db_entry_t * domainname_to_ip(char * dn) {
 	return NULL;
 }
 
-dns_db_entry_t * ip_to_domainname(addr_ip_t ip) {
+dns_db_entry_t * get_by_ip(addr_ip_t ip) {
 
 	dataqueue_t * dns_db = &get_router()->dns_db;
 
@@ -492,8 +488,6 @@ dns_db_entry_t * ip_to_domainname(addr_ip_t ip) {
 void dns_onreceive(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns) {
 	const uint16_t totalquestions = ntohs(dns->totalquestions);
 	printf("Total questions %d\n", totalquestions);
-
-	populate_database();
 
 	int i;
 	printf("\nDNS TABLE\n-------------\n\n");
@@ -519,14 +513,14 @@ void dns_onreceive(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns) {
 
 	printf("\n");
 
-	dns_db_entry_t * en1 = domainname_to_ip("abv.bg");
+	dns_db_entry_t * en1 = get_by_domainname("abv.bg");
 	if(en1 != NULL) {
 		printf("Test 1: %s \n", quick_ip_to_string(en1->rdata));
 	}
 
-	dns_db_entry_t * en2 = ip_to_domainname(IP_CONVERT(192,168,0,1));
+	dns_db_entry_t * en2 = get_by_ip(IP_CONVERT(192,168,0,1));
 	if(en2 != NULL) {
-		char * dn = concat_names(en1->names, en1->count);
+		char * dn = concat_names(en2->names, en2->count);
 		printf("Test 2: %s \n", dn);
 	}
 
