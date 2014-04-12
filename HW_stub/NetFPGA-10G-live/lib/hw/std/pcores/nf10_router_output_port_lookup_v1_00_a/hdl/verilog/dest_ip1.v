@@ -150,38 +150,42 @@ destip_addr,cpu_hit_array,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_c
 	cpu_hit_array_next = 0;
 	if(!pkt_is_from_cpu)
 	begin //{
-	if(M_AXIS_TDATA[79:72] < 1) // Check TTL
-	begin
-	  cpu_hit_array_next[0] = 1;
-	  bad_ttl_next = bad_ttl_next + 1;
-	end
-	if(M_AXIS_TDATA[143:140] != 4'd4 )
-	begin
-	  cpu_hit_array_next[1] = 1;
-	  ver_next = ver_next + 1;
-	end
+
 	if(M_AXIS_TDATA[159:144] != 16'h0800)	
 	begin
 	  cpu_hit_array_next[2] = 1;
 	  non_ip_next = non_ip_next + 1;
 	end
-  	else //if(M_AXIS_TDATA[159:144] == 16'h0800)
-	begin//{
-	  for(j=0; j<32; j=j+1)
+	else
+	begin //{
+ 	  if(M_AXIS_TDATA[79:72] < 1) // Check TTL
 	  begin
-	    if(destip_addr == dest_ip_table[j]) 
-	    begin
-	      dest_ip_hit = 1;
-	    end
- 	  end
-
-	  if(dest_ip_hit)
-	  begin
-	     cpu_hit_array_next[3] = 1;
-	     dest_hit_next = dest_hit_next + 1;
+	    cpu_hit_array_next[0] = 1;
+	    bad_ttl_next = bad_ttl_next + 1;
 	  end
+	  else if( M_AXIS_TDATA[143:140] != 4'd4 || ( (M_AXIS_TDATA[143:140] == 4'd4) && ( M_AXIS_TDATA[139:136] != 4'd5) ) )
+	  begin
+	    cpu_hit_array_next[1] = 1;
+	    ver_next = ver_next + 1;
+	  end
+	  else
+	  begin //{
+	    for(j=0; j<32; j=j+1)
+	    begin
+	      if(destip_addr == dest_ip_table[j]) 
+	      begin
+	        dest_ip_hit = 1;
+	      end
+ 	    end
+
+	    if(dest_ip_hit)
+	    begin
+	      cpu_hit_array_next[3] = 1;
+	      dest_hit_next = dest_hit_next + 1;
+	    end
+	  end//}
 	end//}
-	end//}
+	end //}
    end//}
    else if(header == 1 & M_AXIS_TLAST & M_AXIS_TVALID & M_AXIS_TREADY )
    begin

@@ -108,42 +108,45 @@ module drop_packets1
 	drop_array_next = 5'd0;
 	if(M_AXIS_TUSER[SRC_PORT_POS] || M_AXIS_TUSER[SRC_PORT_POS+2] || M_AXIS_TUSER[SRC_PORT_POS+4] || M_AXIS_TUSER[SRC_PORT_POS+6] )
 	begin //{
+
 	destip_next = {M_AXIS_TDATA[15:0],low_ip_addr};
-	if(checksum != M_AXIS_TDATA[63:48]) 
+
+	if(M_AXIS_TDATA[159:144] == 16'h0800)
 	begin
-	  drop_array_next[0] = 1;
-	  dropped_count_next = dropped_count_next + 1;
-	  debugA = {16'd0,checksum};
-	  debugE = {16'd0,M_AXIS_TDATA[63:48]};
+	  if(checksum != M_AXIS_TDATA[63:48]) 
+	  begin
+	    drop_array_next[0] = 1;
+	    dropped_count_next = dropped_count_next + 1;
+	    debugA = {16'd0,checksum};
+	    debugE = {16'd0,M_AXIS_TDATA[63:48]};
+	  end
 	end
-	else 
-	begin
-	 if(M_AXIS_TUSER[SRC_PORT_POS] && !(M_AXIS_TDATA[255:208] == {mac0_high[15:0],mac0_low} || M_AXIS_TDATA[255:208] == 48'hFFFFFFFFFFFF))
-	 begin 
-	  drop_array_next[1] = 1;
-//	  wrong_mac_count_next = wrong_mac_count_next + 1;  
-	 end
+
+	if(M_AXIS_TUSER[SRC_PORT_POS] && !(M_AXIS_TDATA[255:208] == {mac0_high[15:0],mac0_low} || M_AXIS_TDATA[255:208] == 48'hFFFFFFFFFFFF))
+	begin 
+	 drop_array_next[1] = 1;
+//	 wrong_mac_count_next = wrong_mac_count_next + 1;  
+	end
 	
-	 if(M_AXIS_TUSER[SRC_PORT_POS+2] && !(M_AXIS_TDATA[255:208] == {mac1_high[15:0],mac1_low} || M_AXIS_TDATA[255:208] == 48'hFFFFFFFFFFFF))
-	 begin 
-	  drop_array_next[2] = 1;
-//	  wrong_mac_count_next = wrong_mac_count_next + 1;  
-	 end
+	if(M_AXIS_TUSER[SRC_PORT_POS+2] && !(M_AXIS_TDATA[255:208] == {mac1_high[15:0],mac1_low} || M_AXIS_TDATA[255:208] == 48'hFFFFFFFFFFFF))
+	begin 
+	 drop_array_next[2] = 1;
+//	 wrong_mac_count_next = wrong_mac_count_next + 1;  
+	end
 	
-	 if(M_AXIS_TUSER[SRC_PORT_POS+6] && !(M_AXIS_TDATA[255:208] == {mac2_high[15:0],mac2_low} || M_AXIS_TDATA[255:208] == 48'hFFFFFFFFFFFF))
-	 begin 
-	  drop_array_next[3] = 1;
-//	  wrong_mac_count_next = wrong_mac_count_next + 1;  
-	 end
+	if(M_AXIS_TUSER[SRC_PORT_POS+6] && !(M_AXIS_TDATA[255:208] == {mac2_high[15:0],mac2_low} || M_AXIS_TDATA[255:208] == 48'hFFFFFFFFFFFF))
+	begin 
+	 drop_array_next[3] = 1;
+//	 wrong_mac_count_next = wrong_mac_count_next + 1;  
+	end
 	
-	 if(M_AXIS_TUSER[SRC_PORT_POS+8] && !(M_AXIS_TDATA[255:208] == {mac3_high[15:0],mac3_low} || M_AXIS_TDATA[255:208] == 48'hFFFFFFFFFFFF))
-	 begin 
-	  drop_array_next[4] = 1;
-//	  wrong_mac_count_next = wrong_mac_count_next + 1;  
- 	 end
-     end
+	if(M_AXIS_TUSER[SRC_PORT_POS+8] && !(M_AXIS_TDATA[255:208] == {mac3_high[15:0],mac3_low} || M_AXIS_TDATA[255:208] == 48'hFFFFFFFFFFFF))
+	begin 
+	 drop_array_next[4] = 1;
+//	 wrong_mac_count_next = wrong_mac_count_next + 1;  
+ 	end
+
 	if(drop_array_next[4:1] != 4'd0) wrong_mac_count_next = wrong_mac_count_next + 1;	
-//	if(drop_array != 5'd0) drop_next = 1;
 //	M_AXIS_TVALID = drop_next ? 0 : M_AXIS_TVALID0;
      end //}
 	end
