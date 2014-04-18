@@ -381,7 +381,7 @@ char * concat_names(char ** names, int count) {
 
 }
 
-void populate_database(dataqueue_t * dns_db) {
+void populate_database(dataqueue_t * dns_db, char * filename) {
 
 	char arra[128][128];
 	char line[128];
@@ -389,7 +389,6 @@ void populate_database(dataqueue_t * dns_db) {
 	int counter = 0;
 
 	// Extract data from file
-	static const char filename[] = "dns_database";
 	FILE *file = fopen(filename, "r");
 
 	if (file != NULL) {
