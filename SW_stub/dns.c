@@ -14,6 +14,8 @@
 #include "ethernet_packet.h"
 #include <stdarg.h>
 
+#include "sr_router.h"
+
 void encode_dns_string(byte ** start, char ** names, int size) {
 	int i;
 	for (i = 0; i < size; i++) {
@@ -289,6 +291,10 @@ void string_array_free(int n_args, char ** array) {
 	free (array);
 }
 
+addr_ip_t parse_ip(char ** array) {
+	return IP_CONVERT(atoi(array[3]), atoi(array[2]), atoi(array[1]), atoi(array[0]));
+}
+
 void handle_question(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns, dns_query_ho_t * question) {
 	// a hardcoded answer that always returns 10.0.1.1 for testing purposes
 
@@ -306,23 +312,44 @@ void handle_question(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns, 
 	}
 	else if (question->qtype == DNS_TYPE_PTR) {
 
-		const int sargs = 3;
-		char ** sarray = string_array_malloc(sargs, "martin", "georgi", "nadesh");
+		// ADD ANSWERSr
+		int err_code = DNS_ERROR_NO_ERROR;
 
-		// ADD ANSWERS
-		dns_answer_add_PTR_answer_to_end(answer, question->query_names, question->count, sarray, sargs, 60*60*24);
+		if (question->count < 4) {
+			err_code = DNS_ERROR_NAMEERROR;
+			goto ptr_send;
+		}
 
-		send_dns_proto_response(pi, answer, udp, DNS_ERROR_NO_ERROR);
+		addr_ip_t ip = parse_ip(question->query_names);
 
-		string_array_free(sargs, sarray);
+		dns_db_entry_t entry;
+		if (get_by_ip_safe(ip, &entry)) {
+
+			dns_answer_add_PTR_answer_to_end(answer, question->query_names, question->count, entry.names, entry.count, 60*60*24);
+
+		} else {
+			err_code = DNS_ERROR_NAMEERROR;
+			goto ptr_send;
+		}
+
+ptr_send:
+	send_dns_proto_response(pi, answer, udp, err_code);
 
 	}
 	else if (question->qtype == DNS_TYPE_A) {
 
 		// ADD ANSWERS
-		dns_answer_add_A_answer_to_end(answer, question->query_names, question->count, IP_CONVERT(10, 0, 1, 1), 60*60*24);
+		dns_db_entry_t entry;
+		if (get_by_domainname_array_safe(question->query_names, question->count, &entry)) {
 
-		send_dns_proto_response(pi, answer, udp, DNS_ERROR_NO_ERROR);
+			dns_answer_add_A_answer_to_end(answer, question->query_names, question->count, entry.rdata, 60*60*24);
+
+			send_dns_proto_response(pi, answer, udp, DNS_ERROR_NO_ERROR);
+
+		} else {
+			send_dns_proto_response(pi, answer, udp, DNS_ERROR_NAMEERROR);
+		}
+
 	} else {
 		fprintf(stderr, "Unsupported DNS query type!\n");
 		send_dns_proto_response(pi, answer, udp, DNS_ERROR_NOTIMPLEMENTED);
@@ -458,12 +485,74 @@ dns_db_entry_t * get_by_domainname(char * dn) {
 
 		char * name = concat_names(entry->names, entry->count);
 
+		// TODO! use strcmp
 		if(*dn == *name) {
 			return entry;
 		}
+
+		// TODO! free (name)
 	}
 
 	return NULL;
+}
+
+int get_by_domainname_array_safe(char ** dn, int dn_size, dns_db_entry_t * dest) {
+	int i;
+	dataqueue_t * dns_db = &get_router()->dns_db;
+
+	for (i = 0; i < dns_db->size; i++) {
+		dns_db_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(dns_db, i, (void **) &entry, &entry_size)) {
+
+			assert(entry_size == sizeof(dns_db_entry_t));
+
+			if (dn_size == entry->count) {
+
+				int j;
+
+				int works = 1;
+				for (j = 0; j < dn_size; j++)
+					if (strcmp(dn[j], entry->names[j]) != 0)
+						works = 0;
+
+				if (works) {
+					queue_unlockid(dns_db, i);
+					*dest = *entry;
+					return 1;
+				}
+			}
+
+			queue_unlockid(dns_db, i);
+		}
+	}
+
+	return 0;
+}
+
+int get_by_ip_safe(addr_ip_t ip, dns_db_entry_t * dest) {
+	int i;
+	dataqueue_t * dns_db = &get_router()->dns_db;
+
+	for (i = 0; i < dns_db->size; i++) {
+		dns_db_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(dns_db, i, (void **) &entry, &entry_size)) {
+
+			assert(entry_size == sizeof(dns_db_entry_t));
+
+			if (ip == entry->rdata) {
+
+				queue_unlockid(dns_db, i);
+				*dest = *entry;
+				return 1;
+			}
+
+			queue_unlockid(dns_db, i);
+		}
+	}
+
+	return 0;
 }
 
 dns_db_entry_t * get_by_ip(addr_ip_t ip) {
