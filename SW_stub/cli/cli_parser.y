@@ -35,9 +35,11 @@ char token_err[128];
 #define ERR(desc) parse_error(desc);
 #define ERR_TMI   ERR("expected end-of-command (newline)")
 #define ERR_WRONG ERR("unexpected token")
+#define ERR_INT   ERR("expected integer")
 #define ERR_IP    ERR("expected IP address")
 #define ERR_MAC   ERR("expected MAC address")
 #define ERR_INTF  ERR("expected interface name")
+#define ERR_HOSTNAME ERR("expected host or domain name")
 #define ERR_NO_USAGE(desc) parse_error(desc); meh_force = TRUE; meh_has_usage = FALSE; meh_ignore = FALSE;
 #define ERR_IGNORE meh_ignore = TRUE;
 
@@ -52,6 +54,7 @@ gross_route_t grt;
 gross_ip_t gip;
 gross_ip_int_t giip;
 gross_option_t gopt;
+gross_dns_t gdns;
 #define SETC_FUNC0(func)      gobj.func_do0=func; gobj.func_do1=NULL; gobj.data=NULL
 #define SETC_FUNC1(func)      gobj.func_do0=NULL; gobj.func_do1=(void (*)(void*))func; gobj.data=NULL
 #define SETC_ARP_IP(func,xip)  SETC_FUNC1(func); gobj.data=&garp; garp.ip=xip
@@ -63,6 +66,7 @@ gross_option_t gopt;
 #define SETC_IP(func,xip) SETC_FUNC1(func); gobj.data=&gip; gip.ip=xip
 #define SETC_IP_INT(func,xip,xn) SETC_FUNC1(func); gobj.data=&giip; giip.ip=xip; giip.count=xn
 #define SETC_OPT(func) SETC_FUNC1(func); gobj.data=&gopt
+#define SETC_DNS(func,xip,xtype,xclass,name) SETC_FUNC1(func); gobj.data=&gdns; gdns.ip=xip; gdns.type=xtype; gdns.class=xclass; gdns.hostname=name
 
 /** Clears out any previous command */
 static void clear_command();
@@ -88,7 +92,7 @@ static void run_command();
 /* Terminals with no attribute value */
 %token  T_SHOW T_QUESTION T_NEWLINE T_ALL
 %token  T_VNS T_USER T_SERVER T_VHOST T_LHOST T_TOPOLOGY
-%token  T_IP T_ROUTE T_INTF T_ARP T_OSPF T_HW T_NEIGHBORS
+%token  T_IP T_ROUTE T_INTF T_ARP T_OSPF T_HW T_NEIGHBORS T_DNS
 %token  T_ADD T_DEL T_UP T_DOWN T_PURGE T_STATIC T_DYNAMIC T_ABOUT
 %token  T_PING T_TRACE T_HELP T_EXIT T_SHUTDOWN T_FLOOD
 %token  T_SET T_UNSET T_OPTION T_VERBOSE T_DATE
@@ -118,6 +122,7 @@ ShowCommand : T_SHOW ShowType
 ShowType : /* empty: show all */                  { SETC_FUNC0(cli_show_all); }
          | T_HW  ShowTypeHW
          | T_IP  ShowTypeIP
+         | T_DNS                                  { SETC_FUNC0(cli_show_dns); }
          | T_ARP                                  { SETC_FUNC0(cli_show_arp); }
          | T_OSPF ShowTypeOSPF
          | T_VNS ShowTypeVNS
@@ -178,6 +183,7 @@ ShowTypeVNS : /* empty: show all */               { SETC_FUNC0(cli_show_vns); }
             ;
 
 ManipCommand : T_IP ManipTypeIP
+             | T_DNS ManipTypeDNS
              ;
 
 ManipTypeIP : T_ARP ManipTypeIPARP
@@ -237,6 +243,20 @@ ManipTypeIPRoute : WrongOrQ                       { HELP(HELP_MANIP_IP_ROUTE); }
                  | T_PURGE T_STATIC               { SETC_FUNC0(cli_manip_ip_route_purge_sta); }
                  | T_PURGE TMIorQ                 { HELP(HELP_MANIP_IP_ROUTE_PURGE_ALL); }
                  ;
+                 
+ManipTypeDNS : | T_ADD AddDNS
+               ;
+
+
+AddDNS : WrongOrQ                             				{ HELP(HELP_MANIP_DNS_ADD); }
+       | {ERR_IP} error                      				{ HELP(HELP_MANIP_DNS_ADD); }
+       | TAV_IP {ERR_INT} error              				{ HELP(HELP_MANIP_DNS_ADD); }
+       | TAV_IP TAV_INT {ERR_INT} error      				{ HELP(HELP_MANIP_DNS_ADD); }
+       | TAV_IP TAV_INT TAV_INT {ERR_HOSTNAME} error		{ HELP(HELP_MANIP_DNS_ADD); }
+       | TAV_IP TAV_INT TAV_INT TAV_STR					{ SETC_DNS(cli_manip_dns_add,$1,$2,$3,$4); }
+       | TAV_IP TAV_INT TAV_INT TAV_STR TMIorQ            { HELP(HELP_MANIP_DNS_ADD); }		
+       ;
+
 
 RouteAddOrQ : HelpOrQ                               { HELP(HELP_MANIP_IP_ROUTE_ADD); }
             | {ERR_IP} error                        { HELP(HELP_MANIP_IP_ROUTE_ADD); }
@@ -317,6 +337,8 @@ ActionHelp : HelpOrQ                              { HELP(HELP_ACTION_HELP); }
            | HelpOrQ T_IP                         { HELP(HELP_MANIP_IP); }
            | HelpOrQ T_IP T_ARP                   { HELP(HELP_MANIP_IP_ARP); }
            | HelpOrQ T_IP T_ARP T_ADD             { HELP(HELP_MANIP_IP_ARP_ADD); }
+           | HelpOrQ T_DNS T_ADD                  { HELP(HELP_MANIP_DNS_ADD); }
+           | HelpOrQ T_DNS		                  { HELP(HELP_MANIP_DNS); }
            | HelpOrQ T_IP T_ARP T_DEL             { HELP(HELP_MANIP_IP_ARP_DEL); }
            | HelpOrQ T_IP T_ARP T_PURGE           { HELP(HELP_MANIP_IP_ARP_PURGE_ALL); }
            | HelpOrQ T_IP T_ARP T_PURGE T_DYNAMIC { HELP(HELP_MANIP_IP_ARP_PURGE_DYN); }
@@ -330,6 +352,7 @@ ActionHelp : HelpOrQ                              { HELP(HELP_ACTION_HELP); }
            | HelpOrQ T_IP T_ROUTE T_PURGE         { HELP(HELP_MANIP_IP_ROUTE_PURGE_ALL); }
            | HelpOrQ T_IP T_ROUTE T_DYNAMIC       { HELP(HELP_MANIP_IP_ROUTE_PURGE_DYN); }
            | HelpOrQ T_IP T_ROUTE T_STATIC        { HELP(HELP_MANIP_IP_ROUTE_PURGE_STA); }
+           | HelpOrQ T_SHOW T_DNS                 { HELP(HELP_SHOW_DNS); }
            | HelpOrQ T_DATE                       { HELP(HELP_ACTION_DATE); }
            | HelpOrQ T_EXIT                       { HELP(HELP_ACTION_EXIT); }
            | HelpOrQ T_PING                       { HELP(HELP_ACTION_PING); }

@@ -17,6 +17,7 @@
 #include "../sr_router.h"        /* router_*()                        */
 #include "../ip.h"
 #include "../arp.h"
+#include "../dns.h"
 
 #define MAX_CHARS_IN_CLI_SEND_STRF (250)
 
@@ -723,3 +724,36 @@ void cli_opt_verbose( gross_option_t* data ) {
             cli_send_str( "Verbose mode is already disabled.\n" );
     }
 }
+
+void cli_show_dns() {
+	router_t * router = ROUTER;
+
+	int i;
+	cli_send_str("\nDNS TABLE\n-------------\n\n");
+	for (i = 0; i < router->dns_db.size; i++) {
+		dns_db_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(&router->dns_db, i, (void **) &entry, &entry_size)) {
+
+			assert(entry_size == sizeof(dns_db_entry_t));
+
+			int j;
+			cli_send_strf("%d: Answer: ", i+1);
+			for(j = 0; j < entry->count; j++) {
+				cli_send_strf("%s.", entry->names[j]);
+			}
+			cli_send_strf("\t Type: %d \t", entry->type);
+			cli_send_strf("Class: %d \t", entry->class);
+			cli_send_strf("IP: %s \n", quick_ip_to_string(entry->rdata));
+
+			queue_unlockid(&router->dns_db, i);
+		}
+	}
+
+	cli_send_str("\n");
+}
+
+void cli_manip_dns_add( gross_dns_t* data ) {
+	cli_send_strf("Adding %s with hname %s class %d type %d\n", quick_ip_to_string(data->ip), data->hostname, data->class, data->type );
+}
+

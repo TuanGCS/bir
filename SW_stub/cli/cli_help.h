@@ -33,6 +33,7 @@ typedef enum cli_help_t {
         HELP_SHOW_VNS_TOPOLOGY,
         HELP_SHOW_VNS_USER,
         HELP_SHOW_VNS_VHOST,
+      HELP_SHOW_DNS,
 
     HELP_MANIP,
       HELP_MANIP_IP,
@@ -55,6 +56,8 @@ typedef enum cli_help_t {
          HELP_MANIP_IP_ROUTE_PURGE_ALL,
          HELP_MANIP_IP_ROUTE_PURGE_DYN,
          HELP_MANIP_IP_ROUTE_PURGE_STA,
+    HELP_MANIP_DNS,
+      HELP_MANIP_DNS_ADD,
 
     HELP_ACTION,
       HELP_ACTION_DATE,

@@ -38,13 +38,14 @@ HELP_ACTION );
 
         case HELP_SHOW:
             return cli_send_multi_help( fd, "\
-show [hw | ip | opt | ospf | vns]: display information about the router's current state\n",
-5,
+show [hw | ip | opt | ospf | vns | dns]: display information about the router's current state\n",
+6,
 HELP_SHOW_HW,
 HELP_SHOW_IP,
 HELP_SHOW_OPT,
 HELP_SHOW_OSPF,
-HELP_SHOW_VNS );
+HELP_SHOW_VNS,
+HELP_SHOW_DNS );
 
           case HELP_SHOW_HW:
               return cli_send_multi_help( fd, "\
@@ -149,9 +150,14 @@ show vns user: displays the VNS user name\n" );
                 return 0==writenstr( fd, "\
 show vns vhost: displays the VNS virtual host address\n" );
 
+            case HELP_SHOW_DNS:
+                return 0==writenstr( fd, "Shows the data contained into the router's DNS db\n" );
 
         case HELP_MANIP:
             /* fall-through to HELP_MANIP_IP */
+
+        case HELP_MANIP_DNS:
+            return 0==writenstr( fd, "dns {add | del}\n" );
 
           case HELP_MANIP_IP:
             return cli_send_multi_help( fd, "\
@@ -173,6 +179,10 @@ HELP_MANIP_IP_ARP_PURGE_ALL );
              case HELP_MANIP_IP_ARP_ADD:
                  return 0==writenstr( fd, "\
 ip arp add <IP> <MAC>: adds a static entry to the ARP cache which maps IP to MAC\n" );
+
+             case HELP_MANIP_DNS_ADD:
+                 return 0==writenstr( fd, "\
+dns add <IP> <TYPE> <CLASS> <DOMAIN_NAME>: adds a IP to host name mapping into the dns database\n" );
 
              case HELP_MANIP_IP_ARP_DEL:
                  return 0==writenstr( fd, "\

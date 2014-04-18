@@ -471,30 +471,6 @@ void populate_database(dataqueue_t * dns_db, char * filename) {
 
 }
 
-dns_db_entry_t * get_by_domainname(char * dn) {
-
-	dataqueue_t * dns_db = &get_router()->dns_db;
-
-	int i;
-	for(i = 0; i < queue_getcurrentsize(dns_db); i++) {
-		int entry_size;
-		dns_db_entry_t * entry;
-		assert(queue_getidunsafe(dns_db, i, (void ** ) &entry, &entry_size));
-		assert(entry_size == sizeof(dns_db_entry_t));
-
-		char * name = concat_names(entry->names, entry->count);
-
-		// TODO! use strcmp
-		if(*dn == *name) {
-			return entry;
-		}
-
-		// TODO! free (name)
-	}
-
-	return NULL;
-}
-
 int get_by_domainname_array_safe(char ** dn, int dn_size, dns_db_entry_t * dest) {
 	int i;
 	dataqueue_t * dns_db = &get_router()->dns_db;
@@ -554,63 +530,8 @@ int get_by_ip_safe(addr_ip_t ip, dns_db_entry_t * dest) {
 	return 0;
 }
 
-dns_db_entry_t * get_by_ip(addr_ip_t ip) {
-
-	dataqueue_t * dns_db = &get_router()->dns_db;
-
-		int i;
-		for(i = 0; i < queue_getcurrentsize(dns_db); i++) {
-			int entry_size;
-			dns_db_entry_t * entry;
-			assert(queue_getidunsafe(dns_db, i, (void ** ) &entry, &entry_size));
-			assert(entry_size == sizeof(dns_db_entry_t));
-
-			if(entry->rdata == ip) {
-				return entry;
-			}
-		}
-
-	return NULL;
-}
-
 void dns_onreceive(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns) {
 	const uint16_t totalquestions = ntohs(dns->totalquestions);
-	printf("Total questions %d\n", totalquestions);
-
-	int i;
-	printf("\nDNS TABLE\n-------------\n\n");
-	for (i = 0; i < get_router()->dns_db.size; i++) {
-		dns_db_entry_t * entry;
-		int entry_size;
-		if (queue_getidandlock(&get_router()->dns_db, i, (void **) &entry, &entry_size)) {
-
-			assert(entry_size == sizeof(dns_db_entry_t));
-
-			int j;
-			printf("%d: Answer: ", i+1);
-			for(j = 0; j < entry->count; j++) {
-				printf("%s.", entry->names[j]);
-			}
-			printf("\t Type: %d \t", entry->type);
-			printf("Class: %d \t", entry->class);
-			printf("IP: %s \n", quick_ip_to_string(entry->rdata));
-
-			queue_unlockid(&get_router()->dns_db, i);
-		}
-	}
-
-	printf("\n");
-
-	dns_db_entry_t * en1 = get_by_domainname("abv.bg");
-	if(en1 != NULL) {
-		printf("Test 1: %s \n", quick_ip_to_string(en1->rdata));
-	}
-
-	dns_db_entry_t * en2 = get_by_ip(IP_CONVERT(192,168,0,1));
-	if(en2 != NULL) {
-		char * dn = concat_names(en2->names, en2->count);
-		printf("Test 2: %s \n", dn);
-	}
 
 	if (!dns->QR) {
 
@@ -618,14 +539,6 @@ void dns_onreceive(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns) {
 		if (questions == NULL) {
 			fprintf(stderr, "The DNS question cannot be parsed!");
 			return;
-		}
-
-		int i;
-		for (i = 0; i < totalquestions; i++) {
-			int j;
-			for (j = 0; j < questions[i].count; j++)
-				printf("Qname %d: %s; ", j, questions[i].query_names[j]);
-			printf("type %d, class %d\n", questions[i].qtype, questions[i].qclass);
 		}
 
 		// only answer to the first query for now

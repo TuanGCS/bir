@@ -30,6 +30,13 @@ typedef struct {
 } gross_arp_t;
 
 typedef struct {
+    addr_ip_t ip;
+    const char* hostname;
+    int type;
+    int class;
+} gross_dns_t;
+
+typedef struct {
     const char* intf_name;
     addr_ip_t ip;
     addr_ip_t subnet_mask;
@@ -162,5 +169,8 @@ void cli_traceroute( gross_ip_t* data );
 
 /** set/unset/show the verbose mode */
 void cli_opt_verbose( gross_option_t* data );
+
+void cli_show_dns();
+void cli_manip_dns_add( gross_dns_t* data );
 
 #endif /* CLI_H */
