@@ -361,29 +361,6 @@ ptr_send:
 	dns_free_answer(answer);
 }
 
-
-
-char * concat_names(char ** names, int count) {
-
-	char name[128];
-	int name_size = 0;
-	int j;
-	for(j = 0; j < count; j++) {
-		strncpy(&name[name_size], names[j], strlen(names[j]));
-		name_size += strlen(names[j]) + 1;
-		if(j != count -1) {
-			name[name_size-1] = '.';
-		}
-
-	}
-
-	char * tmp = malloc(name_size * sizeof(char));
-	strncpy(tmp, name, name_size);
-
-	return tmp;
-
-}
-
 void populate_database(dataqueue_t * dns_db, char * filename) {
 
 	strncpy(dns_file_name, filename, MAX_DNS_FILENAME);
@@ -562,8 +539,53 @@ void dns_onreceive(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns) {
 	}
 }
 
+char * concat_names(char ** names, int count) {
+
+	static char name[256];
+
+	int name_size = 0;
+	int j;
+	for(j = 0; j < count; j++) {
+		strncpy(&name[name_size], names[j], strlen(names[j]));
+		name_size += strlen(names[j]);
+		if(j != count -1) {
+			name[name_size] = '.';
+			name_size++;
+		}
+
+	}
+	name[name_size] = 0;
+
+	return name;
+}
+
 int dns_save_changes(void) {
 	printf("Saving to file %s not yet implemented!\n", dns_file_name);
+
+	FILE *file = fopen(dns_file_name, "w");
+	dataqueue_t * dns_db = &get_router()->dns_db;
+
+	if (file!=NULL)
+	{
+		int i;
+
+		for (i = 0; i < dns_db->size; i++) {
+			dns_db_entry_t * entry;
+			int entry_size;
+			if (queue_getidandlock(dns_db, i, (void **) &entry, &entry_size)) {
+
+				assert(entry_size == sizeof(dns_db_entry_t));
+
+				char * concated = concat_names(entry->names, entry->count);
+
+				fprintf(file, "%s %d %d %s\n", concated, entry->type, entry->class, quick_ip_to_string(entry->rdata));
+
+				queue_unlockid(dns_db, i);
+			}
+		}
+
+		return fclose(file) == 0;
+	}
 
 	return 0;
 }

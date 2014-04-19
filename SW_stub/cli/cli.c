@@ -843,8 +843,10 @@ void cli_manip_dns_del( gross_dns_t* data ) {
 
 				int works = 1;
 				for (j = 0; j < db_entry.count; j++)
-					if (strcmp(db_entry.names[j], entry->names[j]) != 0)
+					if (strcmp(db_entry.names[j], entry->names[j]) != 0) {
 						works = 0;
+						break;
+					}
 
 				if (works) {
 					queue_unlockidandremove(dns_db, i);
