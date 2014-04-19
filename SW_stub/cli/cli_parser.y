@@ -245,6 +245,8 @@ ManipTypeIPRoute : WrongOrQ                       { HELP(HELP_MANIP_IP_ROUTE); }
                  ;
                  
 ManipTypeDNS : | T_ADD AddDNS
+               | T_DEL DelDNS
+               | WrongOrQ                             { HELP(HELP_MANIP_DNS); }
                ;
 
 
@@ -257,6 +259,14 @@ AddDNS : WrongOrQ                             				{ HELP(HELP_MANIP_DNS_ADD); }
        | TAV_IP TAV_INT TAV_INT TAV_STR TMIorQ            { HELP(HELP_MANIP_DNS_ADD); }		
        ;
 
+DelDNS : WrongOrQ                             				{ HELP(HELP_MANIP_DNS_DEL); }
+       | {ERR_IP} error                      				{ HELP(HELP_MANIP_DNS_DEL); }
+       | TAV_IP {ERR_INT} error              				{ HELP(HELP_MANIP_DNS_DEL); }
+       | TAV_IP TAV_INT {ERR_INT} error      				{ HELP(HELP_MANIP_DNS_DEL); }
+       | TAV_IP TAV_INT TAV_INT {ERR_HOSTNAME} error		{ HELP(HELP_MANIP_DNS_DEL); }
+       | TAV_IP TAV_INT TAV_INT TAV_STR					{ SETC_DNS(cli_manip_dns_del,$1,$2,$3,$4); }
+       | TAV_IP TAV_INT TAV_INT TAV_STR TMIorQ            { HELP(HELP_MANIP_DNS_DEL); }		
+       ;
 
 RouteAddOrQ : HelpOrQ                               { HELP(HELP_MANIP_IP_ROUTE_ADD); }
             | {ERR_IP} error                        { HELP(HELP_MANIP_IP_ROUTE_ADD); }
@@ -338,6 +348,7 @@ ActionHelp : HelpOrQ                              { HELP(HELP_ACTION_HELP); }
            | HelpOrQ T_IP T_ARP                   { HELP(HELP_MANIP_IP_ARP); }
            | HelpOrQ T_IP T_ARP T_ADD             { HELP(HELP_MANIP_IP_ARP_ADD); }
            | HelpOrQ T_DNS T_ADD                  { HELP(HELP_MANIP_DNS_ADD); }
+           | HelpOrQ T_DNS T_DEL                  { HELP(HELP_MANIP_DNS_DEL); }
            | HelpOrQ T_DNS		                  { HELP(HELP_MANIP_DNS); }
            | HelpOrQ T_IP T_ARP T_DEL             { HELP(HELP_MANIP_IP_ARP_DEL); }
            | HelpOrQ T_IP T_ARP T_PURGE           { HELP(HELP_MANIP_IP_ARP_PURGE_ALL); }

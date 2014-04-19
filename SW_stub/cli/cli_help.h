@@ -58,6 +58,7 @@ typedef enum cli_help_t {
          HELP_MANIP_IP_ROUTE_PURGE_STA,
     HELP_MANIP_DNS,
       HELP_MANIP_DNS_ADD,
+      HELP_MANIP_DNS_DEL,
 
     HELP_ACTION,
       HELP_ACTION_DATE,

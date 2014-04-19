@@ -182,7 +182,11 @@ ip arp add <IP> <MAC>: adds a static entry to the ARP cache which maps IP to MAC
 
              case HELP_MANIP_DNS_ADD:
                  return 0==writenstr( fd, "\
-dns add <IP> <TYPE> <CLASS> <DOMAIN_NAME>: adds a IP to host name mapping into the dns database\n" );
+dns add <IP> <TYPE> <CLASS> <DOMAIN_NAME>: adds a IP to host name mapping into the dns database and updates the dns file\n" );
+
+             case HELP_MANIP_DNS_DEL:
+                 return 0==writenstr( fd, "\
+dns add <IP> <TYPE> <CLASS> <DOMAIN_NAME>: removes an entry with the details above if it exists and updates the dns file\n" );
 
              case HELP_MANIP_IP_ARP_DEL:
                  return 0==writenstr( fd, "\

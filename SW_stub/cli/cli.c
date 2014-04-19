@@ -753,9 +753,7 @@ void cli_show_dns() {
 	cli_send_str("\n");
 }
 
-void cli_manip_dns_add( gross_dns_t* data ) {
-	router_t * router = ROUTER;
-
+dns_db_entry_t dns_convert_groos_dns_to_db_entry(  gross_dns_t* data , int * exception) {
 	dns_db_entry_t db_entry;
 
 	db_entry.class = data->class;
@@ -767,19 +765,20 @@ void cli_manip_dns_add( gross_dns_t* data ) {
 	char * input = (char *) data->hostname;
 	int start = 0;
 	int i = 0;
+	* exception = 0;
 
 	do {
 		const int lastchar = (*(input + 1) == 0);
 		const int charisdot = *input == '.';
 
 		if (charisdot && lastchar) {
-			cli_send_strf("ERROR! Domain name cannot end with a dot!");
-			return;
+			* exception = 1;
+			return db_entry;
 		} else if (charisdot || lastchar) {
 
-			if (i == start) {
-				cli_send_strf("ERROR! Empty element in domain name!");
-				return;
+			if (i == start && !lastchar) {
+				* exception = 1;
+				return db_entry;
 			}
 
 			if (db_entry.names == NULL)
@@ -802,8 +801,67 @@ void cli_manip_dns_add( gross_dns_t* data ) {
 		i++;
 	} while (*input != 0);
 
-
-	queue_add(&router->dns_db, &db_entry, sizeof(db_entry));
-	cli_send_strf("Done!\n");
+	return db_entry;
 }
+
+void cli_manip_dns_add( gross_dns_t* data ) {
+	router_t * router = ROUTER;
+
+	int exception;
+	dns_db_entry_t db_entry = dns_convert_groos_dns_to_db_entry( data, &exception );
+
+	if (!exception) {
+		queue_add(&router->dns_db, &db_entry, sizeof(db_entry));
+		if (dns_save_changes())
+			cli_send_strf("Done!\n");
+		else
+			cli_send_strf("Done without saving the changes to the DNS file.\n");
+	} else {
+		cli_send_strf("ERROR! Malformed domain name!\n");
+	}
+}
+
+void cli_manip_dns_del( gross_dns_t* data ) {
+	router_t * router = ROUTER;
+
+	int exception;
+	dns_db_entry_t db_entry = dns_convert_groos_dns_to_db_entry( data, &exception );
+
+	int i;
+	dataqueue_t * dns_db = &router->dns_db;
+
+	for (i = 0; i < dns_db->size; i++) {
+		dns_db_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(dns_db, i, (void **) &entry, &entry_size)) {
+
+			assert(entry_size == sizeof(dns_db_entry_t));
+
+			if (db_entry.count == entry->count && db_entry.class == entry->class && db_entry.type == entry->type && db_entry.rdata == entry->rdata) {
+
+				int j;
+
+				int works = 1;
+				for (j = 0; j < db_entry.count; j++)
+					if (strcmp(db_entry.names[j], entry->names[j]) != 0)
+						works = 0;
+
+				if (works) {
+					queue_unlockidandremove(dns_db, i);
+					if (dns_save_changes())
+						cli_send_strf("Done!\n");
+					else
+						cli_send_strf("Done without saving the changes to the DNS file.\n");
+					return;
+				}
+			}
+
+			queue_unlockid(dns_db, i);
+		}
+	}
+
+	cli_send_strf("No such entry exists!\n");
+}
+
+
 

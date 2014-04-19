@@ -16,6 +16,9 @@
 
 #include "sr_router.h"
 
+#define MAX_DNS_FILENAME (300)
+char dns_file_name[MAX_DNS_FILENAME];
+
 void encode_dns_string(byte ** start, char ** names, int size) {
 	int i;
 	for (i = 0; i < size; i++) {
@@ -383,6 +386,8 @@ char * concat_names(char ** names, int count) {
 
 void populate_database(dataqueue_t * dns_db, char * filename) {
 
+	strncpy(dns_file_name, filename, MAX_DNS_FILENAME);
+
 	char arra[128][128];
 	char line[128];
 	int size;
@@ -555,5 +560,11 @@ void dns_onreceive(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns) {
 //		dns_cache_entry_t * additional_records = dns_mallocandparse_other_array((byte *) ((byte *) dns + sizeof(packet_dns_t)), ntohs(dns->totaladditionalrrs));
 
 	}
+}
+
+int dns_save_changes(void) {
+	printf("Saving to file %s not yet implemented!\n", dns_file_name);
+
+	return 0;
 }
 

@@ -172,5 +172,6 @@ void cli_opt_verbose( gross_option_t* data );
 
 void cli_show_dns();
 void cli_manip_dns_add( gross_dns_t* data );
+void cli_manip_dns_del( gross_dns_t* data );
 
 #endif /* CLI_H */
