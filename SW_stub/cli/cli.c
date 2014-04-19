@@ -754,6 +754,56 @@ void cli_show_dns() {
 }
 
 void cli_manip_dns_add( gross_dns_t* data ) {
-	cli_send_strf("Adding %s with hname %s class %d type %d\n", quick_ip_to_string(data->ip), data->hostname, data->class, data->type );
+	router_t * router = ROUTER;
+
+	dns_db_entry_t db_entry;
+
+	db_entry.class = data->class;
+	db_entry.type = data->type;
+	db_entry.rdata = data->ip;
+
+	db_entry.count = 0;
+	db_entry.names = NULL;
+	char * input = (char *) data->hostname;
+	int start = 0;
+	int i = 0;
+
+	do {
+		const int lastchar = (*(input + 1) == 0);
+		const int charisdot = *input == '.';
+
+		if (charisdot && lastchar) {
+			cli_send_strf("ERROR! Domain name cannot end with a dot!");
+			return;
+		} else if (charisdot || lastchar) {
+
+			if (i == start) {
+				cli_send_strf("ERROR! Empty element in domain name!");
+				return;
+			}
+
+			if (db_entry.names == NULL)
+				db_entry.names = malloc(sizeof(char *));
+			else
+				db_entry.names = realloc(db_entry.names, (db_entry.count+1)*sizeof(char *));
+
+			char * sub = malloc(sizeof(char) * (i-start+1));
+
+			memcpy(sub, (void *) &data->hostname[start], lastchar ? (i-start+1) : (i-start));
+			sub[lastchar ? (i-start+1) : (i-start)] = 0;
+
+			db_entry.names[db_entry.count] = sub;
+
+			db_entry.count++;
+			start = i+1;
+		}
+
+		input++;
+		i++;
+	} while (*input != 0);
+
+
+	queue_add(&router->dns_db, &db_entry, sizeof(db_entry));
+	cli_send_strf("Done!\n");
 }
 
