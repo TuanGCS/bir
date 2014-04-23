@@ -108,7 +108,7 @@ void router_init(router_t* router) {
 	}
 
 	// define all IP packet destinations that will be routed to software here
-	register_ownip(router, IP_CONVERT(244, 0, 0, 5));
+	register_ownip(router, IP_CONVERT(224, 0, 0, 5));
 #endif
 
 	router->is_router_running = 1;
