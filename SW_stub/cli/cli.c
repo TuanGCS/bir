@@ -17,6 +17,7 @@
 #include "../sr_router.h"        /* router_*()                        */
 #include "../ip.h"
 #include "../arp.h"
+#include "../dns.h"
 
 #define MAX_CHARS_IN_CLI_SEND_STRF (250)
 
@@ -723,3 +724,146 @@ void cli_opt_verbose( gross_option_t* data ) {
             cli_send_str( "Verbose mode is already disabled.\n" );
     }
 }
+
+void cli_show_dns() {
+	router_t * router = ROUTER;
+
+	int i;
+	cli_send_str("\nDNS TABLE\n-------------\n\n");
+	for (i = 0; i < router->dns_db.size; i++) {
+		dns_db_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(&router->dns_db, i, (void **) &entry, &entry_size)) {
+
+			assert(entry_size == sizeof(dns_db_entry_t));
+
+			int j;
+			cli_send_strf("%d: Answer: ", i+1);
+			for(j = 0; j < entry->count; j++) {
+				cli_send_strf("%s.", entry->names[j]);
+			}
+			cli_send_strf("\t Type: %d \t", entry->type);
+			cli_send_strf("Class: %d \t", entry->class);
+			cli_send_strf("IP: %s \n", quick_ip_to_string(entry->rdata));
+
+			queue_unlockid(&router->dns_db, i);
+		}
+	}
+
+	cli_send_str("\n");
+}
+
+dns_db_entry_t dns_convert_groos_dns_to_db_entry(  gross_dns_t* data , int * exception) {
+	dns_db_entry_t db_entry;
+
+	db_entry.class = data->class;
+	db_entry.type = data->type;
+	db_entry.rdata = data->ip;
+
+	db_entry.count = 0;
+	db_entry.names = NULL;
+	char * input = (char *) data->hostname;
+	int start = 0;
+	int i = 0;
+	* exception = 0;
+
+	do {
+		const int lastchar = (*(input + 1) == 0);
+		const int charisdot = *input == '.';
+
+		if (charisdot && lastchar) {
+			* exception = 1;
+			return db_entry;
+		} else if (charisdot || lastchar) {
+
+			if (i == start && !lastchar) {
+				* exception = 1;
+				return db_entry;
+			}
+
+			if (db_entry.names == NULL)
+				db_entry.names = malloc(sizeof(char *));
+			else
+				db_entry.names = realloc(db_entry.names, (db_entry.count+1)*sizeof(char *));
+
+			char * sub = malloc(sizeof(char) * (i-start+1));
+
+			memcpy(sub, (void *) &data->hostname[start], lastchar ? (i-start+1) : (i-start));
+			sub[lastchar ? (i-start+1) : (i-start)] = 0;
+
+			db_entry.names[db_entry.count] = sub;
+
+			db_entry.count++;
+			start = i+1;
+		}
+
+		input++;
+		i++;
+	} while (*input != 0);
+
+	return db_entry;
+}
+
+void cli_manip_dns_add( gross_dns_t* data ) {
+	router_t * router = ROUTER;
+
+	int exception;
+	dns_db_entry_t db_entry = dns_convert_groos_dns_to_db_entry( data, &exception );
+
+	if (!exception) {
+		queue_add(&router->dns_db, &db_entry, sizeof(db_entry));
+		if (dns_save_changes())
+			cli_send_strf("Done!\n");
+		else
+			cli_send_strf("Done without saving the changes to the DNS file.\n");
+	} else {
+		cli_send_strf("ERROR! Malformed domain name!\n");
+	}
+}
+
+void cli_manip_dns_del( gross_dns_t* data ) {
+	router_t * router = ROUTER;
+
+	int exception;
+	dns_db_entry_t db_entry = dns_convert_groos_dns_to_db_entry( data, &exception );
+
+	int i;
+	dataqueue_t * dns_db = &router->dns_db;
+
+	for (i = 0; i < dns_db->size; i++) {
+		dns_db_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(dns_db, i, (void **) &entry, &entry_size)) {
+
+			assert(entry_size == sizeof(dns_db_entry_t));
+
+			if (db_entry.count == entry->count && db_entry.class == entry->class && db_entry.type == entry->type && db_entry.rdata == entry->rdata) {
+
+				int j;
+
+				int works = 1;
+				for (j = 0; j < db_entry.count; j++)
+					if (strcmp(db_entry.names[j], entry->names[j]) != 0) {
+						works = 0;
+						break;
+					}
+
+				if (works) {
+					queue_unlockidandremove(dns_db, i);
+					if (dns_save_changes())
+						cli_send_strf("Done!\n");
+					else
+						cli_send_strf("Done without saving the changes to the DNS file.\n");
+					return;
+				}
+			}
+
+			queue_unlockid(dns_db, i);
+		}
+	}
+
+	cli_send_strf("No such entry exists!\n");
+}
+
+
+

@@ -45,7 +45,10 @@ typedef struct dns_r_proto_packet {
 } dns_answer_proto_packet_t;
 
 
-void populate_database(dataqueue_t * dns_db);
+void populate_database(dataqueue_t * dns_db, char * filename);
 void dns_onreceive(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns);
+int get_by_domainname_array_safe(char ** dn, int dn_size, dns_db_entry_t * dest);
+int get_by_ip_safe(addr_ip_t ip, dns_db_entry_t * dest);
+int dns_save_changes(void);
 
 #endif /* DNS_H_ */

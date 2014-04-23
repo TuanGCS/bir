@@ -126,9 +126,6 @@ void router_init(router_t* router) {
 
 	gettimeofday(&router->last_lsu, NULL);
 
-	// Populate DNS database
-	populate_database(&router->dns_db);
-
 #ifndef _THREAD_PER_PACKET_
 	debug_println("Initializing the router work queue with %u worker threads",
 	NUM_WORKER_THREADS);

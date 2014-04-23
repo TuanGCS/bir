@@ -55,6 +55,7 @@
 #include "sr_base.h"
 #include "sr_base_internal.h"
 #include "debug.h"
+#include "dns.h"
 
 #ifdef _CPUMODE_
 #include "sr_cpu_extension_nf2.h"
@@ -137,6 +138,7 @@ int sr_init_low_level_subystem(int argc, char **argv)
     char  *rtable = "rtable.conf";
     char  *itable = CPU_HW_FILENAME;
     char  *server = "171.67.71.18";
+    char *dns_db_file = "dns_database";
     uint16_t port =  12345;
     uint16_t topo =  0;
     int ospf = 1;
@@ -165,7 +167,7 @@ int sr_init_low_level_subystem(int argc, char **argv)
         int itable_not_specified = 1;
     #endif /* MININET_MODE */
 
-    while ((c = getopt(argc, argv, "hns:v:p:c:t:r:l:i:z:")) != EOF)
+    while ((c = getopt(argc, argv, "hns:v:p:c:t:r:l:i:z:d:")) != EOF)
     {
         switch (c)
         {
@@ -209,6 +211,9 @@ int sr_init_low_level_subystem(int argc, char **argv)
                 Debug("\nOSPF disabled!\n\n");
                 ospf = 0;
                 break;
+            case 'd':
+            	dns_db_file = optarg;
+            	break;
           #ifdef MININET_MODE
             case 'z':
 	      router_name = optarg;
@@ -250,6 +255,8 @@ int sr_init_low_level_subystem(int argc, char **argv)
     /* -- zero out sr instance and set default configurations -- */
     debug_println("*****SR_INIT_INSTANCE");
     sr_init_instance(sr);
+	// Populate DNS database
+	populate_database(&sr->interface_subsystem->dns_db, dns_db_file);
     sr->interface_subsystem->use_ospf = ospf;
 
     strncpy(sr->rtable, rtable, SR_NAMELEN);

@@ -14,6 +14,11 @@
 #include "ethernet_packet.h"
 #include <stdarg.h>
 
+#include "sr_router.h"
+
+#define MAX_DNS_FILENAME (300)
+char dns_file_name[MAX_DNS_FILENAME];
+
 void encode_dns_string(byte ** start, char ** names, int size) {
 	int i;
 	for (i = 0; i < size; i++) {
@@ -289,6 +294,10 @@ void string_array_free(int n_args, char ** array) {
 	free (array);
 }
 
+addr_ip_t parse_ip(char ** array) {
+	return IP_CONVERT(atoi(array[3]), atoi(array[2]), atoi(array[1]), atoi(array[0]));
+}
+
 void handle_question(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns, dns_query_ho_t * question) {
 	// a hardcoded answer that always returns 10.0.1.1 for testing purposes
 
@@ -306,23 +315,44 @@ void handle_question(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns, 
 	}
 	else if (question->qtype == DNS_TYPE_PTR) {
 
-		const int sargs = 3;
-		char ** sarray = string_array_malloc(sargs, "martin", "georgi", "nadesh");
+		// ADD ANSWERSr
+		int err_code = DNS_ERROR_NO_ERROR;
 
-		// ADD ANSWERS
-		dns_answer_add_PTR_answer_to_end(answer, question->query_names, question->count, sarray, sargs, 60*60*24);
+		if (question->count < 4) {
+			err_code = DNS_ERROR_NAMEERROR;
+			goto ptr_send;
+		}
 
-		send_dns_proto_response(pi, answer, udp, DNS_ERROR_NO_ERROR);
+		addr_ip_t ip = parse_ip(question->query_names);
 
-		string_array_free(sargs, sarray);
+		dns_db_entry_t entry;
+		if (get_by_ip_safe(ip, &entry)) {
+
+			dns_answer_add_PTR_answer_to_end(answer, question->query_names, question->count, entry.names, entry.count, 60*60*24);
+
+		} else {
+			err_code = DNS_ERROR_NAMEERROR;
+			goto ptr_send;
+		}
+
+ptr_send:
+	send_dns_proto_response(pi, answer, udp, err_code);
 
 	}
 	else if (question->qtype == DNS_TYPE_A) {
 
 		// ADD ANSWERS
-		dns_answer_add_A_answer_to_end(answer, question->query_names, question->count, IP_CONVERT(10, 0, 1, 1), 60*60*24);
+		dns_db_entry_t entry;
+		if (get_by_domainname_array_safe(question->query_names, question->count, &entry)) {
 
-		send_dns_proto_response(pi, answer, udp, DNS_ERROR_NO_ERROR);
+			dns_answer_add_A_answer_to_end(answer, question->query_names, question->count, entry.rdata, 60*60*24);
+
+			send_dns_proto_response(pi, answer, udp, DNS_ERROR_NO_ERROR);
+
+		} else {
+			send_dns_proto_response(pi, answer, udp, DNS_ERROR_NAMEERROR);
+		}
+
 	} else {
 		fprintf(stderr, "Unsupported DNS query type!\n");
 		send_dns_proto_response(pi, answer, udp, DNS_ERROR_NOTIMPLEMENTED);
@@ -331,30 +361,9 @@ void handle_question(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns, 
 	dns_free_answer(answer);
 }
 
+void populate_database(dataqueue_t * dns_db, char * filename) {
 
-
-char * concat_names(char ** names, int count) {
-
-	char name[128];
-	int name_size = 0;
-	int j;
-	for(j = 0; j < count; j++) {
-		strncpy(&name[name_size], names[j], strlen(names[j]));
-		name_size += strlen(names[j]) + 1;
-		if(j != count -1) {
-			name[name_size-1] = '.';
-		}
-
-	}
-
-	char * tmp = malloc(name_size * sizeof(char));
-	strncpy(tmp, name, name_size);
-
-	return tmp;
-
-}
-
-void populate_database(dataqueue_t * dns_db) {
+	strncpy(dns_file_name, filename, MAX_DNS_FILENAME);
 
 	char arra[128][128];
 	char line[128];
@@ -362,7 +371,6 @@ void populate_database(dataqueue_t * dns_db) {
 	int counter = 0;
 
 	// Extract data from file
-	static const char filename[] = "dns_database";
 	FILE *file = fopen(filename, "r");
 
 	if (file != NULL) {
@@ -445,84 +453,67 @@ void populate_database(dataqueue_t * dns_db) {
 
 }
 
-dns_db_entry_t * get_by_domainname(char * dn) {
-
+int get_by_domainname_array_safe(char ** dn, int dn_size, dns_db_entry_t * dest) {
+	int i;
 	dataqueue_t * dns_db = &get_router()->dns_db;
 
-	int i;
-	for(i = 0; i < queue_getcurrentsize(dns_db); i++) {
-		int entry_size;
+	for (i = 0; i < dns_db->size; i++) {
 		dns_db_entry_t * entry;
-		assert(queue_getidunsafe(dns_db, i, (void ** ) &entry, &entry_size));
-		assert(entry_size == sizeof(dns_db_entry_t));
+		int entry_size;
+		if (queue_getidandlock(dns_db, i, (void **) &entry, &entry_size)) {
 
-		char * name = concat_names(entry->names, entry->count);
+			assert(entry_size == sizeof(dns_db_entry_t));
 
-		if(*dn == *name) {
-			return entry;
+			if (dn_size == entry->count) {
+
+				int j;
+
+				int works = 1;
+				for (j = 0; j < dn_size; j++)
+					if (strcmp(dn[j], entry->names[j]) != 0)
+						works = 0;
+
+				if (works) {
+					queue_unlockid(dns_db, i);
+					*dest = *entry;
+					return 1;
+				}
+			}
+
+			queue_unlockid(dns_db, i);
 		}
 	}
 
-	return NULL;
+	return 0;
 }
 
-dns_db_entry_t * get_by_ip(addr_ip_t ip) {
-
+int get_by_ip_safe(addr_ip_t ip, dns_db_entry_t * dest) {
+	int i;
 	dataqueue_t * dns_db = &get_router()->dns_db;
 
-		int i;
-		for(i = 0; i < queue_getcurrentsize(dns_db); i++) {
-			int entry_size;
-			dns_db_entry_t * entry;
-			assert(queue_getidunsafe(dns_db, i, (void ** ) &entry, &entry_size));
+	for (i = 0; i < dns_db->size; i++) {
+		dns_db_entry_t * entry;
+		int entry_size;
+		if (queue_getidandlock(dns_db, i, (void **) &entry, &entry_size)) {
+
 			assert(entry_size == sizeof(dns_db_entry_t));
 
-			if(entry->rdata == ip) {
-				return entry;
-			}
-		}
+			if (ip == entry->rdata) {
 
-	return NULL;
+				queue_unlockid(dns_db, i);
+				*dest = *entry;
+				return 1;
+			}
+
+			queue_unlockid(dns_db, i);
+		}
+	}
+
+	return 0;
 }
 
 void dns_onreceive(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns) {
 	const uint16_t totalquestions = ntohs(dns->totalquestions);
-	printf("Total questions %d\n", totalquestions);
-
-	int i;
-	printf("\nDNS TABLE\n-------------\n\n");
-	for (i = 0; i < get_router()->dns_db.size; i++) {
-		dns_db_entry_t * entry;
-		int entry_size;
-		if (queue_getidandlock(&get_router()->dns_db, i, (void **) &entry, &entry_size)) {
-
-			assert(entry_size == sizeof(dns_db_entry_t));
-
-			int j;
-			printf("%d: Answer: ", i+1);
-			for(j = 0; j < entry->count; j++) {
-				printf("%s.", entry->names[j]);
-			}
-			printf("\t Type: %d \t", entry->type);
-			printf("Class: %d \t", entry->class);
-			printf("IP: %s \n", quick_ip_to_string(entry->rdata));
-
-			queue_unlockid(&get_router()->dns_db, i);
-		}
-	}
-
-	printf("\n");
-
-	dns_db_entry_t * en1 = get_by_domainname("abv.bg");
-	if(en1 != NULL) {
-		printf("Test 1: %s \n", quick_ip_to_string(en1->rdata));
-	}
-
-	dns_db_entry_t * en2 = get_by_ip(IP_CONVERT(192,168,0,1));
-	if(en2 != NULL) {
-		char * dn = concat_names(en2->names, en2->count);
-		printf("Test 2: %s \n", dn);
-	}
 
 	if (!dns->QR) {
 
@@ -530,14 +521,6 @@ void dns_onreceive(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns) {
 		if (questions == NULL) {
 			fprintf(stderr, "The DNS question cannot be parsed!");
 			return;
-		}
-
-		int i;
-		for (i = 0; i < totalquestions; i++) {
-			int j;
-			for (j = 0; j < questions[i].count; j++)
-				printf("Qname %d: %s; ", j, questions[i].query_names[j]);
-			printf("type %d, class %d\n", questions[i].qtype, questions[i].qclass);
 		}
 
 		// only answer to the first query for now
@@ -554,5 +537,56 @@ void dns_onreceive(packet_info_t* pi, packet_udp_t * udp, packet_dns_t * dns) {
 //		dns_cache_entry_t * additional_records = dns_mallocandparse_other_array((byte *) ((byte *) dns + sizeof(packet_dns_t)), ntohs(dns->totaladditionalrrs));
 
 	}
+}
+
+char * concat_names(char ** names, int count) {
+
+	static char name[256];
+
+	int name_size = 0;
+	int j;
+	for(j = 0; j < count; j++) {
+		strncpy(&name[name_size], names[j], strlen(names[j]));
+		name_size += strlen(names[j]);
+		if(j != count -1) {
+			name[name_size] = '.';
+			name_size++;
+		}
+
+	}
+	name[name_size] = 0;
+
+	return name;
+}
+
+int dns_save_changes(void) {
+	printf("Saving to file %s not yet implemented!\n", dns_file_name);
+
+	FILE *file = fopen(dns_file_name, "w");
+	dataqueue_t * dns_db = &get_router()->dns_db;
+
+	if (file!=NULL)
+	{
+		int i;
+
+		for (i = 0; i < dns_db->size; i++) {
+			dns_db_entry_t * entry;
+			int entry_size;
+			if (queue_getidandlock(dns_db, i, (void **) &entry, &entry_size)) {
+
+				assert(entry_size == sizeof(dns_db_entry_t));
+
+				char * concated = concat_names(entry->names, entry->count);
+
+				fprintf(file, "%s %d %d %s\n", concated, entry->type, entry->class, quick_ip_to_string(entry->rdata));
+
+				queue_unlockid(dns_db, i);
+			}
+		}
+
+		return fclose(file) == 0;
+	}
+
+	return 0;
 }
 

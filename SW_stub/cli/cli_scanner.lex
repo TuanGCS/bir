@@ -83,6 +83,7 @@ STRING            ({BEG_STRING}\")
 "topology"   { return T_TOPOLOGY;  }
 
  /* IP related values */
+"dns"        { return T_DNS;       }
 "ip"         { return T_IP;        }
 "rt"         { return T_ROUTE;     }
 "route"      { return T_ROUTE;     }
