@@ -67,6 +67,7 @@ void update_hardwarearponeentry(router_t * router, int id, addr_ip_t ip,
 }
 
 void update_hardwarearp(router_t * router, dataqueue_t * table) {
+
 	int i;
 
 	for (i = 0; i < router->num_interfaces; i++)
@@ -131,10 +132,10 @@ static pthread_mutex_t djkstra_locker = PTHREAD_MUTEX_INITIALIZER;
 
 void djikstra_recompute(router_t * router) {
 
-	pthread_mutex_lock( &djkstra_locker );
-	djikstra_lock_router( router );
+	pthread_mutex_lock(&djkstra_locker);
+	djikstra_lock_router(router);
 
-	debug_println("--- Djikstra running! ---");
+	debug_println("--- Dijkstra running! ---");
 
 	dataqueue_t topology_t;
 	queue_init(&topology_t);
@@ -159,6 +160,10 @@ void djikstra_recompute(router_t * router) {
 				& router->interface[i].ip;
 		subnet.netmask = router->interface[i].subnet_mask;
 
+		if (queue_existsunsafe(subnets, &subnet) == -1) {
+			queue_add(subnets, &subnet, sizeof(d_link_t));
+		}
+
 		pwospf_lsa_dj_t lsa_entry_t;
 		lsa_entry_t.lsa.netmask = router->interface[i].subnet_mask;
 		lsa_entry_t.lsa.subnet = router->interface[i].subnet_mask
@@ -168,10 +173,6 @@ void djikstra_recompute(router_t * router) {
 
 		if (queue_existsunsafe(topology, &lsa_entry_t) == -1) {
 			queue_add(topology, &lsa_entry_t, sizeof(pwospf_lsa_dj_t));
-		}
-
-		if (queue_existsunsafe(subnets, &subnet) == -1) {
-			queue_add(subnets, &subnet, sizeof(d_link_t));
 		}
 
 		dataqueue_t * neighbours = &router->interface[i].neighbours;
@@ -191,7 +192,7 @@ void djikstra_recompute(router_t * router) {
 					for (j = 0; j < entry->lsu_lastcontents_count; j++) {
 						pwospf_lsa_t * lsa_entry = &entry->lsu_lastcontents[j];
 						pwospf_lsa_dj_t lsa_entry_dj;
-						lsa_entry_dj.lsa = *lsa_entry; // ERROR
+						lsa_entry_dj.lsa = *lsa_entry; // TODO
 						lsa_entry_dj.router_ip = entry->neighbour_ip;
 						if (entry->immediate_neighbour == 1) {
 							routers[i] = entry->neighbour_ip;
@@ -236,6 +237,8 @@ void djikstra_recompute(router_t * router) {
 		int entry_size;
 		if (queue_getidunsafe(topology, k, (void **) &entry, &entry_size)) {
 
+			assert(entry_size == sizeof(pwospf_lsa_dj_t));
+
 			// Print all entries in the topology
 //			printf("Entry: ");
 //			printf("%s \t", quick_ip_to_string(entry->lsa.netmask));
@@ -251,6 +254,8 @@ void djikstra_recompute(router_t * router) {
 
 				if (queue_getidunsafe(topology, p, (void **) &entry_t,
 						&entry_size_t)) {
+
+					assert(entry_size_t == sizeof(pwospf_lsa_dj_t));
 
 					if (entry->lsa.router_id == entry_t->lsa.router_id
 							&& entry->lsa.subnet != entry_t->lsa.subnet) {
@@ -309,8 +314,8 @@ void djikstra_recompute(router_t * router) {
 
 		dist[id] = 0;
 
-		int k;
-		for (k = 0; k < subnets->size; k++) {
+		int w;
+		for (w = 0; w < subnets->size; w++) {
 
 			int u = minDistance(dist, sptSet, subnets->size);
 			sptSet[u] = TRUE;
@@ -326,22 +331,25 @@ void djikstra_recompute(router_t * router) {
 
 		}
 
-		for (k = 0; k < subnets->size; k++) {
+		for (w = 0; w < subnets->size; w++) {
 
-			if (dist[k] < final[k]) {
-				final[k] = dist[k];
-				intf[k] = i;
+			if (dist[w] < final[w]) {
+				final[w] = dist[w];
+				intf[w] = i;
 
 				d_link_t * subnet;
 				int entry_size;
-				if (queue_getidunsafe(subnets, k, (void **) &subnet,
+				if (queue_getidunsafe(subnets, w, (void **) &subnet,
 						&entry_size) != -1) {
+
+					assert(entry_size == sizeof(d_link_t));
+
 					if (subnet->subnet
 							== (router->interface[i].subnet_mask
 									& router->interface[i].ip)) {
-						rips[k] = 0;
+						rips[w] = 0;
 					} else {
-						rips[k] = routers[i];
+						rips[w] = routers[i];
 					}
 				}
 			}
@@ -349,7 +357,7 @@ void djikstra_recompute(router_t * router) {
 
 	}
 
-	int q;
+
 //	for (q = 0; q < subnets->size; q++) {
 //		d_link_t * subnet;
 //		int entry_size;
@@ -368,6 +376,7 @@ void djikstra_recompute(router_t * router) {
 	rtable_entry_t * entries;
 	int entries_size = 0;
 
+	int q;
 	for (q = 0; q < subnets->size; q++) {
 
 		if (intf[q] >= 0 && intf[q] < router->num_interfaces) {
@@ -377,9 +386,11 @@ void djikstra_recompute(router_t * router) {
 			if (queue_getidunsafe(subnets, q, (void **) &subnet, &entry_size)
 					!= -1) {
 
+				assert(entry_size == sizeof(d_link_t));
+
 				if ((router->interface[intf[q]].ip
 						& router->interface[intf[q]].subnet_mask)
-								!= subnet->subnet) {
+						!= subnet->subnet) {
 
 					if (entries_size == 0) {
 						entries_size = 1;
@@ -387,7 +398,7 @@ void djikstra_recompute(router_t * router) {
 								sizeof(rtable_entry_t));
 					} else {
 						entries_size++;
-						entries = (rtable_entry_t *) realloc(entries, //tuk!!!1TODO
+						entries = (rtable_entry_t *) realloc(entries,
 								sizeof(rtable_entry_t) * (entries_size));
 					}
 
@@ -463,7 +474,7 @@ void djikstra_recompute(router_t * router) {
 	update_hardwarearp(router, &router->ip_table);
 #endif
 
-	djikstra_unlock_router( router );
-	pthread_mutex_unlock( &djkstra_locker );
+	djikstra_unlock_router(router);
+	pthread_mutex_unlock(&djkstra_locker);
 }
 
