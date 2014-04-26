@@ -365,8 +365,8 @@ void populate_database(dataqueue_t * dns_db, char * filename) {
 
 	strncpy(dns_file_name, filename, MAX_DNS_FILENAME);
 
-	char arra[128][128];
-	char line[128];
+	char arra[256][256];
+	char line[256];
 	int size;
 	int counter = 0;
 
@@ -374,7 +374,7 @@ void populate_database(dataqueue_t * dns_db, char * filename) {
 	FILE *file = fopen(filename, "r");
 
 	if (file != NULL) {
-		while(fgets(line, sizeof line, file) != NULL) {
+		while(fgets(line, sizeof(line), file) != NULL) {
 			strcpy(arra[counter], line);
 			counter++;
 		}
@@ -393,7 +393,7 @@ void populate_database(dataqueue_t * dns_db, char * filename) {
 		// Domain name
 		int k = 0;
 		char * tmp = pch;
-		char domain[128];
+		char domain[256];
 		strcpy(domain, pch);
 
 		// Count '.'
@@ -402,16 +402,16 @@ void populate_database(dataqueue_t * dns_db, char * filename) {
 		    tmp++;
 		}
 
-		char ** answer = malloc(k+1 * sizeof(char *));
+		char ** answer = malloc((k+1) * sizeof(char *));
 
 		char * dch;
 		char *saveptr;
 		int c = 0;
 		dch = strtok_r(domain, ".", &saveptr);
 
-		while (dch != NULL && c < k+1) {
+		while (dch != NULL && c < (k+1)) {
 			size = strlen(dch);
-			answer[c] = malloc((size+1) * sizeof(char *));
+			answer[c] = malloc((size+1) * sizeof(char));
 			answer[c][size] = 0;
 			memcpy(answer[c], dch, size);
 			c++;
@@ -420,6 +420,7 @@ void populate_database(dataqueue_t * dns_db, char * filename) {
 
 		db_entry.names = answer;
 		db_entry.count = k+1;
+
 		pch = strtok(NULL, " ");
 
 		// Type
