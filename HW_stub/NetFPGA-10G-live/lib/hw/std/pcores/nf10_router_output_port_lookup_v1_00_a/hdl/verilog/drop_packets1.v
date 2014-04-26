@@ -51,6 +51,7 @@ module drop_packets1
     output reg [31:0] debug_checksum_expected, 
     output reg [31:0] debug_checksum_actual, 
     output reg [31:0] dropped_count,
+    output reg [31:0] debug1, debug2, debug3, debug4, debug5,
     output reg [4:0] drop_array
 );
 
@@ -87,8 +88,8 @@ module drop_packets1
   reg drop,drop_next;
   reg [4:0] drop_array_next;
   reg [31:0] destip_next,dropped_count_next, wrong_mac_count_next,debugE,debugA;
-
-
+  reg [31:0] debug_1, debug_2, debug_3, debug_4, debug_5;
+  reg checksum_override;
 
   // assign M_AXIS_TVALID = drop_next ? 0 : M_AXIS_TVALID0;
 
@@ -103,6 +104,11 @@ module drop_packets1
      drop_array_next = drop_array;
      debugE = debug_checksum_expected;
      debugA = debug_checksum_actual;
+     debug_1 = debug1;
+     debug_2 = debug2;
+     debug_3 = debug3;
+     debug_4 = debug4;
+     debug_5 = debug5;
      if(header == 0 & M_AXIS_TVALID &  !M_AXIS_TLAST & M_AXIS_TREADY ) begin
 	header_next = 1; 
 	drop_array_next = 5'd0;
@@ -115,10 +121,22 @@ module drop_packets1
 	begin
 	  if(checksum != M_AXIS_TDATA[63:48]) 
 	  begin
-	    drop_array_next[0] = 1;
-	    dropped_count_next = dropped_count_next + 1;
+	    
+	    if(checksum_override) begin
+		drop_array_next[0] = 0;
+	    end 
+	    else begin 
+		drop_array_next[0] = 1;
+	        dropped_count_next = dropped_count_next + 1;
+	    end
 	    debugA = {16'd0,checksum};
 	    debugE = {16'd0,M_AXIS_TDATA[63:48]};
+	    debug_1 = M_AXIS_TDATA[143:112];
+	    debug_2 = M_AXIS_TDATA[111:80];
+	    debug_3 = M_AXIS_TDATA[79:48];
+	    debug_4 = M_AXIS_TDATA[47:16];
+	    debug_5 = {M_AXIS_TDATA[15:0],low_ip_addr};
+
 	  end
 	end
 
@@ -156,6 +174,31 @@ module drop_packets1
 	header_next = 0;
 //	drop_next = 0;
      end
+  end
+
+  always@(posedge AXI_ACLK)
+  begin
+	if(~AXI_RESETN) begin
+	  checksum_override <= 1'd1;
+	  debug1 <= 32'd0;
+	  debug2 <= 32'd0;
+	  debug3 <= 32'd0;
+	  debug4 <= 32'd0;
+	  debug5 <= 32'd0;
+	end
+	else  
+	begin
+	  if( reset == 32'd2) begin
+	    checksum_override <= 1'd0;
+	  end else if( reset == 32'd4) begin
+	    checksum_override <= 1'd1;
+	  end
+	  debug1 <= debug_1;
+	  debug2 <= debug_2;
+	  debug3 <= debug_3;
+	  debug4 <= debug_4;
+	  debug5 <= debug_5;
+	end
   end
 
 
