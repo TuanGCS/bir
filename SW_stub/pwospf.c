@@ -626,16 +626,38 @@ void send_pwospf_lsa_packet(router_t* router) {
 	for (i = 0; i < router->num_interfaces; i++) {
 		pi->interface = &router->interface[i];
 
-		generate_ipv4_header(router->interface[i].ip,
-				lsa_packet_length, ipv4, IP_TYPE_OSPF, ALLSPFRouters);
-		generate_pwospf_link_header(router->pw_router.router_id, aid,
-				router->interface[i].subnet_mask, topologysize, pw_link,
-				lsa_packet_length);
+		dataqueue_t * neighbours = &router->interface[i].neighbours;
 
-		if (ethernet_packet_send(get_sr(), &router->interface[i], broadcast,
-				router->interface[i].mac, htons(ETH_IP_TYPE), pi) == -1)
-			fprintf(stderr, "Cannot send PWOSPF LUS packet on interface %s\n",
-					router->interface[i].name);
+		int n;
+		for (n = 0; n < neighbours->size; n++) {
+			pwospf_list_entry_t * entry;
+			int entry_size;
+
+			if (queue_getidunsafe(neighbours, n, (void **) &entry,
+					&entry_size)) {
+
+				assert(entry_size == sizeof(pwospf_list_entry_t));
+
+				if (entry->immediate_neighbour == 1) {
+
+					generate_ipv4_header(router->interface[i].ip,
+							lsa_packet_length, ipv4, IP_TYPE_OSPF, entry->neighbour_ip);
+					generate_pwospf_link_header(router->pw_router.router_id,
+							aid, router->interface[i].subnet_mask, topologysize,
+							pw_link, lsa_packet_length);
+
+					if (ethernet_packet_send(get_sr(), &router->interface[i],
+							broadcast, router->interface[i].mac,
+							htons(ETH_IP_TYPE), pi) == -1)
+						fprintf(stderr,
+								"Cannot send PWOSPF LUS packet on interface %s\n",
+								router->interface[i].name);
+
+				}
+
+			}
+		}
+
 	}
 
 	free(pi->packet);
@@ -673,7 +695,8 @@ void send_pwospf_hello_packet(router_t* router) {
 		pi->interface = &router->interface[i];
 
 		generate_ipv4_header(router->interface[i].ip,
-				sizeof(pwospf_packet_hello_t), ipv4, IP_TYPE_OSPF, ALLSPFRouters);
+				sizeof(pwospf_packet_hello_t), ipv4, IP_TYPE_OSPF,
+				ALLSPFRouters);
 		generate_pwospf_hello_header(router->pw_router.router_id, aid,
 				router->interface[i].subnet_mask, pw_hello);
 
@@ -690,7 +713,8 @@ void send_pwospf_hello_packet(router_t* router) {
 
 }
 
-void removeallneighbourswithrouterid(router_t * router, pwospf_list_entry_t * toremove) {
+void removeallneighbourswithrouterid(router_t * router,
+		pwospf_list_entry_t * toremove) {
 	int j, i;
 	for (j = 0; j < router->num_interfaces; j++) {
 
@@ -744,7 +768,8 @@ void pwospf_thread(void *arg) {
 
 					assert(entry_size == sizeof(pwospf_list_entry_t));
 
-					if ((entry->immediate_neighbour && difftime(now.tv_sec, entry->timestamp.tv_sec)
+					if ((entry->immediate_neighbour
+							&& difftime(now.tv_sec, entry->timestamp.tv_sec)
 									> 3 * entry->helloint)
 							|| (entry->lsu_lastcontents != NULL
 									&& difftime(now.tv_sec,

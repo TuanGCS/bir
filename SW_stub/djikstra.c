@@ -128,6 +128,7 @@ void djikstra_unlock_router(router_t * router) {
 }
 
 static pthread_mutex_t djkstra_locker = PTHREAD_MUTEX_INITIALIZER;
+
 void djikstra_recompute(router_t * router) {
 
 	pthread_mutex_lock( &djkstra_locker );
@@ -190,13 +191,13 @@ void djikstra_recompute(router_t * router) {
 					for (j = 0; j < entry->lsu_lastcontents_count; j++) {
 						pwospf_lsa_t * lsa_entry = &entry->lsu_lastcontents[j];
 						pwospf_lsa_dj_t lsa_entry_dj;
-						lsa_entry_dj.lsa = *lsa_entry;
+						lsa_entry_dj.lsa = *lsa_entry; // ERROR
 						lsa_entry_dj.router_ip = entry->neighbour_ip;
 						if (entry->immediate_neighbour == 1) {
 							routers[i] = entry->neighbour_ip;
 						}
 						if (queue_existsunsafe(topology, &lsa_entry_dj) == -1) {
-							queue_add(topology, &lsa_entry_dj,
+							queue_add(topology, &lsa_entry_dj, // ERROR
 									sizeof(pwospf_lsa_dj_t)); //TODO
 						}
 
@@ -447,17 +448,12 @@ void djikstra_recompute(router_t * router) {
 			queue_add_unsafe(rtable, &entries[q], sizeof(rtable_entry_t)); //todo
 		}
 	}
-//		ip_putintable(rtable, entries[q].subnet, entries[q].interface,
-//				entries[q].netmask, entries[q].dynamic, entries[q].metric,
-//				entries[q].router_ip);
 
 	queue_unlockall(rtable);
 	// UNLOCK
 
 	free(entries);
 
-	//queue_free(&router->ip_table); // REMOVE
-	//router->ip_table = rtable; // REMOVE
 	ip_print_table(&router->ip_table);
 
 	queue_free(topology);
