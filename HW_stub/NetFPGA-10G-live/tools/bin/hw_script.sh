@@ -5,6 +5,7 @@
 #/root/netfpga/bir/HW_stub/NetFPGA-10G-live/projects/bir_stater_final_smartX/hw/smartX/best_run/system.bit  #../../projects/bir_starter/bitfiles/download.bit 
 #cd ../bin/
 
+rm -f hw_results/*
 
 while read line  
 do 

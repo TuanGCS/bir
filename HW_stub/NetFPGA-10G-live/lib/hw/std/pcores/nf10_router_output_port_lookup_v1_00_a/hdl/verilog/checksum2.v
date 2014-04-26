@@ -85,6 +85,7 @@ module checksum2
   reg header , header_next, header2, header2_next;
   reg [31:0] cpu_count_next;
   reg [31:0] cs1,cs2;
+  reg [15:0] low_ip_addr_next;
 
   always@* //(posedge AXI_ACLK)
   begin
@@ -126,20 +127,38 @@ module checksum2
   always@*
   begin
     header2_next = header2;
+    // low_ip_addr_next = low_ip_addr;
+    if(header == 1 & header2 == 0 & M_AXIS_TVALID & M_AXIS_TREADY) 
+    begin
+	low_ip_addr = M_AXIS_TDATA[255:240];
+	header2_next = 1;
+    end 
+    else if(header == 0)
+    begin
+	header2_next = 0;
+    end
+  end
+
+/*
+  always@*
+  begin
+    header2_next = header2;
     if(~AXI_RESETN)
     begin
 	low_ip_addr = 16'd0;
+	header2_next = 0;
     end
     else if(header == 1 & header2 == 0 & M_AXIS_TVALID & M_AXIS_TREADY) 
     begin
 	header2_next = 1;
-      low_ip_addr = M_AXIS_TDATA[255:240];
+	low_ip_addr = M_AXIS_TDATA[255:240];
     end
     else if(header == 0 & header2 == 1)
     begin
 	header2_next = 0;
     end
   end
+*/
 
 
   always@(posedge AXI_ACLK)
@@ -147,6 +166,7 @@ module checksum2
      if(~AXI_RESETN) begin
 	header <= 0;
 	header2 <= 0;
+//	low_ip_addr <= 16'd0;
 	checksum11 <= 0;
 	checksum12 <= 0;
      end
@@ -154,6 +174,7 @@ module checksum2
      begin
 	header <= header_next;
 	header2 <= header2_next;
+//	low_ip_addr <= low_ip_addr_next;
 	checksum11 <= cs1;
 	checksum12 <= cs2;
      end

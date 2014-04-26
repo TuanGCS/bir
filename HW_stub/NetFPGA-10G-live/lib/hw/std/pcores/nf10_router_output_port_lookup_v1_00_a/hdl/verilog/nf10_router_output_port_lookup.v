@@ -126,7 +126,7 @@ module nf10_router_output_port_lookup
    localparam IN_PACKET     = 1;
    localparam NUM_WO_REGS	= 1;
    localparam NUM_RW_REGS       = 8;
-   localparam NUM_RO_REGS       = 12;
+   localparam NUM_RO_REGS       = 17;
 
 
    //------------- Wires ------------------
@@ -404,8 +404,9 @@ module nf10_router_output_port_lookup
   wire [C_S_AXI_DATA_WIDTH-1:0] cpu_count;
   wire [C_S_AXI_DATA_WIDTH-1:0] debugA;
   wire [C_S_AXI_DATA_WIDTH-1:0] debugE;
+  wire [31:0] debug1, debug2, debug3, debug4, debug5;
 
-   assign ro_regs = {debugA,debugE,cpu_count, ver_count, bad_ttl_count, dest_hit_count, forwarded_count, dropped_count, non_ip_count, arp_miss_count, lpm_miss_count, wrong_mac_count};
+   assign ro_regs = {debug5,debug4,debug3,debug2,debug1,debugA,debugE,cpu_count, ver_count, bad_ttl_count, dest_hit_count, forwarded_count, dropped_count, non_ip_count, arp_miss_count, lpm_miss_count, wrong_mac_count};
    //assign {mac3_high, mac3_low, mac2_high, mac2_low, mac1_high, mac1_low, mac0_high, mac0_low} = rw_regs;
    assign mac0_low = rw_regs[C_S_AXI_DATA_WIDTH-1:0];
    assign mac0_high = rw_regs[(2*C_S_AXI_DATA_WIDTH)-1:C_S_AXI_DATA_WIDTH];
@@ -528,6 +529,13 @@ module nf10_router_output_port_lookup
     wire 				M_AXIS_TVALID_14;
     wire  				M_AXIS_TREADY_14;
 
+    wire [C_M_AXIS_DATA_WIDTH-1:0] 	M_AXIS_TDATA_15;
+    wire [((C_M_AXIS_DATA_WIDTH/8))-1:0]M_AXIS_TSTRB_15;
+    wire [C_M_AXIS_TUSER_WIDTH-1:0]	M_AXIS_TUSER_15;
+    wire 				M_AXIS_TLAST_15;
+    wire 				M_AXIS_TVALID_15;
+    wire  				M_AXIS_TREADY_15;
+
    fallthrough_small_fifo
         #( .WIDTH(C_M_AXIS_DATA_WIDTH+C_M_AXIS_TUSER_WIDTH+C_M_AXIS_DATA_WIDTH/8+1),
            .MAX_DEPTH_BITS(2))
@@ -566,7 +574,9 @@ module nf10_router_output_port_lookup
    wire [31:0] partial_checksum1;
    wire [31:0] partial_checksum2;
 
-   wire [31:0] checksum01,checksum02,checksum03,checksum04,checksum11,checksum12,
+   wire [31:0] checksum01,checksum02,checksum03,checksum04,
+	       checksum11,checksum12,
+	       checksum21,checksum22,
 	       checksum31_final;
 
   checksum1 
@@ -635,6 +645,36 @@ module nf10_router_output_port_lookup
 	.low_ip_addr(low_ip_addr1)
    );
   
+  checksum2a
+    #(
+      .C_S_AXI_DATA_WIDTH ( 32 ),
+      .C_S_AXI_ADDR_WIDTH ( 32 ),
+      .C_S_AXI_ACLK_FREQ_HZ ( 160000000 ),
+      .C_M_AXIS_DATA_WIDTH ( 256 ),
+      .C_S_AXIS_DATA_WIDTH ( 256 ),
+      .C_M_AXIS_TUSER_WIDTH ( 128 ),
+      .C_S_AXIS_TUSER_WIDTH ( 128 )
+    )
+    checksum2a (
+      .AXI_ACLK ( AXI_ACLK ),
+      .AXI_RESETN ( AXI_RESETN ),
+      .M_AXIS_TDATA ( M_AXIS_TDATA_15 ),
+      .M_AXIS_TSTRB ( M_AXIS_TSTRB_15 ),
+      .M_AXIS_TUSER ( M_AXIS_TUSER_15 ),
+      .M_AXIS_TVALID ( M_AXIS_TVALID_15 ),
+      .M_AXIS_TREADY ( M_AXIS_TREADY_15 ),
+      .M_AXIS_TLAST ( M_AXIS_TLAST_15 ),
+      .S_AXIS_TDATA ( M_AXIS_TDATA_10 ),
+      .S_AXIS_TSTRB ( M_AXIS_TSTRB_10 ),
+      .S_AXIS_TUSER ( M_AXIS_TUSER_10 ),
+      .S_AXIS_TVALID ( M_AXIS_TVALID_10 ),
+      .S_AXIS_TREADY ( M_AXIS_TREADY_10 ),
+      .S_AXIS_TLAST ( M_AXIS_TLAST_10 ),
+	.checksum11(checksum11),
+	.checksum12(checksum12),
+	.checksum21(checksum21),
+	.checksum22(checksum22)
+   );
   checksum3 
     #(
       .C_S_AXI_DATA_WIDTH ( 32 ),
@@ -654,14 +694,14 @@ module nf10_router_output_port_lookup
       .M_AXIS_TVALID ( M_AXIS_TVALID_11 ),
       .M_AXIS_TREADY ( M_AXIS_TREADY_11 ),
       .M_AXIS_TLAST ( M_AXIS_TLAST_11 ),
-      .S_AXIS_TDATA ( M_AXIS_TDATA_10 ),
-      .S_AXIS_TSTRB ( M_AXIS_TSTRB_10 ),
-      .S_AXIS_TUSER ( M_AXIS_TUSER_10 ),
-      .S_AXIS_TVALID ( M_AXIS_TVALID_10 ),
-      .S_AXIS_TREADY ( M_AXIS_TREADY_10 ),
-      .S_AXIS_TLAST ( M_AXIS_TLAST_10 ),
-	.checksum11(checksum11),
-	.checksum12(checksum12),
+      .S_AXIS_TDATA ( M_AXIS_TDATA_15 ),
+      .S_AXIS_TSTRB ( M_AXIS_TSTRB_15 ),
+      .S_AXIS_TUSER ( M_AXIS_TUSER_15 ),
+      .S_AXIS_TVALID ( M_AXIS_TVALID_15 ),
+      .S_AXIS_TREADY ( M_AXIS_TREADY_15 ),
+      .S_AXIS_TLAST ( M_AXIS_TLAST_15 ),
+	.checksum11(checksum21),
+	.checksum12(checksum22),
 	.checksum_final(checksum31_final),
 	.low_ip_addr_in(low_ip_addr1),
 	.low_ip_addr_out(low_ip_addr2)
@@ -747,7 +787,12 @@ module nf10_router_output_port_lookup
 	.destip_addr(destip_addr1),
 	.drop_array(drop_array),
 	.debug_checksum_expected(debugE),
-	.debug_checksum_actual(debugA)
+	.debug_checksum_actual(debugA),
+	.debug1(debug1),
+	.debug2(debug2),
+	.debug3(debug3),
+	.debug4(debug4),
+	.debug5(debug5)
    );
 
 

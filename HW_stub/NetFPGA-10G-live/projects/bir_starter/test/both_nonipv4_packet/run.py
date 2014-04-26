@@ -83,8 +83,6 @@ nftest_barrier()
 if isHW():
     rres1=nftest_regread_expect(XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_PKT_SENT_CPU_OPTION_VER(), 60)	
     rres1=nftest_regread_expect(XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_PKT_DROPPED_CHECKSUM(), 0)
-    rres1=nftest_regread_expect(0x7680004c, 0)
-    rres1=nftest_regread_expect(0x76800050, 0)
     mres=[rres1]
 else:
     nftest_regread_expect(XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_PKT_SENT_CPU_OPTION_VER(), 30)	

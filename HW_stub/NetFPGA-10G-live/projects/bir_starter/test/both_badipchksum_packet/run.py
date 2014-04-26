@@ -19,6 +19,14 @@ if isHW():
 
     # asseting teh reset_counter to 0 for enable the counters to increment 
     nftest_regwrite(XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_RESET_CNTRS(), 0x0)
+    nftest_regwrite(XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_RESET_CNTRS(), 0x2)
+    nftest_regwrite(XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_RESET_CNTRS(), 0x0)
+
+if not isHW():
+    nftest_regwrite(XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_RESET_CNTRS(), 0x1)
+    nftest_regwrite(XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_RESET_CNTRS(), 0x0)
+    nftest_regwrite(XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_RESET_CNTRS(), 0x2)
+    nftest_regwrite(XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_RESET_CNTRS(), 0x0)
 
 routerMAC = ["00:ca:fe:00:00:01", "00:ca:fe:00:00:02", "00:ca:fe:00:00:03", "00:ca:fe:00:00:04"]
 routerIP = ["192.168.0.40", "192.168.1.40", "192.168.2.40", "192.168.3.40"]
@@ -68,6 +76,14 @@ if not isHW():
 
 if isHW(): 	
     rres1=nftest_regread_expect(XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_PKT_DROPPED_CHECKSUM(), 60)
+    #rres1=nftest_regread_expect(0x76800034, 60)
+    #rres1=nftest_regread_expect(0x7680004c, 0)
+    #rres1=nftest_regread_expect(0x76800050, 0)
+    #rres1=nftest_regread_expect(0x76800054, 0)
+    #rres1=nftest_regread_expect(0x76800058, 0)
+    #rres1=nftest_regread_expect(0x7680005c, 0)
+    #rres1=nftest_regread_expect(0x76800060, 0)
+    #rres1=nftest_regread_expect(0x76800064, 0)
     mres=[rres1]
 else:
     nftest_regread_expect(XPAR_NF10_ROUTER_OUTPUT_PORT_LOOKUP_0_PKT_DROPPED_CHECKSUM(), 30)
