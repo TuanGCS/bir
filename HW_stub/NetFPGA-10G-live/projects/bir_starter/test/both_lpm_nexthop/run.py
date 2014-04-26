@@ -36,7 +36,8 @@ for port in range(4):
 index = 0
 subnetIP = ["192.168.1.1", "192.168.1.0"]
 subnetMask = ["255.255.255.225", "255.255.255.0"]
-nextHopIP = ["192.168.3.12", "192.168.1.54"]
+nextHopIP = ["0.0.0.0", "192.168.1.54"]
+#nextHopIP = ["192.168.3.12", "192.168.1.54"]
 arpNextHopIP = ["192.168.1.54", "192.168.1.1"]
 outPort = [0x4, 0x1]
 nextHopMAC = "dd:55:dd:66:dd:77"
@@ -45,7 +46,8 @@ exp_pkts = []
 
 for i in range(2):
 	nftest_add_LPM_table_entry(i, subnetIP[i], subnetMask[i], nextHopIP[i], outPort[i])
-	nftest_add_ARP_table_entry(i, nextHopIP[i], nextHopMAC)
+ 	nftest_add_ARP_table_entry(i, arpNextHopIP[i], nextHopMAC)
+	#nftest_add_ARP_table_entry(i, nextHopIP[i], nextHopMAC)
 
 nftest_barrier()
 

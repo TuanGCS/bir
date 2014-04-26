@@ -36,6 +36,7 @@ module lpm1
     output 				S_AXIS_TREADY,
     input  				S_AXIS_TLAST,
     input [C_S_AXI_DATA_WIDTH-1:0]	ip_addr,
+    output reg [C_S_AXI_DATA_WIDTH-1:0]	ip_addr_out,
 //    input [C_S_AXI_DATA_WIDTH-1:0]	reset,
 //    output reg [C_S_AXI_DATA_WIDTH-1:0] lpm_miss_count,
     input tbl_rd_req,       // Request a read
@@ -155,7 +156,7 @@ lpm_result24, lpm_result25, lpm_result26, lpm_result27, lpm_result28, lpm_result
    reg [1:0] state;
    reg [31:0] ip_check,ip_temp,mask_temp,queue,lpm_miss_next;
 	reg [47:0] dest_mac;
-   reg [31:0] ip_mask, net_mask, next_hop, oq;
+   reg [31:0] ip_mask, net_mask, next_hop, oq, ip_addr_next;
 
    reg [1:0] header, header_next;
    reg [31:0] a , b,wire_queue,wire_nh,result;
@@ -177,13 +178,14 @@ M_AXIS_TVALID,header,M_AXIS_TUSER, M_AXIS_TLAST, index_hit,lpm_hit )
 //     M_AXIS_TUSER   = M_AXIS_TUSER0;
 	lpm_hit_next = lpm_hit;
 	index_next = index_hit;
+	ip_addr_next = ip_addr_out;
      if(header == 2'd0 & M_AXIS_TVALID & !M_AXIS_TLAST & M_AXIS_TREADY )
      begin
 	header_next = 2'd1; 
 	lpm_hit_next = 0;
+	ip_addr_next = ip_addr;
        if( !(M_AXIS_TUSER[DST_PORT_POS+1] || M_AXIS_TUSER[DST_PORT_POS+3] || M_AXIS_TUSER[DST_PORT_POS+5] || M_AXIS_TUSER[DST_PORT_POS+7]) )
        begin
-   
 	for(j=31;j>=0;j=j-1)
 	 begin
 	   if( (ip_addr & lpm_table[j][63:32]) == (lpm_table[j][31:0] & lpm_table[j][63:32] ) ) 
@@ -222,12 +224,14 @@ M_AXIS_TVALID,header,M_AXIS_TUSER, M_AXIS_TLAST, index_hit,lpm_hit )
    begin
    if(~AXI_RESETN)
    begin
+	ip_addr_out <= 32'd0;
 	header <= 2'd0;	
 	index_hit <= 5'd0;
 	lpm_hit <= 0;
    end
    else 
    begin
+	ip_addr_out <= ip_addr_next;
 	index_hit <= index_next;
 	header <= header_next;
    	lpm_hit <= lpm_hit_next;

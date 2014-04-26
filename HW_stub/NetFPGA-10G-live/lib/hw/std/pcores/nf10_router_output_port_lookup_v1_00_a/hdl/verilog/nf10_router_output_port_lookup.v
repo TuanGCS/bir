@@ -901,7 +901,7 @@ module nf10_router_output_port_lookup
 	.cpu_hit_array(cpu_hit_array)
    );
    wire arp_lookup_out;
-   wire [31:0] nh_reg_in, oq_reg_in;
+   wire [31:0] nh_reg_in, oq_reg_in,lpm1_ip_addr_out;
    wire [31:0] nh_reg_out, oq_reg_out;
    wire lpm_hit1;
    wire [4:0] index_hit1;  
@@ -937,6 +937,7 @@ lpm_result24, lpm_result25, lpm_result26, lpm_result27, lpm_result28, lpm_result
       .S_AXIS_TREADY ( M_AXIS_TREADY_3 ),
       .S_AXIS_TLAST ( M_AXIS_TLAST_3 ), 
       .ip_addr(ip_addr),
+      .ip_addr_out(lpm1_ip_addr_out),
 //       .nh_reg(nh_reg_in),
 //	.oq_reg(oq_reg_in),
 	.lpm_hit(lpm_hit1),
@@ -1009,6 +1010,7 @@ lpm_result24, lpm_result25, lpm_result26, lpm_result27, lpm_result28, lpm_result
       .S_AXIS_TVALID ( M_AXIS_TVALID_13 ),
       .S_AXIS_TREADY ( M_AXIS_TREADY_13 ),
       .S_AXIS_TLAST ( M_AXIS_TLAST_13 ), 
+	.ip_addr_in(lpm1_ip_addr_out),
 	.lpm_hit_in(lpm_hit1),
 	.index_hit_in(index_hit1),
        .nh_reg(nh_reg_in),

@@ -40,6 +40,7 @@ module lpm2
 //    output reg [C_S_AXI_DATA_WIDTH-1:0] lpm_miss_count,
     output reg lpm_hit,
 //    output reg arp_lookup,
+    input [31:0] ip_addr_in,
     output reg [31:0] nh_reg,
     output reg [31:0] oq_reg,
     input lpm_hit_in,
@@ -150,7 +151,11 @@ M_AXIS_TVALID, header, M_AXIS_TUSER, M_AXIS_TLAST, lpm_hit, lpm_hit_in, nh_reg, 
 	  if(lpm_hit_in)
 	  begin 
 	     oq_next = lpm_result[index_hit_in][63:32];
-	     nh_next = lpm_result[index_hit_in][31:0];
+	     if(lpm_result[index_hit_in][31:0] != 32'd0) begin
+	        nh_next = lpm_result[index_hit_in][31:0];
+	     end else begin 
+		nh_next = ip_addr_in;
+	     end
 	  end
 	end
       end
