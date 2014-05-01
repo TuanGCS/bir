@@ -1,6 +1,5 @@
 both_arp_misses
 both_badipchksum_packet
-both_cpu_packet
 both_invalidttl_packet
 both_ipdestfilter_hit
 both_lpm_generic

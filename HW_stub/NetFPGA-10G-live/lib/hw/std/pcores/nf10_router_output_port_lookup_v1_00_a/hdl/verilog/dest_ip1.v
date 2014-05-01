@@ -158,7 +158,7 @@ destip_addr,cpu_hit_array,header,ver_count,bad_ttl_count,non_ip_count,dest_hit_c
 	end
 	else
 	begin //{
- 	  if(M_AXIS_TDATA[79:72] < 1) // Check TTL
+ 	  if(M_AXIS_TDATA[79:72] <= 8'd1) // Check TTL
 	  begin
 	    cpu_hit_array_next[0] = 1;
 	    bad_ttl_next = bad_ttl_next + 1;

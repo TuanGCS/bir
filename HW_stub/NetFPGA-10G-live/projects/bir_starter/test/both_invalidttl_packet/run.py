@@ -33,7 +33,7 @@ for port in range(4):
     nftest_set_router_MAC ('nf%d'%port, routerMAC[port])
 
 SA = "aa:bb:cc:dd:ee:ff"
-TTL = 0
+TTL = 1
 DST_IP = "192.168.2.1";   #not in the lpm table
 SRC_IP = "192.168.0.1"
 VERSION = 0x4
